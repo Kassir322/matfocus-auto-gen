@@ -1,0 +1,150 @@
+﻿Карточка 1 - Промпт 1: A romantic couple holding hands silhouetted against a golden sunset, warm orange and pink sky, peaceful and loving atmosphere, soft lighting, photorealistic style
+Карточка 1 - Промпт 2: Two people's hands intertwined on a wooden table, soft natural lighting, cozy cafe background, intimate moment, warm color palette, cinematic photography
+Карточка 1 - Промпт 3: Couple walking together at sunset, their shadows long on the ground, romantic silhouette, dreamy golden hour lighting, minimalist composition
+Карточка 2 - Промпт 1: Silhouette of a person standing on a mountain peak looking at the horizon, arms raised in victory, dramatic sky, inspiring landscape, cinematic lighting
+Карточка 2 - Промпт 2: Person climbing stairs towards a bright light at the top, metaphorical journey, motivational poster style, dynamic composition, blue and gold tones
+Карточка 2 - Промпт 3: Businessman looking through binoculars from office window at city skyline, ambition and vision concept, professional photography, urban setting
+Карточка 3 - Промпт 1: Person laughing joyfully covering mouth with hand, genuine happiness, bright natural lighting, candid portrait photography, warm colors
+Карточка 3 - Промпт 2: Group of friends laughing together at a table, social gathering, cheerful atmosphere, natural expressions, lifestyle photography
+Карточка 3 - Промпт 3: Happy person looking at smartphone screen with big smile, modern communication, bright colorful background, contemporary lifestyle photo
+Карточка 4 - Промпт 1: World map with small icons showing city, sea and mountains, travel concept, vintage style, warm earth tones, illustrated design
+Карточка 4 - Промпт 2: Tropical beach with palm trees and crystal clear water, paradise destination, turquoise and white colors, travel photography
+Карточка 4 - Промпт 3: Busy city street with skyscrapers, urban energy, neon lights, dynamic metropolitan atmosphere, night photography
+Карточка 5 - Промпт 1: Person standing at a crossroads choosing direction, decision concept, fork in the road, dramatic lighting, cinematic style
+Карточка 5 - Промпт 2: Businessman making important choice, pointing finger at options, professional setting, confident posture, business photography
+Карточка 5 - Промпт 3: Person at life junction with arrows pointing different ways, metaphorical choice, minimalist design, blue and orange colors
+Карточка 6 - Промпт 1: Couple looking at each other with genuine smiles, close-up portrait, love and connection, warm natural lighting, romantic photography
+Карточка 6 - Промпт 2: Two people gazing into each other's eyes, intimate moment, soft focus background, emotional connection, tender atmosphere
+Карточка 6 - Промпт 3: Happy couple laughing together, candid moment, natural expressions, lifestyle photography, bright and cheerful
+Карточка 7 - Промпт 1: Couple holding hands walking across a bridge, metaphor for journey together, scenic background, romantic setting, cinematic lighting
+Карточка 7 - Промпт 2: Two people supporting each other climbing mountain, teamwork concept, adventure photography, dramatic landscape
+Карточка 7 - Промпт 3: Partners working together on puzzle, cooperation metaphor, warm indoor lighting, cozy domestic scene
+Карточка 8 - Промпт 1: Stack of books with glowing light emanating from open book, knowledge and wisdom concept, magical atmosphere, warm golden light
+Карточка 8 - Промпт 2: Person reading book in comfortable armchair by window, cozy reading nook, natural lighting, peaceful atmosphere, lifestyle photography
+Карточка 8 - Промпт 3: Library with floating books and sparkles, magical knowledge concept, fantasy art style, ethereal lighting effects
+Карточка 9 - Промпт 1: Coffee cup with heart-shaped foam art, morning coffee love, warm lighting, cozy cafe atmosphere, close-up photography
+Карточка 9 - Промпт 2: Person giving flowers to partner, romantic gesture, soft natural lighting, tender moment, lifestyle photography
+Карточка 9 - Промпт 3: Couple embracing in kitchen, domestic happiness, warm home lighting, intimate moment, candid photography
+Карточка 10 - Промпт 1: Person walking on bright path towards glowing horizon, hope and dreams concept, inspirational landscape, cinematic lighting
+Карточка 10 - Промпт 2: Shooting star over night sky, dreams and wishes, magical atmosphere, dark blue and gold colors, fantasy style
+Карточка 10 - Промпт 3: Person looking at vision board with goals and dreams, motivation concept, bright indoor lighting, inspirational setting
+Карточка 11 - Промпт 1: Silhouette of person carrying heavy burden on shoulders, stress metaphor, dramatic lighting, emotional concept art
+Карточка 11 - Промпт 2: Person sitting alone at desk late at night, work stress, dim lighting, urban office setting, moody photography
+Карточка 11 - Промпт 3: Figure with shadow of worries behind them, mental burden visualization, symbolic art, dark and light contrast
+Карточка 12 - Промпт 1: Balance scales with money on one side and dreams on other, financial priorities, symbolic composition, professional lighting
+Карточка 12 - Промпт 2: Person looking at house and airplane, representing stability vs freedom, choice concept, clean composition, bright colors
+Карточка 12 - Промпт 3: Coins and bills arranged artistically, money and wealth concept, macro photography, golden lighting, luxury feel
+Карточка 13 - Промпт 1: One person passing glowing orb of knowledge to another, teaching and learning, magical transfer, warm light effects
+Карточка 13 - Промпт 2: Student and teacher working together at desk, learning environment, natural lighting, educational setting, candid photography
+Карточка 13 - Промпт 3: Hands reaching toward each other with book between them, knowledge sharing, symbolic composition, soft lighting
+Карточка 14 - Промпт 1: Three colorful sticky notes with positive adjectives, personality traits, bright colors, clean composition, motivational design
+Карточка 14 - Промпт 2: Person looking in mirror with confident expression, self-reflection, natural lighting, positive self-image, portrait photography
+Карточка 14 - Промпт 3: Word cloud with personality traits floating around person, self-description concept, modern graphic design, vibrant colors
+Карточка 15 - Промпт 1: Couple sitting on couch with travel map and board game, home activities, cozy atmosphere, warm lighting, lifestyle photo
+Карточка 15 - Промпт 2: Two people hiking together in mountains, outdoor adventure, scenic landscape, active lifestyle, nature photography
+Карточка 15 - Промпт 3: Partners cooking together in kitchen, domestic harmony, warm home lighting, intimate moment, candid photography
+Карточка 16 - Промпт 1: Silhouette of mother and child against sunset, family bond, emotional connection, warm golden light, touching moment
+Карточка 16 - Промпт 2: Family photo in vintage frame, memories and heritage, nostalgic atmosphere, soft sepia tones, sentimental mood
+Карточка 16 - Промпт 3: Mother hugging adult child, continuing bond, emotional moment, natural lighting, family photography
+Карточка 17 - Промпт 1: Person breaking chain with hands, freedom from habits, liberation concept, dramatic lighting, symbolic composition
+Карточка 17 - Промпт 2: Phone with timer and person stepping away, digital detox, modern lifestyle, clean composition, bright colors
+Карточka 17 - Промпт 3: Person throwing bad habit symbol into trash, letting go concept, motivational imagery, positive transformation theme
+Карточка 18 - Промпт 1: Couple drinking coffee by sunny window, perfect morning, warm natural light, cozy domestic scene, lifestyle photography
+Карточка 18 - Промпт 2: Person stretching and exercising at sunrise, healthy morning routine, outdoor fitness, golden hour lighting, energetic mood
+Карточка 18 - Промпт 3: Peaceful bedroom with morning sunlight streaming in, serene awakening, soft pastel colors, tranquil atmosphere
+Карточка 19 - Промпт 1: Person silhouette divided into three sections showing heart, brain and body, holistic appreciation, symbolic art, balanced composition
+Карточка 19 - Промпт 2: Couple in tender embrace highlighting emotional connection, love and intimacy, soft romantic lighting, close-up photography
+Карточка 19 - Промпт 3: Portrait emphasizing intelligence and wisdom in eyes, intellectual beauty, natural lighting, thoughtful expression
+Карточка 20 - Промпт 1: Balance scales with book on one side and smiley face on other, wisdom vs joy choice, symbolic composition, bright colors
+Карточка 20 - Промпт 2: Person laughing while reading, combining joy and intelligence, natural expression, warm lighting, lifestyle photography
+Карточка 20 - Промпт 3: Split scene showing studious person and party scene, life balance concept, contrasting atmospheres, creative composition
+Карточка 21 - Промпт 1: Person standing proudly on mountain top with arms raised, achievement and success, victory pose, dramatic sky, inspirational landscape
+Карточка 21 - Промпт 2: Graduate throwing cap in air, academic achievement, celebration moment, bright blue sky, joyful atmosphere
+Карточка 21 - Промпт 3: Trophy or medal gleaming in sunlight, recognition and pride, golden colors, professional photography, success symbol
+Карточка 22 - Промпт 1: Silhouettes of guitar, piano and drums, musical choices, artistic composition, music theme, creative lighting effects
+Карточка 22 - Промпт 2: Person playing acoustic guitar by campfire, musical expression, cozy evening atmosphere, warm orange light, romantic scene
+Карточка 22 - Промпт 3: Piano keys with sheet music, classical elegance, artistic photography, black and white with gold accents, sophisticated mood
+Карточка 23 - Промпт 1: Two people looking in mirror with matching reflections, similarity concept, symbolic representation, creative photography, unity theme
+Карточка 23 - Промпт 2: Couple sharing same book or activity, common interests, cozy setting, natural lighting, intimate connection
+Карточка 23 - Промпт 3: Two puzzle pieces fitting together perfectly, compatibility metaphor, colorful design, symbolic illustration, harmony concept
+Карточка 24 - Промпт 1: Person comforting another with gentle hug, emotional support, soft lighting, caring gesture, tender moment photography
+Карточка 24 - Промпт 2: Sad person with storm cloud above clearing to sunshine, emotional healing, weather metaphor, hopeful transformation
+Карточка 24 - Промпт 3: Two people sitting together on bench, silent companionship, peaceful setting, supportive presence, lifestyle photography
+Карточка 25 - Промпт 1: Film strip showing comedy, drama and adventure scenes, life genre concept, creative collage, movie theme, cinematic style
+Карточка 25 - Промпт 2: Person laughing at comedy show, joy and humor, bright stage lights, entertainment atmosphere, candid reaction
+Карточка 25 - Промпт 3: Dramatic silhouette against stormy sky, life as drama, intense lighting, emotional atmosphere, artistic composition
+Карточка 26 - Промпт 1: Person looking in mirror seeing confident reflection, self-improvement, personal growth, motivational imagery, positive transformation
+Карточка 26 - Промпт 2: Public speaker addressing audience, overcoming fear, professional setting, stage lighting, confidence building
+Карточка 26 - Промпт 3: Person climbing stairs toward success, career advancement, business metaphor, upward mobility, professional photography
+Карточка 27 - Промпт 1: Couple surrounded by colorful memory bubbles and sparkles, happy moments, magical atmosphere, joyful celebration, fantasy style
+Карточка 27 - Промпт 2: Photo album with pictures of happy couple, cherished memories, nostalgic mood, warm lighting, sentimental photography
+Карточка 27 - Промпт 3: Couple dancing in living room, spontaneous joy, domestic happiness, natural lighting, candid moment
+Карточка 28 - Промпт 1: Word "Love" written in sand with heart shape, romantic beach scene, ocean waves, sunset colors, romantic photography
+Карточка 28 - Промпт 2: Two hands forming heart shape, love symbol, close-up photography, warm skin tones, intimate gesture
+Карточка 28 - Промпт 3: Couple silhouette in heart-shaped frame, love definition, romantic composition, soft pink and gold colors, dreamy atmosphere
+Карточка 29 - Промпт 1: Two silhouettes with bridge of words between them, communication solution, conflict resolution, symbolic art, peaceful colors
+Карточка 29 - Промпт 2: Family sitting around dinner table talking, healthy communication, warm home atmosphere, natural lighting, family photography
+Карточка 29 - Промпт 3: Arguing figures with storm clouds clearing to peaceful sky, conflict resolution, weather metaphor, hopeful transformation
+Карточка 30 - Промпт 1: Crossroads with one path dark and one bright, life-changing moment, dramatic lighting, decision point, symbolic landscape
+Карточка 30 - Промпт 2: Person walking from shadow into bright light, transformation journey, hope and change, cinematic lighting, inspiring moment
+Карточка 30 - Промпт 3: Before and after split image of person, life transformation, personal growth, contrasting atmospheres, positive change
+Карточка 31 - Промпт 1: Couple on couch with travel photos and cozy blanket, shared activities, domestic bliss, warm lighting, lifestyle photography
+Карточка 31 - Промпт 2: Two people hiking scenic trail together, adventure partnership, nature photography, beautiful landscape, active lifestyle
+Карточка 31 - Промпт 3: Partners cooking meal together, teamwork and fun, kitchen scene, natural lighting, domestic harmony
+Карточка 32 - Промпт 1: Child silhouette standing apart from group with backpack, childhood loneliness, emotional concept, soft melancholy lighting
+Карточка 32 - Промпт 2: Broken family photo being mended, healing from past, restoration metaphor, hopeful imagery, emotional recovery
+Карточка 32 - Промпт 3: Person looking at childhood photo with understanding, processing past, reflective mood, natural lighting, therapeutic atmosphere
+Карточка 33 - Промпт 1: Two people embracing at sunset, deep friendship, emotional bond, golden hour lighting, touching moment photography
+Карточка 33 - Промпт 2: Friends laughing together on park bench, lasting friendship, natural joy, outdoor setting, candid lifestyle photography
+Карточка 33 - Промпт 3: Handshake transforming into hug, friendship development, symbolic gesture, warm colors, emotional connection
+Карточка 34 - Промпт 1: Person holding photograph looking nostalgic, missing someone, bittersweet mood, soft lighting, emotional portrait
+Карточка 34 - Промпт 2: Empty chair with ghost-like figure sitting in it, remembrance concept, ethereal atmosphere, emotional tribute
+Карточка 34 - Промпт 3: Memory box with old photos and letters, cherished connections, nostalgic items, warm vintage lighting, sentimental mood
+Карточка 35 - Промпт 1: Hands raised toward sky with light beams, faith and hope, spiritual concept, uplifting atmosphere, divine lighting
+Карточка 35 - Промпт 2: Person standing strong against storm, belief in self, resilience concept, dramatic weather, powerful imagery
+Карточка 35 - Промпт 3: Couple supporting each other, belief in love, partnership strength, natural lighting, emotional support photography
+Карточка 36 - Промпт 1: Calm person next to agitated figure, maintaining peace, contrast in emotions, balanced composition, zen-like atmosphere
+Карточка 36 - Промпт 2: Person walking away from toxic situation, healthy boundaries, liberation concept, bright path ahead, positive choice
+Карточка 36 - Промпт 3: Zen garden with disturbed and peaceful sections, emotional balance, mindfulness concept, contrasting textures, serene mood
+Карточка 37 - Промпт 1: Person dancing joyfully with headphones, music therapy, pure happiness, dynamic movement, energetic atmosphere
+Карточка 37 - Промпт 2: Vintage radio with musical notes floating around, nostalgic music, retro style, warm golden lighting, magical sound visualization
+Карточка 37 - Промпт 3: Concert crowd with hands up, shared musical joy, live music energy, stage lights, collective happiness
+Карточка 38 - Промпт 1: Person stretching in bed looking at sunny window, peaceful awakening, morning routine, natural lighting, serene atmosphere
+Карточка 38 - Промпт 2: Coffee cup with steam and morning newspaper, daily ritual, cozy morning scene, warm colors, lifestyle photography
+Карточка 38 - Промпт 3: Alarm clock with person thinking, morning reflections, decision time, soft lighting, contemplative mood
+Карточка 39 - Промпт 1: Three icons showing heart, creative tools and friends, life pleasures, symbolic representation, colorful design, balanced composition
+Карточка 39 - Промпт 2: Person enjoying hobby activity, personal fulfillment, creative expression, natural lighting, passionate engagement
+Карточка 39 - Промпт 3: Friends gathering around table, social joy, warm atmosphere, natural expressions, lifestyle photography
+Карточка 40 - Промпт 1: Stop sign hand gesture with serious expression, setting boundaries, protective stance, clear message, dramatic lighting
+Карточка 40 - Промпт 2: Person shielding sensitive topic with arms, emotional protection, defensive posture, symbolic photography, protective gesture
+Карточka 40 - Промпт 3: Warning symbol over delicate subject, respect boundaries, minimalist design, clear visual communication, protective imagery
+Карточка 41 - Промпт 1: Couple dividing household chores with checklist, domestic partnership, organized home life, natural lighting, teamwork concept
+Карточка 41 - Промпт 2: Balance scale with household tasks equally distributed, fair partnership, symbolic representation, harmony in duties
+Карточка 41 - Промпт 3: Two people cleaning house together happily, shared responsibilities, domestic cooperation, bright home atmosphere, partnership joy
+Карточка 42 - Промпт 1: Father and child walking together on path, paternal bond, generational connection, warm lighting, family photography
+Карточка 42 - Промпт 2: Silhouette of father figure with child, protective relationship, sunset backdrop, emotional silhouette, touching family moment
+Карточка 42 - Промпт 3: Father teaching child life lesson, wisdom transfer, outdoor setting, natural interaction, generational teaching moment
+Карточка 43 - Промпт 1: Pencil erasing word "mistake" on paper, learning from errors, growth mindset, educational concept, positive transformation
+Карточка 43 - Промпт 2: Person looking back at winding path, life journey with lessons, reflective mood, scenic landscape, personal growth theme
+Карточка 43 - Промпт 3: Phoenix rising from ashes, rebirth from mistakes, mythological concept, dramatic fiery colors, transformation symbol
+Карточка 44 - Промпт 1: Person holding photo album with bright happy memories, treasured moments, nostalgic joy, warm lighting, celebration of happiness
+Карточка 44 - Промпт 2: Couple laughing together with sparkles around them, peak happiness, magical moment, joyful celebration, life highlight
+Карточка 44 - Промпт 3: Calendar with one day circled in gold, special memorable day, time marking significance, bright colors, important moment
+Карточка 45 - Промпт 1: Two hands putting money together into shared wallet, financial partnership, cooperation, teamwork in finances, balanced contribution
+Карточка 45 - Промпт 2: Couple planning budget together at table, financial planning, partnership discussion, domestic cooperation, shared responsibility
+Карточка 45 - Промпт 3: Balance scales with equal financial contributions, fair money distribution, symbolic representation, partnership equality
+Карточка 46 - Промпт 1: Child looking through window at parents with slight sadness, childhood perspective, emotional distance, reflective mood, family dynamics
+Карточка 46 - Промпт 2: Adult hugging inner child, healing past wounds, self-compassion, emotional recovery, therapeutic concept, warm embrace
+Карточка 46 - Промпт 3: Family photo being repaired, healing family relationships, restoration metaphor, hope for better connections, emotional healing
+Карточка 47 - Промпт 1: Earth surrounded by green leaves and recycling symbols, environmental care, eco-consciousness, sustainable living, nature protection
+Карточка 47 - Промпт 2: Person planting tree in polluted area, environmental action, hope for change, restoration concept, positive environmental impact
+Карточка 47 - Промпт 3: Clean ocean contrasted with polluted water, environmental awareness, conservation message, dramatic comparison, call to action
+Карточка 48 - Промпт 1: Person surrounded by silhouettes of influential people, life mentors, guidance concept, personal development, supportive network
+Карточка 48 - Промпт 2: Teacher and student moment, mentorship relationship, knowledge transfer, educational bond, inspirational guidance
+Карточка 48 - Промпт 3: Person looking at photo of role model, inspiration source, admiration concept, motivational imagery, personal influence
+Карточка 49 - Промпт 1: Gift box opening with hearts, stars and smiles floating out, perfect present concept, magical giving, joyful surprise, colorful celebration
+Карточка 49 - Промпт 2: Hands offering intangible gift of love, emotional giving, symbolic generosity, warm gesture, heartfelt present
+Карточka 49 - Промпт 3: Person receiving experience gift, joy of memories over things, adventure present, emotional reaction, meaningful giving
+Карточка 50 - Промпт 1: Elderly couple walking hand in hand together, aging gracefully, lasting love, golden years, peaceful companionship
+Карточка 50 - Промпт 2: Person looking at mirror showing both young and old reflection, aging process, time passage, acceptance of life stages
+Карточka 50 - Промпт 3: Sunset over life path, end of journey perspective, peaceful acceptance, natural life cycle, serene farewell concept
