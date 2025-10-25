@@ -91,6 +91,19 @@ class HotkeyManager:
         except KeyboardInterrupt:
             print("\nНастройка отменена")
     
+    def exit_program(self):
+        """Выход из программы"""
+        print("\n🛑 Получен сигнал выхода (Esc)")
+        
+        # Останавливаем автоматизацию если она запущена
+        if self.process_manager.automation_process and self.process_manager.automation_process.is_alive():
+            print("🛑 Остановка автоматизации...")
+            self.process_manager.stop_automation()
+        
+        print("👋 Программа завершена")
+        import sys
+        sys.exit(0)
+    
     def register_hotkeys(self):
         """Регистрация всех горячих клавиш"""
         keyboard.add_hotkey('ctrl+shift+p', self.get_mouse_position)
@@ -106,3 +119,4 @@ class HotkeyManager:
         keyboard.add_hotkey('ctrl+shift+v', self.process_manager.setup_window)
         keyboard.add_hotkey('ctrl+shift+s', lambda: self.process_manager.start_automation(self.settings_manager))
         keyboard.add_hotkey('ctrl+shift+q', self.process_manager.stop_automation)
+        keyboard.add_hotkey('esc', self.exit_program)
