@@ -6,32 +6,24 @@ from ui.hotkeys import HotkeyManager
 from ui.console import ConsoleInterface
 from utils.process_manager import ProcessManager
 from config.settings import SettingsManager
+from tests import run_all_tests
 
-def check_dependencies():
-    """Проверка зависимостей"""
-    print("ПРОВЕРКА ЗАВИСИМОСТЕЙ:")
-    try:
-        import pyperclip
-        print("✓ pyperclip установлен")
-    except ImportError:
-        print("❌ ОШИБКА: Установите pyperclip: pip install pyperclip")
-        exit(1)
-
-    try:
-        from PIL import Image
-        print("✓ Pillow установлен")
-        return True
-    except ImportError:
-        print("⚠️ ВНИМАНИЕ: Pillow не установлен. Проверка изображений будет отключена.")
-        print("   Для включения установите: pip install Pillow")
-        return False
 
 def main():
     """Главная функция"""
-    pillow_available = check_dependencies()
+    # Упрощённый запуск без проверки зависимостей
+    print("🚀 Запуск AI Studio Automation...")
+    
+    # ТЕСТЫ
+    # print("Запуск тестов...")
+    # run_all_tests()
+    # print()
+    # print("🎉 Все тесты завершены! Система готова к использованию.")
+    # print("Нажмите Enter для продолжения...")
+    # input()
     
     # Инициализация компонентов
-    settings_manager = SettingsManager(pillow_available)
+    settings_manager = SettingsManager()
     process_manager = ProcessManager()
     console = ConsoleInterface()
     hotkey_manager = HotkeyManager(settings_manager, process_manager, console)
@@ -39,25 +31,25 @@ def main():
     # Загрузка настроек
     settings_manager.load_settings()
     
-    # Отображение интерфейса
-    console.show_welcome_screen()
+    # Показ инструкций
     console.show_instructions()
     
     # Регистрация горячих клавиш
     hotkey_manager.register_hotkeys()
     
-    try:
-        print("[ГЛАВНЫЙ] Ожидание команд... (Esc для выхода)")
-        import keyboard
-        keyboard.wait('esc')
-        
-    except KeyboardInterrupt:
-        print("\n[ГЛАВНЫЙ] Получен сигнал прерывания")
+    print("Программа запущена! Используйте горячие клавиши для управления.")
+    print("Нажмите Esc для выхода...")
     
-    finally:
-        process_manager.stop_automation()
-        print("[ГЛАВНЫЙ] Программа завершена")
+    try:
+        # Основной цикл программы
+        while True:
+            import time
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        print("\nПрограмма завершена пользователем")
+    except Exception as e:
+        print(f"\nОшибка в главном цикле: {e}")
+
 
 if __name__ == "__main__":
-    pyautogui.FAILSAFE = True
     main()

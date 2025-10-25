@@ -6,7 +6,7 @@ import os
 from .coordinates import DELAYS
 
 class SettingsManager:
-    def __init__(self, pillow_available=True):
+    def __init__(self):
         self.settings_file = 'data/settings.json'
         
         # Настройки по умолчанию
@@ -17,10 +17,13 @@ class SettingsManager:
             'START_FROM_CARD': 1,                         # Номер карточки для начала работы
             'SAVE_FOLDER': '',                            # Папка для сохранения
             'LOG_ENABLED': True,                          # Включить подробное логирование
-            'CHECK_IMAGE_GENERATED': pillow_available,    # Проверять наличие изображения перед сохранением
+            'CHECK_IMAGE_GENERATED': False,               # Проверять наличие изображения перед сохранением (по умолчанию отключено)
             'IMAGE_CHECK_ATTEMPTS': 3,                    # Количество попыток проверки
             'IMAGE_CHECK_DELAY': 5,                       # Секунд между проверками
             'BACKGROUND_COLOR_TOLERANCE': 30,             # Допуск для определения фонового цвета
+            'GENERATION_MODE': 'standard',                # Режим генерации: 'standard' или 'multi_format'
+            'GENERATION_WAIT': 20.0,                      # Время ожидания генерации изображения
+            'IMAGE_WAIT_TIME': 25.0,                      # Время ожидания изображения при упрощённой проверке
         }
     
     def load_settings(self):
@@ -38,9 +41,12 @@ class SettingsManager:
                     if key in self.settings:
                         self.settings[key] = value
                     elif key == 'GENERATION_WAIT':
+                        # Обновляем и в settings и в DELAYS для совместимости
+                        self.settings[key] = value
                         DELAYS['GENERATION_WAIT'] = value
                         
                 print(f"[НАСТРОЙКИ] Загружены из {self.settings_file}")
+                print(f"[НАСТРОЙКИ] PROMPTS_FILE: {self.settings.get('PROMPTS_FILE')}")
             else:
                 print(f"[НАСТРОЙКИ] Файл {self.settings_file} не найден, используются настройки по умолчанию")
                 self.save_settings()
@@ -60,7 +66,9 @@ class SettingsManager:
                 'GENERATIONS_PER_CARD': self.settings['GENERATIONS_PER_CARD'],
                 'CHECK_IMAGE_GENERATED': self.settings['CHECK_IMAGE_GENERATED'],
                 'BACKGROUND_COLOR_TOLERANCE': self.settings['BACKGROUND_COLOR_TOLERANCE'],
-                'GENERATION_WAIT': DELAYS['GENERATION_WAIT'],
+                'GENERATION_MODE': self.settings['GENERATION_MODE'],
+                'GENERATION_WAIT': self.settings['GENERATION_WAIT'],
+                'IMAGE_WAIT_TIME': self.settings['IMAGE_WAIT_TIME'],
             }
             
             with open(self.settings_file, 'w', encoding='utf-8') as f:
@@ -145,6 +153,11 @@ class SettingsManager:
     
     def configure_generations_per_card(self):
         """Интерактивная настройка количества генераций на карточку"""
+        if self.settings['GENERATION_MODE'] == 'multi_format':
+            print("⚠️ Недоступно в мультиформатном режиме")
+            print("   Количество изображений = количество пар * 2")
+            return
+            
         while True:
             try:
                 print("-" * 50)
@@ -170,6 +183,32 @@ class SettingsManager:
                 print("\nНастройка отменена")
                 break
     
+    def configure_image_wait_time(self):
+        """Настройка времени ожидания изображения"""
+        try:
+            current_value = self.settings['IMAGE_WAIT_TIME']
+            print(f"[НАСТРОЙКИ] Текущее время ожидания изображения: {current_value} сек")
+            print("Введите новое значение (10-60 секунд):")
+            
+            new_value = input("> ").strip()
+            if not new_value:
+                print("Настройка отменена")
+                return
+            
+            new_value = float(new_value)
+            if new_value < 10 or new_value > 60:
+                print("Ошибка: значение должно быть от 10 до 60 секунд")
+                return
+            
+            self.settings['IMAGE_WAIT_TIME'] = new_value
+            self.save_settings()
+            print(f"[НАСТРОЙКИ] Время ожидания изображения установлено: {new_value} сек")
+            
+        except ValueError:
+            print("Ошибка: введите число")
+        except Exception as e:
+            print(f"Ошибка при настройке времени ожидания: {e}")
+
     def configure_generation_wait(self):
         """Интерактивная настройка времени ожидания генерации"""
         while True:
@@ -204,3 +243,15 @@ class SettingsManager:
         self.set('CHECK_IMAGE_GENERATED', not current)
         status = "Включена" if self.settings['CHECK_IMAGE_GENERATED'] else "Выключена"
         print(f"✓ Проверка изображений: {status}")
+    
+    def toggle_generation_mode(self):
+        """Переключение между standard и multi_format"""
+        current = self.settings['GENERATION_MODE']
+        new_mode = 'multi_format' if current == 'standard' else 'standard'
+        self.set('GENERATION_MODE', new_mode)
+
+        mode_names = {
+            'standard': 'Стандартный (старый алгоритм)',
+            'multi_format': 'Мультиформатный (лицо 4:3 + оборот 3:2)'
+        }
+        print(f"✓ Режим изменён: {mode_names[new_mode]}")

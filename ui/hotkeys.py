@@ -38,8 +38,27 @@ class HotkeyManager:
         print("Выберите координату для настройки:")
         
         all_coords = list(self.coordinates_manager.coordinates.keys()) + list(self.coordinates_manager.relative_movements.keys())
+        
+        # Описания координат для лучшего понимания
+        coord_descriptions = {
+            'PROMPT_INPUT': 'Поле ввода промпта',
+            'IMAGE_LOCATION': 'Место клика на сгенерированное изображение',
+            'NEW_CHAT_BUTTON': 'Кнопка создания нового чата',
+            'CHAT_NAME_INPUT': 'Поле ввода названия чата',
+            'CHAT_NAME_POPUP': 'Поле ввода в попапе (если есть)',
+            'CHAT_NAME_CONFIRM': 'Кнопка подтверждения в попапе (если есть)',
+            'FORMAT_SELECTOR': 'Выпадающий список выбора формата (ОБЯЗАТЕЛЬНО для мультиформатного режима!)',
+            'TO_SAVE_OPTION': 'Относительное движение к пункту "сохранить изображение"'
+        }
+        
         for i, coord_name in enumerate(all_coords, 1):
-            print(f"  {i}. {coord_name}")
+            description = coord_descriptions.get(coord_name, '')
+            status = "⚠️ не задана" if self.coordinates_manager.get_coordinate(coord_name) == (0, 0) else "✓ задана"
+            
+            if coord_name == 'FORMAT_SELECTOR':
+                print(f"  {i}. {coord_name} - {description} [{status}] ⭐")
+            else:
+                print(f"  {i}. {coord_name} - {description} [{status}]")
         
         print("  0. Отмена")
         print("-" * 60)
@@ -53,7 +72,15 @@ class HotkeyManager:
             choice = int(choice)
             if 1 <= choice <= len(all_coords):
                 coord_name = all_coords[choice - 1]
+                description = coord_descriptions.get(coord_name, '')
+                
                 print(f"\nВыбрана координата: {coord_name}")
+                print(f"Описание: {description}")
+                
+                if coord_name == 'FORMAT_SELECTOR':
+                    print("⭐ ВАЖНО: Это координата обязательна для мультиформатного режима!")
+                    print("   Найдите выпадающий список формата изображения (обычно справа от поля промпта)")
+                
                 print("Наведите курсор на нужный элемент и нажмите Ctrl+Shift+P")
                 self.coordinate_capture_mode = True
                 self.coordinate_to_set = coord_name
@@ -74,5 +101,8 @@ class HotkeyManager:
         keyboard.add_hotkey('ctrl+4', self.settings_manager.toggle_image_check)
         keyboard.add_hotkey('ctrl+5', lambda: self.console.show_current_settings(self.settings_manager))
         keyboard.add_hotkey('ctrl+6', self.settings_manager.configure_cards_limit)
+        keyboard.add_hotkey('ctrl+7', self.settings_manager.toggle_generation_mode)
+        keyboard.add_hotkey('ctrl+8', self.settings_manager.configure_image_wait_time)
+        keyboard.add_hotkey('ctrl+shift+v', self.process_manager.setup_window)
         keyboard.add_hotkey('ctrl+shift+s', lambda: self.process_manager.start_automation(self.settings_manager))
         keyboard.add_hotkey('ctrl+shift+q', self.process_manager.stop_automation)

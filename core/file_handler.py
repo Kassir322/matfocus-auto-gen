@@ -9,59 +9,95 @@ class FileHandler:
         self.settings_manager = settings_manager
     
     def load_prompts(self):
-        """Загружает промпты из файла в новом формате"""
+        """Загружает промпты из файла в новом формате (лицо/оборот)"""
         prompts_file = self.settings_manager.get('PROMPTS_FILE')
-        prompts = {}
+        print(f"[ПАРСЕР] Загружаем промпты из файла: {prompts_file}")
+        prompts_by_card = {}
         
         try:
             if not os.path.exists(prompts_file):
                 print(f"[ОШИБКА] Файл {prompts_file} не найден!")
-                return prompts
+                return prompts_by_card
                 
             for encoding in ['utf-8', 'utf-8-sig', 'cp1251', 'latin-1']:
                 try:
                     with open(prompts_file, 'r', encoding=encoding) as file:
                         print(f"[ЗАГРУЗКА] Используется кодировка: {encoding}")
                         
+                        # Новый regex для формата "Карточка X лицо/оборот - Промпт Y: текст"
+                        pattern = r'Карточка (\d+) (лицо|оборот) - Промпт (\d+): (.+)'
+                        
                         for line_num, line in enumerate(file, 1):
                             line = line.strip()
                             if line and 'Карточка' in line:
-                                match = re.search(r'Карточка (\d+) - Промпт (\d+): (.+)', line)
+                                match = re.search(pattern, line)
                                 if match:
                                     card_num = int(match.group(1))
-                                    prompt_num = int(match.group(2))
-                                    prompt_text = match.group(3)
+                                    side_type = match.group(2)  # "лицо" или "оборот"
+                                    prompt_num = int(match.group(3))
+                                    prompt_text = match.group(4)
                                     
-                                    if card_num not in prompts:
-                                        prompts[card_num] = ['', '', '']
+                                    # Инициализация структуры для карточки
+                                    if card_num not in prompts_by_card:
+                                        prompts_by_card[card_num] = {}
                                     
-                                    while len(prompts[card_num]) < prompt_num:
-                                        prompts[card_num].append('')
+                                    # Инициализация структуры для пары промптов
+                                    if prompt_num not in prompts_by_card[card_num]:
+                                        prompts_by_card[card_num][prompt_num] = {}
                                     
-                                    if prompt_num >= 1:
-                                        prompts[card_num][prompt_num - 1] = prompt_text
+                                    # Сохранение промпта по типу стороны
+                                    prompts_by_card[card_num][prompt_num][side_type] = prompt_text
+                                    
                                 else:
                                     print(f"[ПРЕДУПРЕЖДЕНИЕ] Строка {line_num} не соответствует формату: {line[:50]}...")
                         break
                         
                 except UnicodeDecodeError:
                     continue
-                    
-            print(f"[ЗАГРУЗКА] Загружено {len(prompts)} карточек с промптами")
             
-            if prompts:
-                min_card = min(prompts.keys())
-                max_card = max(prompts.keys())
+            # Валидация полноты пар и преобразование в финальную структуру
+            valid_prompts = {}
+            total_pairs = 0
+            
+            for card_num in sorted(prompts_by_card.keys()):
+                valid_pairs = []
+                
+                for pair_num in sorted(prompts_by_card[card_num].keys()):
+                    pair_dict = prompts_by_card[card_num][pair_num]
+                    
+                    # Проверка полноты пары
+                    if 'лицо' not in pair_dict:
+                        print(f"[ПРЕДУПРЕЖДЕНИЕ] Карточка {card_num}, Пара {pair_num}: отсутствует 'лицо'")
+                    if 'оборот' not in pair_dict:
+                        print(f"[ПРЕДУПРЕЖДЕНИЕ] Карточка {card_num}, Пара {pair_num}: отсутствует 'оборот'")
+                    
+                    # Пара считается валидной только если есть оба промпта
+                    if 'лицо' in pair_dict and 'оборот' in pair_dict:
+                        valid_pairs.append(pair_dict)
+                        total_pairs += 1
+                    else:
+                        print(f"[ПРЕДУПРЕЖДЕНИЕ] Карточка {card_num}, Пара {pair_num}: неполная пара, пропускается")
+                
+                if valid_pairs:
+                    valid_prompts[card_num] = valid_pairs
+            
+            print(f"[ЗАГРУЗКА] Загружено {len(valid_prompts)} карточек с промптами")
+            print(f"[ЗАГРУЗКА] Найдено {total_pairs} полных пар промптов")
+            print(f"[ЗАГРУЗКА] Будет создано {total_pairs * 2} изображений")
+            
+            if valid_prompts:
+                min_card = min(valid_prompts.keys())
+                max_card = max(valid_prompts.keys())
                 print(f"[ЗАГРУЗКА] Карточки от {min_card} до {max_card}")
             
-            return prompts
+            return valid_prompts
             
         except Exception as e:
             print(f"[ОШИБКА] При загрузке промптов: {e}")
-            return prompts
+            return {}
     
     def get_cards_to_process(self):
-        """Получает список карточек для обработки"""
+        """Получает список карточек для обработки в формате, совместимом с режимом генерации"""
         all_prompts = self.load_prompts()
         if not all_prompts:
             return []
@@ -69,16 +105,65 @@ class FileHandler:
         available_cards = sorted(all_prompts.keys())
         start_card = self.settings_manager.get('START_FROM_CARD')
         cards_to_process = self.settings_manager.get('CARDS_TO_PROCESS')
+        generation_mode = self.settings_manager.get('GENERATION_MODE')
+        
+        print(f"[ПАРСЕР] Доступные карточки: {available_cards}")
+        print(f"[ПАРСЕР] Начинаем с карточки: {start_card}")
+        print(f"[ПАРСЕР] Лимит карточек: {cards_to_process}")
+        print(f"[ПАРСЕР] Режим генерации: {generation_mode}")
         
         cards_to_process_list = [] 
         cards_processed_count = 0
         
         for card_num in available_cards:
             if card_num >= start_card:
-                cards_to_process_list.append((card_num, all_prompts[card_num]))
+                pairs_list = all_prompts[card_num]
+                print(f"[ПАРСЕР] Карточка {card_num}: {len(pairs_list)} пар")
+                
+                if generation_mode == 'multi_format':
+                    # Для мультиформатного режима возвращаем список пар
+                    cards_to_process_list.append((card_num, pairs_list))
+                else:
+                    # Для стандартного режима преобразуем пары в список промптов
+                    prompts_list = []
+                    for pair in pairs_list:
+                        if 'лицо' in pair:
+                            prompts_list.append(pair['лицо'])
+                        if 'оборот' in pair:
+                            prompts_list.append(pair['оборот'])
+                    print(f"[ПАРСЕР] Карточка {card_num}: преобразовано в {len(prompts_list)} промптов")
+                    cards_to_process_list.append((card_num, prompts_list))
+                
                 cards_processed_count += 1
                 
                 if cards_processed_count >= cards_to_process:
                     break
         
+        print(f"[ПАРСЕР] Итого карточек для обработки: {len(cards_to_process_list)}")
         return cards_to_process_list
+
+    def test_new_format(self):
+        """Тестовый метод для проверки нового формата"""
+        print("=== ТЕСТ НОВОГО ФОРМАТА ===")
+        
+        # Временно меняем файл на тестовый
+        original_file = self.settings_manager.get('PROMPTS_FILE')
+        self.settings_manager.set('PROMPTS_FILE', 'data/test_new_format.txt')
+        
+        try:
+            prompts_data = self.load_prompts()
+            
+            print(f"Карточек загружено: {len(prompts_data)}")
+            for card_num, pairs_list in prompts_data.items():
+                print(f"Карточка {card_num}: {len(pairs_list)} пар")
+                for i, pair in enumerate(pairs_list, 1):
+                    print(f"  Пара {i}: лицо='{pair['лицо'][:30]}...', оборот='{pair['оборот'][:30]}...'")
+            
+            return True
+            
+        except Exception as e:
+            print(f"Ошибка в тесте: {e}")
+            return False
+        finally:
+            # Восстанавливаем оригинальный файл
+            self.settings_manager.set('PROMPTS_FILE', original_file)

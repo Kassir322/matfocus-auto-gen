@@ -16,6 +16,7 @@ class CoordinatesManager:
             'CHAT_NAME_INPUT': [500, 161],        # Поле ввода названия чата (первый клик)
             'CHAT_NAME_POPUP': [903, 509],        # Поле ввода в попапе
             'CHAT_NAME_CONFIRM': [0, 0],          # Кнопка подтверждения в попапе (если есть)
+            'FORMAT_SELECTOR': [0, 0],            # Выпадающий список выбора формата изображения
         }
         
         # Относительные движения по умолчанию
@@ -37,8 +38,16 @@ class CoordinatesManager:
                 with open(self.coordinates_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     
-                self.coordinates = data.get('coordinates', self.default_coordinates.copy())
-                self.relative_movements = data.get('relative_movements', self.default_relative_movements.copy())
+                # Загружаем координаты из файла
+                file_coordinates = data.get('coordinates', {})
+                file_movements = data.get('relative_movements', {})
+                
+                # Объединяем с координатами по умолчанию (файл имеет приоритет)
+                self.coordinates = self.default_coordinates.copy()
+                self.coordinates.update(file_coordinates)
+                
+                self.relative_movements = self.default_relative_movements.copy()
+                self.relative_movements.update(file_movements)
                 
                 # Преобразуем списки в кортежи для совместимости
                 for key, value in self.coordinates.items():
@@ -111,7 +120,10 @@ class CoordinatesManager:
         coords_info.append("=== КООРДИНАТЫ ===")
         for name, coord in self.coordinates.items():
             status = "✓ задана" if coord != (0, 0) else "⚠️ не задана"
-            coords_info.append(f"  {name}: {coord} - {status}")
+            if name == 'FORMAT_SELECTOR':
+                coords_info.append(f"  {name}: {coord} - {status} [ДЛЯ МУЛЬТИФОРМАТНОГО РЕЖИМА]")
+            else:
+                coords_info.append(f"  {name}: {coord} - {status}")
         
         coords_info.append("\n=== ОТНОСИТЕЛЬНЫЕ ДВИЖЕНИЯ ===")
         for name, movement in self.relative_movements.items():
