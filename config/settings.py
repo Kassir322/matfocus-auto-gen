@@ -41,10 +41,9 @@ class SettingsManager:
                 for key, value in saved_settings.items():
                     if key in self.settings:
                         self.settings[key] = value
-                    elif key == 'GENERATION_WAIT':
-                        # Обновляем и в settings и в DELAYS для совместимости
-                        self.settings[key] = value
-                        DELAYS['GENERATION_WAIT'] = value
+                        # Специальная обработка для GENERATION_WAIT - синхронизация с DELAYS
+                        if key == 'GENERATION_WAIT':
+                            DELAYS['GENERATION_WAIT'] = value
                 
                 # Пересчитываем CARDS_TO_PROCESS из диапазона start-end
                 if 'START_FROM_CARD' in saved_settings and 'END_CARD' in saved_settings:
@@ -261,7 +260,9 @@ class SettingsManager:
                 wait_time = float(wait_time)
                 
                 if 10 <= wait_time <= 120:
+                    # Обновляем и в DELAYS и в settings для синхронизации
                     DELAYS['GENERATION_WAIT'] = wait_time
+                    self.settings['GENERATION_WAIT'] = wait_time
                     self.save_settings()
                     print(f"✓ Время ожидания установлено и сохранено: {wait_time} сек")
                     break
