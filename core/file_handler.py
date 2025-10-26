@@ -107,9 +107,12 @@ class FileHandler:
         cards_to_process = self.settings_manager.get('CARDS_TO_PROCESS')
         generation_mode = self.settings_manager.get('GENERATION_MODE')
         
+        # Вычисляем конечную карточку для логирования
+        end_card = start_card + cards_to_process - 1
+        
         print(f"[ПАРСЕР] Доступные карточки: {available_cards}")
-        print(f"[ПАРСЕР] Начинаем с карточки: {start_card}")
-        print(f"[ПАРСЕР] Лимит карточек: {cards_to_process}")
+        print(f"[ПАРСЕР] Диапазон: карточки {start_card}-{end_card}")
+        print(f"[ПАРСЕР] Будет обработано карточек: {cards_to_process}")
         print(f"[ПАРСЕР] Режим генерации: {generation_mode}")
         
         cards_to_process_list = [] 
@@ -136,7 +139,9 @@ class FileHandler:
                 
                 cards_processed_count += 1
                 
+                # Останавливаемся после обработки нужного количества карточек
                 if cards_processed_count >= cards_to_process:
+                    print(f"[ПАРСЕР] Достигнут лимит карточек: {cards_processed_count}/{cards_to_process}")
                     break
         
         print(f"[ПАРСЕР] Итого карточек для обработки: {len(cards_to_process_list)}")

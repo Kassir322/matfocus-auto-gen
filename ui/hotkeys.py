@@ -113,7 +113,7 @@ class HotkeyManager:
         keyboard.add_hotkey('ctrl+3', self.settings_manager.configure_generation_wait)
         keyboard.add_hotkey('ctrl+4', self.settings_manager.toggle_image_check)
         keyboard.add_hotkey('ctrl+5', lambda: self.console.show_current_settings(self.settings_manager))
-        keyboard.add_hotkey('ctrl+6', self.settings_manager.configure_cards_limit)
+        keyboard.add_hotkey('ctrl+6', self.settings_manager.configure_end_card)
         keyboard.add_hotkey('ctrl+7', self.settings_manager.toggle_generation_mode)
         keyboard.add_hotkey('ctrl+8', self.settings_manager.configure_image_wait_time)
         keyboard.add_hotkey('ctrl+shift+v', self.process_manager.setup_window)

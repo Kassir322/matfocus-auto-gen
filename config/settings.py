@@ -12,9 +12,10 @@ class SettingsManager:
         # Настройки по умолчанию
         self.settings = {
             'PROMPTS_FILE': 'data/all_card_prompts.txt',  # Файл с промптами
-            'CARDS_TO_PROCESS': 50,                       # Максимальное количество карточек для обработки
+            'CARDS_TO_PROCESS': 50,                       # Максимальное количество карточек для обработки (вычисляется автоматически)
             'GENERATIONS_PER_CARD': 3,                    # Количество генераций на карточку
             'START_FROM_CARD': 1,                         # Номер карточки для начала работы
+            'END_CARD': 50,                              # До какой карточки обрабатывать
             'SAVE_FOLDER': '',                            # Папка для сохранения
             'LOG_ENABLED': True,                          # Включить подробное логирование
             'CHECK_IMAGE_GENERATED': False,               # Проверять наличие изображения перед сохранением (по умолчанию отключено)
@@ -44,7 +45,13 @@ class SettingsManager:
                         # Обновляем и в settings и в DELAYS для совместимости
                         self.settings[key] = value
                         DELAYS['GENERATION_WAIT'] = value
-                        
+                
+                # Пересчитываем CARDS_TO_PROCESS из диапазона start-end
+                if 'START_FROM_CARD' in saved_settings and 'END_CARD' in saved_settings:
+                    start_card = saved_settings['START_FROM_CARD']
+                    end_card = saved_settings['END_CARD']
+                    self.settings['CARDS_TO_PROCESS'] = end_card - start_card + 1
+                
                 print(f"[НАСТРОЙКИ] Загружены из {self.settings_file}")
                 print(f"[НАСТРОЙКИ] PROMPTS_FILE: {self.settings.get('PROMPTS_FILE')}")
             else:
@@ -63,6 +70,7 @@ class SettingsManager:
             settings_to_save = {
                 'CARDS_TO_PROCESS': self.settings['CARDS_TO_PROCESS'],
                 'START_FROM_CARD': self.settings['START_FROM_CARD'],
+                'END_CARD': self.settings['END_CARD'],
                 'GENERATIONS_PER_CARD': self.settings['GENERATIONS_PER_CARD'],
                 'CHECK_IMAGE_GENERATED': self.settings['CHECK_IMAGE_GENERATED'],
                 'BACKGROUND_COLOR_TOLERANCE': self.settings['BACKGROUND_COLOR_TOLERANCE'],
@@ -97,7 +105,9 @@ class SettingsManager:
             try:
                 print("-" * 50)
                 print(f"Текущая стартовая карточка: {self.settings['START_FROM_CARD']}")
-                start_card = input(f"Новая стартовая карточка (1-{self.settings['CARDS_TO_PROCESS']}): ").strip()
+                print(f"Конечная карточка: {self.settings['END_CARD']}")
+                print(f"Диапазон: карточки {self.settings['START_FROM_CARD']}-{self.settings['END_CARD']}")
+                start_card = input(f"Новая стартовая карточка (>=1): ").strip()
                 
                 if not start_card:
                     print("Настройка отменена")
@@ -105,12 +115,25 @@ class SettingsManager:
                 
                 start_card = int(start_card)
                 
-                if 1 <= start_card <= self.settings['CARDS_TO_PROCESS']:
+                if start_card >= 1:
+                    # Проверка, что стартовая карточка не больше конечной
+                    end_card = self.settings['END_CARD']
+                    if start_card > end_card:
+                        print(f"⚠️ Стартовая карточка ({start_card}) больше конечной ({end_card})!")
+                        print(f"⚠️ Автоматически увеличиваем конечную карточку до {start_card}")
+                        self.set('END_CARD', start_card)
+                    
                     self.set('START_FROM_CARD', start_card)
-                    print(f"✓ Стартовая карточка установлена и сохранена: {start_card}")
+                    
+                    # Пересчитываем CARDS_TO_PROCESS
+                    cards_count = self.settings['END_CARD'] - start_card + 1
+                    self.settings['CARDS_TO_PROCESS'] = cards_count
+                    
+                    print(f"✓ Стартовая карточка установлена: {start_card}")
+                    print(f"✓ Диапазон: карточки {start_card}-{self.settings['END_CARD']} (всего {cards_count} карточек)")
                     break
                 else:
-                    print(f"Ошибка: Номер должен быть от 1 до {self.settings['CARDS_TO_PROCESS']}")
+                    print("Ошибка: Номер должен быть >= 1")
                     
             except ValueError:
                 print("Ошибка: Введите число")
@@ -119,31 +142,45 @@ class SettingsManager:
                 break
     
     def configure_cards_limit(self):
-        """Интерактивная настройка лимита карточек"""
+        """Устаревший метод - используйте configure_end_card"""
+        print("⚠️ Этот метод устарел. Используйте Ctrl+6 для настройки конечной карточки.")
+        return
+    
+    def configure_end_card(self):
+        """Интерактивная настройка конечной карточки"""
         while True:
             try:
                 print("-" * 50)
-                print(f"Текущий лимит карточек: {self.settings['CARDS_TO_PROCESS']}")
-                cards_limit = input("Новый лимит карточек (1-1000): ").strip()
+                start_card = self.settings['START_FROM_CARD']
+                end_card = self.settings['END_CARD']
+                cards_count = end_card - start_card + 1
                 
-                if not cards_limit:
+                print(f"Стартовая карточка: {start_card}")
+                print(f"Текущая конечная карточка: {end_card}")
+                print(f"Диапазон: карточки {start_card}-{end_card} (всего {cards_count} карточек)")
+                print(f"До какой карточки обрабатывать (>= {start_card}):")
+                
+                new_end_card = input("> ").strip()
+                
+                if not new_end_card:
                     print("Настройка отменена")
                     break
                 
-                cards_limit = int(cards_limit)
+                new_end_card = int(new_end_card)
                 
-                if 1 <= cards_limit <= 1000:
-                    self.set('CARDS_TO_PROCESS', cards_limit)
+                if new_end_card >= start_card:
+                    self.set('END_CARD', new_end_card)
                     
-                    # Проверяем, что стартовая карточка не больше лимита
-                    if self.settings['START_FROM_CARD'] > cards_limit:
-                        self.set('START_FROM_CARD', 1)
-                        print(f"⚠️ Стартовая карточка сброшена на 1 (была больше нового лимита)")
+                    # Пересчитываем CARDS_TO_PROCESS
+                    cards_count = new_end_card - start_card + 1
+                    self.settings['CARDS_TO_PROCESS'] = cards_count
+                    self.save_settings()
                     
-                    print(f"✓ Лимит карточек установлен и сохранен: {cards_limit}")
+                    print(f"✓ Конечная карточка установлена: {new_end_card}")
+                    print(f"✓ Диапазон: карточки {start_card}-{new_end_card} (всего {cards_count} карточек)")
                     break
                 else:
-                    print("Ошибка: Лимит должен быть от 1 до 1000")
+                    print(f"Ошибка: Конечная карточка должна быть >= {start_card}")
                     
             except ValueError:
                 print("Ошибка: Введите число")

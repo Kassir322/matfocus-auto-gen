@@ -20,7 +20,7 @@ class ConsoleInterface:
         print("  Ctrl+3 - настроить ВРЕМЯ ОЖИДАНИЯ генерации")
         print("  Ctrl+4 - переключить ПРОВЕРКУ ИЗОБРАЖЕНИЙ")
         print("  Ctrl+5 - показать ТЕКУЩИЕ НАСТРОЙКИ")
-        print("  Ctrl+6 - настроить ЛИМИТ КАРТОЧЕК")
+        print("  Ctrl+6 - настроить КОНЕЧНУЮ КАРТОЧКУ (до какой)")
         print("  Ctrl+7 - ПЕРЕКЛЮЧИТЬ РЕЖИМ ГЕНЕРАЦИИ ⭐")
         print("  Ctrl+8 - НАСТРОИТЬ ВРЕМЯ ОЖИДАНИЯ ИЗОБРАЖЕНИЯ ⏰")
         print("  Ctrl+Shift+V - НАСТРОИТЬ РАБОЧЕЕ ОКНО 🪟")
@@ -49,8 +49,11 @@ class ConsoleInterface:
         
         print("-" * 60)
         print("ТЕКУЩИЕ НАСТРОЙКИ (сохранены в data/settings.json):")
-        print(f"  Лимит карточек: {settings_manager.get('CARDS_TO_PROCESS')}")
-        print(f"  Стартовая карточка: {settings_manager.get('START_FROM_CARD')}")
+        start_card = settings_manager.get('START_FROM_CARD')
+        end_card = settings_manager.get('END_CARD')
+        print(f"  Стартовая карточка: {start_card}")
+        print(f"  Конечная карточка: {end_card}")
+        print(f"  → Будет обработано карточек: {settings_manager.get('CARDS_TO_PROCESS')}")
         
         # Отображение режима генерации
         generation_mode = settings_manager.get('GENERATION_MODE')
