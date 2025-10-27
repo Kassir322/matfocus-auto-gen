@@ -161,7 +161,7 @@ class MultiFormatGenerator:
                 pass
             return False
 
-    def generate_single_side(self, card_number: int, pair_number: int,
+    def generate_single_side(self, card_number: int, card_name: str, pair_number: int,
                             side: str, prompt: str,
                             format_ratio: str, stop_event) -> bool:
         """
@@ -169,6 +169,7 @@ class MultiFormatGenerator:
 
         Args:
             card_number: номер карточки
+            card_name: название карточки
             pair_number: номер пары промптов
             side: "лицо" или "оборот"
             prompt: текст промпта
@@ -180,17 +181,20 @@ class MultiFormatGenerator:
         Алгоритм:
         1. Создать новый чат
         2. Ввести промпт
-        3. Переименовать чат: f"Карточка {card_number} - {side} - Промпт {pair_number}"
+        3. Переименовать чат: f"{card_name} - {side} - Промпт {pair_number}"
         4. Выбрать формат (select_image_format)
         5. Вернуться к полю ввода
         6. Генерация (Ctrl+Enter)
         7. Ожидание
         8. Опциональная проверка изображения
-        9. Сохранение: f"Карточка_{card_number}_{side}_промпт_{pair_number}_{format_ratio.replace(':', 'x')}.png"
+        9. Сохранение: f"{card_name}_{side}_промпт_{pair_number}_{format_ratio.replace(':', 'x')}.png"
         """
         try:
-            chat_name = f"Карточка {card_number} - {side} - Промпт {pair_number}"
-            filename = f"Карточка_{card_number}_{side}_промпт_{pair_number}_{format_ratio.replace(':', 'x')}.png"
+            # Используем название карточки для имени чата и файла
+            chat_name = f"{card_name} - {side} - Промпт {pair_number}"
+            # Очищаем название от спецсимволов для имени файла
+            safe_card_name = card_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+            filename = f"{safe_card_name}_{side}_промпт_{pair_number}_{format_ratio.replace(':', 'x')}.png"
             
             self.logger.log_action(f"--- Генерация: {chat_name} ---")
             
@@ -312,13 +316,14 @@ class MultiFormatGenerator:
             self.logger.log_action(f"✗ ОШИБКА в генерации {chat_name}: {e}")
             return False
 
-    def generate_pair(self, card_number: int, pair_number: int,
+    def generate_pair(self, card_number: int, card_name: str, pair_number: int,
                      prompts_dict: dict, stop_event) -> int:
         """
         Генерация пары (лицо + оборот).
 
         Args:
             card_number: номер карточки
+            card_name: название карточки
             pair_number: номер пары
             prompts_dict: {'лицо': 'текст', 'оборот': 'текст'}
             stop_event: событие остановки
@@ -338,7 +343,7 @@ class MultiFormatGenerator:
             
             # Генерация лицевой стороны (4:3)
             self.logger.log_action(f"Генерация лицевой стороны пары {pair_number}")
-            if self.generate_single_side(card_number, pair_number, 'лицо', 
+            if self.generate_single_side(card_number, card_name, pair_number, 'лицо', 
                                        prompts_dict['лицо'], '4:3', stop_event):
                 success_count += 1
             
@@ -352,7 +357,7 @@ class MultiFormatGenerator:
             
             # Генерация оборотной стороны (3:2)
             self.logger.log_action(f"Генерация оборотной стороны пары {pair_number}")
-            if self.generate_single_side(card_number, pair_number, 'оборот', 
+            if self.generate_single_side(card_number, card_name, pair_number, 'оборот', 
                                        prompts_dict['оборот'], '3:2', stop_event):
                 success_count += 1
             
@@ -363,13 +368,14 @@ class MultiFormatGenerator:
             self.logger.log_action(f"✗ ОШИБКА при генерации пары {pair_number}: {e}")
             return 0
 
-    def process_card(self, card_number: int, pairs_list: list,
+    def process_card(self, card_number: int, card_name: str, pairs_list: list,
                     stop_event) -> tuple:
         """
         Обработка всех пар одной карточки.
 
         Args:
             card_number: номер карточки
+            card_name: название карточки
             pairs_list: список словарей с парами промптов
             stop_event: событие остановки
 
@@ -393,7 +399,7 @@ class MultiFormatGenerator:
                 
                 self.logger.log_action(f"Обработка пары {pair_index} из {len(pairs_list)}")
                 
-                images_created = self.generate_pair(card_number, pair_index, pair_dict, stop_event)
+                images_created = self.generate_pair(card_number, card_name, pair_index, pair_dict, stop_event)
                 if images_created > 0:
                     processed_pairs += 1
                     total_images += images_created
@@ -431,15 +437,15 @@ class MultiFormatGenerator:
         cards_to_process_list = file_handler.get_cards_to_process()
         
         print(f"[ГЕНЕРАТОР] Получен список карточек: {len(cards_to_process_list)}")
-        for i, (card_num, pairs_list) in enumerate(cards_to_process_list):
-            print(f"[ГЕНЕРАТОР] Карточка {i+1}: номер={card_num}, пар={len(pairs_list)}")
+        for i, (card_num, card_name, pairs_list) in enumerate(cards_to_process_list):
+            print(f"[ГЕНЕРАТОР] Карточка {i+1}: номер={card_num} ({card_name}), пар={len(pairs_list)}")
         
         if not cards_to_process_list:
             self.logger.log_action(f"КРИТИЧЕСКАЯ ОШИБКА: Нет карточек для обработки начиная с №{start_card}!")
             return
         
         # Подсчет общего количества пар и изображений
-        total_pairs = sum(len(pairs_list) for _, pairs_list in cards_to_process_list)
+        total_pairs = sum(len(pairs_list) for _, _, pairs_list in cards_to_process_list)
         total_images = total_pairs * 2  # Каждая пара = 2 изображения
         
         self.logger.log_action(f"📍 Начинаем с карточки #{start_card}")
@@ -451,12 +457,12 @@ class MultiFormatGenerator:
         processed_pairs = 0
         total_images_created = 0
         
-        for card_number, pairs_list in cards_to_process_list:
+        for card_number, card_name, pairs_list in cards_to_process_list:
             if stop_event.is_set():
                 self.logger.log_action("Получен сигнал остановки")
                 break
             
-            pairs_done, images_created = self.process_card(card_number, pairs_list, stop_event)
+            pairs_done, images_created = self.process_card(card_number, card_name, pairs_list, stop_event)
             if pairs_done > 0:
                 processed_cards += 1
                 processed_pairs += pairs_done

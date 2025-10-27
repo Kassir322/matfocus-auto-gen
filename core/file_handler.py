@@ -9,10 +9,11 @@ class FileHandler:
         self.settings_manager = settings_manager
     
     def load_prompts(self):
-        """Загружает промпты из файла в новом формате (лицо/оборот)"""
+        """Загружает промпты из файла в новом формате (лицо/оборот с названием карточки)"""
         prompts_file = self.settings_manager.get('PROMPTS_FILE')
         print(f"[ПАРСЕР] Загружаем промпты из файла: {prompts_file}")
         prompts_by_card = {}
+        card_names = {}  # Словарь для хранения названий карточек
         
         try:
             if not os.path.exists(prompts_file):
@@ -24,8 +25,9 @@ class FileHandler:
                     with open(prompts_file, 'r', encoding=encoding) as file:
                         print(f"[ЗАГРУЗКА] Используется кодировка: {encoding}")
                         
-                        # Новый regex для формата "Карточка X лицо/оборот - Промпт Y: текст"
-                        pattern = r'Карточка (\d+) (лицо|оборот) - Промпт (\d+): (.+)'
+                        # Новый regex для формата "Карточка X лицо Название - Промпт Y: текст"
+                        # Поддержка как старого формата (без названия), так и нового (с названием)
+                        pattern = r'Карточка (\d+) (лицо|оборот) ([^-]+) - Промпт (\d+): (.+)'
                         
                         for line_num, line in enumerate(file, 1):
                             line = line.strip()
@@ -34,8 +36,15 @@ class FileHandler:
                                 if match:
                                     card_num = int(match.group(1))
                                     side_type = match.group(2)  # "лицо" или "оборот"
-                                    prompt_num = int(match.group(3))
-                                    prompt_text = match.group(4)
+                                    card_name = match.group(3).strip()  # Название карточки
+                                    prompt_num = int(match.group(4))
+                                    prompt_text = match.group(5)
+                                    
+                                    # Сохраняем название карточки (если еще не сохранено)
+                                    if card_num not in card_names:
+                                        card_names[card_num] = card_name
+                                    elif card_names[card_num] != card_name:
+                                        print(f"[ПРЕДУПРЕЖДЕНИЕ] Карточка {card_num} имеет разное название в разных строках!")
                                     
                                     # Инициализация структуры для карточки
                                     if card_num not in prompts_by_card:
@@ -61,25 +70,27 @@ class FileHandler:
             
             for card_num in sorted(prompts_by_card.keys()):
                 valid_pairs = []
+                card_name = card_names.get(card_num, f"Карточка {card_num}")  # Название карточки или по умолчанию
                 
                 for pair_num in sorted(prompts_by_card[card_num].keys()):
                     pair_dict = prompts_by_card[card_num][pair_num]
                     
                     # Проверка полноты пары
                     if 'лицо' not in pair_dict:
-                        print(f"[ПРЕДУПРЕЖДЕНИЕ] Карточка {card_num}, Пара {pair_num}: отсутствует 'лицо'")
+                        print(f"[ПРЕДУПРЕЖДЕНИЕ] Карточка {card_num} ({card_name}), Пара {pair_num}: отсутствует 'лицо'")
                     if 'оборот' not in pair_dict:
-                        print(f"[ПРЕДУПРЕЖДЕНИЕ] Карточка {card_num}, Пара {pair_num}: отсутствует 'оборот'")
+                        print(f"[ПРЕДУПРЕЖДЕНИЕ] Карточка {card_num} ({card_name}), Пара {pair_num}: отсутствует 'оборот'")
                     
                     # Пара считается валидной только если есть оба промпта
                     if 'лицо' in pair_dict and 'оборот' in pair_dict:
                         valid_pairs.append(pair_dict)
                         total_pairs += 1
                     else:
-                        print(f"[ПРЕДУПРЕЖДЕНИЕ] Карточка {card_num}, Пара {pair_num}: неполная пара, пропускается")
+                        print(f"[ПРЕДУПРЕЖДЕНИЕ] Карточка {card_num} ({card_name}), Пара {pair_num}: неполная пара, пропускается")
                 
                 if valid_pairs:
-                    valid_prompts[card_num] = valid_pairs
+                    # Сохраняем структуру: номер карточки -> (название, список пар)
+                    valid_prompts[card_num] = (card_name, valid_pairs)
             
             print(f"[ЗАГРУЗКА] Загружено {len(valid_prompts)} карточек с промптами")
             print(f"[ЗАГРУЗКА] Найдено {total_pairs} полных пар промптов")
@@ -120,12 +131,13 @@ class FileHandler:
         
         for card_num in available_cards:
             if card_num >= start_card:
-                pairs_list = all_prompts[card_num]
-                print(f"[ПАРСЕР] Карточка {card_num}: {len(pairs_list)} пар")
+                # Новая структура: (название, список пар)
+                card_name, pairs_list = all_prompts[card_num]
+                print(f"[ПАРСЕР] Карточка {card_num} ({card_name}): {len(pairs_list)} пар")
                 
                 if generation_mode == 'multi_format':
-                    # Для мультиформатного режима возвращаем список пар
-                    cards_to_process_list.append((card_num, pairs_list))
+                    # Для мультиформатного режима возвращаем кортеж (номер, название, список пар)
+                    cards_to_process_list.append((card_num, card_name, pairs_list))
                 else:
                     # Для стандартного режима преобразуем пары в список промптов
                     prompts_list = []
@@ -135,7 +147,7 @@ class FileHandler:
                         if 'оборот' in pair:
                             prompts_list.append(pair['оборот'])
                     print(f"[ПАРСЕР] Карточка {card_num}: преобразовано в {len(prompts_list)} промптов")
-                    cards_to_process_list.append((card_num, prompts_list))
+                    cards_to_process_list.append((card_num, card_name, prompts_list))
                 
                 cards_processed_count += 1
                 

@@ -166,10 +166,10 @@ class ImageGenerator:
             self.logger.log_action(f"✗ ОШИБКА в генерации {chat_name}: {e}")
             return False
     
-    def process_card(self, card_number, prompts_for_card, generations_per_card, check_image_enabled, generation_wait, stop_event):
+    def process_card(self, card_number, card_name, prompts_for_card, generations_per_card, check_image_enabled, generation_wait, stop_event):
         """Обработка одной карточки - N генераций с разными промптами в отдельных чатах"""
         try:
-            self.logger.log_action(f"======= ОБРАБОТКА КАРТОЧКИ #{card_number} =======")
+            self.logger.log_action(f"======= ОБРАБОТКА КАРТОЧКИ #{card_number} ({card_name}) =======")
             
             success_count = 0
             
@@ -181,11 +181,14 @@ class ImageGenerator:
                 prompt = prompts_for_card[prompt_index]
                 
                 if not prompt:
-                    self.logger.log_action(f"⚠️ Промпт {prompt_index + 1} для карточки {card_number} пустой, пропускаем генерацию {gen_num}")
+                    self.logger.log_action(f"⚠️ Промпт {prompt_index + 1} для карточки {card_number} ({card_name}) пустой, пропускаем генерацию {gen_num}")
                     continue
                 
-                chat_name = f"Карточка {card_number} - генерация {gen_num}"
-                filename = f"Карточка_{card_number}_генерация_{gen_num}.png"
+                # Используем название карточки для имени чата и файла
+                chat_name = f"{card_name} - генерация {gen_num}"
+                # Очищаем название от спецсимволов для имени файла
+                safe_card_name = card_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+                filename = f"{safe_card_name}_генерация_{gen_num}.png"
                 
                 self.logger.log_action(f"Используем промпт {prompt_index + 1}: {prompt[:100]}...")
                 
@@ -227,17 +230,17 @@ class ImageGenerator:
         processed_cards = 0
         total_generations_done = 0
         
-        for card_number, prompts_for_card in cards_to_process_list:
+        for card_number, card_name, prompts_for_card in cards_to_process_list:
             if stop_event.is_set():
                 self.logger.log_action("Получен сигнал остановки")
                 break
             
-            generations_done = self.process_card(card_number, prompts_for_card, generations_per_card, check_image_enabled, generation_wait, stop_event)
+            generations_done = self.process_card(card_number, card_name, prompts_for_card, generations_per_card, check_image_enabled, generation_wait, stop_event)
             if generations_done > 0:
                 processed_cards += 1
                 total_generations_done += generations_done
             
-            if (card_number, prompts_for_card) != cards_to_process_list[-1] and not stop_event.is_set():
+            if (card_number, card_name, prompts_for_card) != cards_to_process_list[-1] and not stop_event.is_set():
                 time.sleep(DELAYS['BETWEEN_CARDS'])
         
         self.logger.log_action(f"========== ОТЧЁТ ==========")
