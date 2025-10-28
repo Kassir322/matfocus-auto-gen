@@ -181,20 +181,21 @@ class MultiFormatGenerator:
         Алгоритм:
         1. Создать новый чат
         2. Ввести промпт
-        3. Переименовать чат: f"{card_name} - {side} - Промпт {pair_number}"
+        3. Переименовать чат: f"Карточка {card_number} - {card_name} - {side} - Промпт {pair_number}"
         4. Выбрать формат (select_image_format)
         5. Вернуться к полю ввода
         6. Генерация (Ctrl+Enter)
         7. Ожидание
         8. Опциональная проверка изображения
-        9. Сохранение: f"{card_name}_{side}_промпт_{pair_number}_{format_ratio.replace(':', 'x')}.png"
+        9. Сохранение: f"Карточка_{card_number}_{card_name}_{side}_промпт_{pair_number}_{format_ratio.replace(':', 'x')}.png"
         """
         try:
-            # Используем название карточки для имени чата и файла
-            chat_name = f"{card_name} - {side} - Промпт {pair_number}"
+            # Формат названия: Карточка № - НАЗВАНИЕ - сторона - Промпт №
+            chat_name = f"Карточка {card_number} - {card_name} - {side} - Промпт {pair_number}"
             # Очищаем название от спецсимволов для имени файла
             safe_card_name = card_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
-            filename = f"{safe_card_name}_{side}_промпт_{pair_number}_{format_ratio.replace(':', 'x')}.png"
+            # Формат файла: Карточка_№_НАЗВАНИЕ_сторона_промпт_№_формат.png
+            filename = f"Карточка_{card_number}_{safe_card_name}_{side}_промпт_{pair_number}_{format_ratio.replace(':', 'x')}.png"
             
             self.logger.log_action(f"--- Генерация: {chat_name} ---")
             
