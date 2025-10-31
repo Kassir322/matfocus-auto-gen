@@ -176,8 +176,9 @@ Thumbs.db
 
 # Project specific files
 # User data files (should not be in version control)
-data/settings.json
-data/coordinates.json
+# data/settings.json
+# data/coordinates.json
+data/
 
 # Keep example/template files
 !data/settings_example.json

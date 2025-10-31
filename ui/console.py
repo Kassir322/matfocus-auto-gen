@@ -116,7 +116,15 @@ class ConsoleInterface:
                 estimated_time = total_images * (DELAYS['GENERATION_WAIT'] + 10) / 60
                 print(f"  Примерное время выполнения: {estimated_time:.1f} минут")
                 if generation_mode == 'multi_format_with_refs':
-                    print(f"  ⚠️ Режим с референсами пока не реализован")
+                    # Проверяем наличие папок с референсами
+                    import os
+                    face_dir = os.path.join('data', 'images', 'лицо')
+                    back_dir = os.path.join('data', 'images', 'оборот')
+                    
+                    if not os.path.exists(face_dir) or not os.path.exists(back_dir):
+                        print(f"  ⚠️ Папки с референсами не найдены: {face_dir}, {back_dir}")
+                    else:
+                        print(f"  ✓ Папки с референсами найдены")
             else:
                 # Стандартный режим
                 total_generations = actual_cards * settings_manager.get('GENERATIONS_PER_CARD')

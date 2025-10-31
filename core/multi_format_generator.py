@@ -5,6 +5,7 @@
 import time
 import pyautogui
 import multiprocessing
+import os
 from config.coordinates import COORDINATES, DELAYS, RELATIVE_MOVEMENTS
 from utils.clipboard import ClipboardManager
 from utils.logger import Logger
@@ -161,6 +162,54 @@ class MultiFormatGenerator:
                 pass
             return False
 
+    def get_reference_path(self, card_number: int, card_name: str, side: str) -> str:
+        """
+        Поиск пути к файлу референса для карточки.
+        
+        Args:
+            card_number: номер карточки
+            card_name: название карточки (как в файле промптов, может содержать пробелы)
+            side: "лицо" или "оборот"
+            
+        Returns:
+            str: путь к файлу референса или None если не найден
+            
+        Формат имени файла: {side}_{card_number}_{card_name}.{ext}
+        Пример: оборот_20_балтийское_море.png
+        Название карточки в файле идёт после второго подчеркивания до точки.
+        """
+        try:
+            # Очищаем название от спецсимволов для поиска файла
+            # В файле название может быть с пробелами, но в имени файла - с подчеркиваниями
+            safe_card_name = card_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+            
+            # Путь к папке с референсами
+            ref_dir = os.path.join('data', 'images', side)
+            
+            if not os.path.exists(ref_dir):
+                self.logger.log_action(f"⚠️ Папка с референсами не найдена: {ref_dir}")
+                return None
+            
+            # Ищем файлы с форматом {side}_{card_number}_{card_name}.{ext}
+            # Проверяем оба расширения: .png и .jpg
+            for ext in ['png', 'jpg']:
+                ref_filename = f"{side}_{card_number}_{safe_card_name}.{ext}"
+                ref_path = os.path.join(ref_dir, ref_filename)
+                
+                if os.path.exists(ref_path):
+                    self.logger.log_action(f"✓ Найден референс: {ref_path}")
+                    return ref_path
+            
+            # Если не нашли, выводим информацию для отладки
+            self.logger.log_action(f"⚠️ Референс не найден для карточки {card_number} ({card_name}), сторона {side}")
+            self.logger.log_action(f"   Искали файлы: {side}_{card_number}_{safe_card_name}.png и .jpg")
+            self.logger.log_action(f"   В папке: {ref_dir}")
+            return None
+            
+        except Exception as e:
+            self.logger.log_action(f"✗ ОШИБКА при поиске референса: {e}")
+            return None
+
     def generate_single_side(self, card_number: int, card_name: str, pair_number: int,
                             side: str, prompt: str,
                             format_ratio: str, stop_event) -> bool:
@@ -206,11 +255,38 @@ class MultiFormatGenerator:
             if stop_event.is_set():
                 return False
             
-            # 2. Вводим промпт
+            # 2. Вводим промпт (и референс, если режим с референсами)
             if not self.chat_manager.click_coordinate('PROMPT_INPUT', "поле ввода промпта"):
                 return False
             time.sleep(DELAYS['BETWEEN_CLICKS'])
             
+            # Проверяем режим генерации - если режим с референсами, вставляем изображение
+            generation_mode = self.settings_manager.get('GENERATION_MODE')
+            if generation_mode == 'multi_format_with_refs':
+                # Ищем и вставляем референс
+                ref_path = self.get_reference_path(card_number, card_name, side)
+                if ref_path:
+                    self.logger.log_action(f"Вставка референса: {ref_path}")
+                    # Сохраняем текущий буфер обмена
+                    original_clipboard = self.clipboard.get_clipboard_content()
+                    
+                    # Копируем изображение в буфер обмена
+                    if self.clipboard.copy_image_to_clipboard(ref_path):
+                        # Вставляем изображение
+                        if self.clipboard.paste_image_from_clipboard():
+                            self.logger.log_action("✓ Референс вставлен успешно")
+                            time.sleep(DELAYS['BETWEEN_CLICKS'])  # Пауза после вставки изображения
+                        else:
+                            self.logger.log_action("⚠️ Не удалось вставить референс, продолжаем без него")
+                    else:
+                        self.logger.log_action("⚠️ Не удалось скопировать референс в буфер обмена, продолжаем без него")
+                    
+                    # Восстанавливаем буфер обмена (для текста промпта)
+                    self.clipboard.restore_clipboard(original_clipboard)
+                else:
+                    self.logger.log_action(f"⚠️ Референс не найден для карточки {card_number}, сторона {side}, продолжаем без референса")
+            
+            # Вводим промпт
             self.logger.log_action("Ввод промпта через буфер обмена")
             if not self.clipboard.safe_paste_text(prompt):
                 return False
@@ -430,9 +506,17 @@ class MultiFormatGenerator:
         # Ленивый импорт для избежания циклических зависимостей
         from core.file_handler import FileHandler
         
+        generation_mode = self.settings_manager.get('GENERATION_MODE')
+        
+        # Определяем название режима
+        if generation_mode == 'multi_format_with_refs':
+            mode_name = "Мультиформатный с референсами (лицо 4:3 + оборот 3:2)"
+        else:
+            mode_name = "Мультиформатный без референсов (лицо 4:3 + оборот 3:2)"
+        
         self.logger.log_action(f"🚀 Процесс мультиформатного генератора запущен (PID: {multiprocessing.current_process().pid})")
         self.logger.log_action(f"⚙️ Настройки: старт={start_card}, лимит={cards_to_process}, проверка={check_image_enabled}")
-        self.logger.log_action(f"🎯 Режим: Мультиформатный без референсов (лицо 4:3 + оборот 3:2)")
+        self.logger.log_action(f"🎯 Режим: {mode_name}")
         
         file_handler = FileHandler(self.settings_manager)
         cards_to_process_list = file_handler.get_cards_to_process()
@@ -444,6 +528,43 @@ class MultiFormatGenerator:
         if not cards_to_process_list:
             self.logger.log_action(f"КРИТИЧЕСКАЯ ОШИБКА: Нет карточек для обработки начиная с №{start_card}!")
             return
+        
+        # Проверка референсов для режима с референсами
+        if generation_mode == 'multi_format_with_refs':
+            self.logger.log_action("🔍 Проверка наличия референсов...")
+            missing_refs = []  # Список проблемных референсов
+            
+            # Проверяем наличие папок
+            face_dir = os.path.join('data', 'images', 'лицо')
+            back_dir = os.path.join('data', 'images', 'оборот')
+            
+            if not os.path.exists(face_dir):
+                self.logger.log_action(f"⚠️ Папка с референсами для лицевой стороны не найдена: {face_dir}")
+            if not os.path.exists(back_dir):
+                self.logger.log_action(f"⚠️ Папка с референсами для оборотной стороны не найдена: {back_dir}")
+            
+            # Проверяем наличие файлов референсов для всех карточек
+            for card_number, card_name, pairs_list in cards_to_process_list:
+                # Проверяем лицевую сторону
+                face_ref = self.get_reference_path(card_number, card_name, 'лицо')
+                if not face_ref:
+                    missing_refs.append(f"Карточка {card_number} ({card_name}) - лицо")
+                
+                # Проверяем оборотную сторону
+                back_ref = self.get_reference_path(card_number, card_name, 'оборот')
+                if not back_ref:
+                    missing_refs.append(f"Карточка {card_number} ({card_name}) - оборот")
+            
+            # Выводим список проблемных референсов
+            if missing_refs:
+                self.logger.log_action("⚠️ НЕ НАЙДЕНЫ СЛЕДУЮЩИЕ РЕФЕРЕНСЫ:")
+                for missing in missing_refs:
+                    self.logger.log_action(f"   - {missing}")
+                self.logger.log_action("⚠️ Продолжаем работу без этих референсов")
+                print(f"[ГЕНЕРАТОР] ⚠️ Не найдено референсов: {len(missing_refs)} шт.")
+            else:
+                self.logger.log_action("✓ Все референсы найдены")
+                print(f"[ГЕНЕРАТОР] ✓ Все референсы найдены ({len(cards_to_process_list) * 2} файлов)")
         
         # Подсчет общего количества пар и изображений
         total_pairs = sum(len(pairs_list) for _, _, pairs_list in cards_to_process_list)

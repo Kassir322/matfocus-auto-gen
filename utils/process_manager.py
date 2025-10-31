@@ -60,14 +60,8 @@ class ProcessManager:
                 print("   FORMAT_SELECTOR - выпадающий список выбора формата (справа от промпта)")
             return
         
-        # Проверка режима с референсами (ещё не реализован)
-        if generation_mode == 'multi_format_with_refs':
-            print("[ГЛАВНЫЙ] ⚠️ Режим 'Мультиформатный с референсами' пока не реализован!")
-            print("[ГЛАВНЫЙ] ⚠️ Используйте режим 'Мультиформатный без референсов' или 'Стандартный'")
-            return
-        
-        # Дополнительные проверки для multi_format режима
-        if generation_mode == 'multi_format':
+        # Дополнительные проверки для multi_format режимов
+        if generation_mode in ['multi_format', 'multi_format_with_refs']:
             # Проверка файла промптов
             from core.file_handler import FileHandler
             file_handler = FileHandler(settings_manager)
@@ -87,7 +81,7 @@ class ProcessManager:
         self.stop_event = Event()
         
         # Выбор генератора в зависимости от режима
-        if generation_mode == 'multi_format':
+        if generation_mode in ['multi_format', 'multi_format_with_refs']:
             from core.multi_format_generator import MultiFormatGenerator
             generator = MultiFormatGenerator(settings_manager)
 
