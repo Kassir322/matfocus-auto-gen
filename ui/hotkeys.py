@@ -3,6 +3,8 @@
 """
 import keyboard
 import pyautogui
+import os
+import signal
 from config.coordinates import get_coordinates_manager
 
 class HotkeyManager:
@@ -13,6 +15,7 @@ class HotkeyManager:
         self.coordinates_manager = get_coordinates_manager()
         self.coordinate_capture_mode = False
         self.coordinate_to_set = None
+        self.should_exit = False  # Флаг для завершения программы
     
     def get_mouse_position(self):
         """Получение координат курсора"""
@@ -91,6 +94,12 @@ class HotkeyManager:
         except KeyboardInterrupt:
             print("\nНастройка отменена")
     
+    def kill_console(self):
+        """Убить консоль (эмуляция Ctrl+C)"""
+        # Отправляем сигнал SIGINT текущему процессу
+        # Это вызывает KeyboardInterrupt, как при нажатии Ctrl+C
+        os.kill(os.getpid(), signal.SIGINT)
+    
     def exit_program(self):
         """Выход из программы"""
         print("\n🛑 Получен сигнал выхода (Esc)")
@@ -100,9 +109,9 @@ class HotkeyManager:
             print("🛑 Остановка автоматизации...")
             self.process_manager.stop_automation()
         
-        print("👋 Программа завершена")
-        import sys
-        sys.exit(0)
+        # Устанавливаем флаг завершения
+        # Ожидание Enter будет обработано в основном цикле
+        self.should_exit = True
     
     def register_hotkeys(self):
         """Регистрация всех горячих клавиш"""
@@ -114,9 +123,10 @@ class HotkeyManager:
         keyboard.add_hotkey('ctrl+4', self.settings_manager.toggle_image_check)
         keyboard.add_hotkey('ctrl+5', lambda: self.console.show_current_settings(self.settings_manager))
         keyboard.add_hotkey('ctrl+6', self.settings_manager.configure_end_card)
-        keyboard.add_hotkey('ctrl+7', self.settings_manager.toggle_generation_mode)
+        keyboard.add_hotkey('ctrl+7', self.settings_manager.change_generation_mode)
         keyboard.add_hotkey('ctrl+8', self.settings_manager.configure_image_wait_time)
         keyboard.add_hotkey('ctrl+shift+v', self.process_manager.setup_window)
         keyboard.add_hotkey('ctrl+shift+s', lambda: self.process_manager.start_automation(self.settings_manager))
         keyboard.add_hotkey('ctrl+shift+q', self.process_manager.stop_automation)
+        keyboard.add_hotkey('ctrl+esc', self.kill_console)  # Убить консоль (аналог Ctrl+C)
         keyboard.add_hotkey('esc', self.exit_program)

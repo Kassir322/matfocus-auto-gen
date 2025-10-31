@@ -22,7 +22,7 @@ class SettingsManager:
             'IMAGE_CHECK_ATTEMPTS': 3,                    # Количество попыток проверки
             'IMAGE_CHECK_DELAY': 5,                       # Секунд между проверками
             'BACKGROUND_COLOR_TOLERANCE': 30,             # Допуск для определения фонового цвета
-            'GENERATION_MODE': 'standard',                # Режим генерации: 'standard' или 'multi_format'
+            'GENERATION_MODE': 'standard',                # Режим генерации: 'standard', 'multi_format' или 'multi_format_with_refs'
             'GENERATION_WAIT': 20.0,                      # Время ожидания генерации изображения
             'IMAGE_WAIT_TIME': 25.0,                      # Время ожидания изображения при упрощённой проверке
         }
@@ -189,7 +189,7 @@ class SettingsManager:
     
     def configure_generations_per_card(self):
         """Интерактивная настройка количества генераций на карточку"""
-        if self.settings['GENERATION_MODE'] == 'multi_format':
+        if self.settings['GENERATION_MODE'] in ['multi_format', 'multi_format_with_refs']:
             print("⚠️ Недоступно в мультиформатном режиме")
             print("   Количество изображений = количество пар * 2")
             return
@@ -282,14 +282,99 @@ class SettingsManager:
         status = "Включена" if self.settings['CHECK_IMAGE_GENERATED'] else "Выключена"
         print(f"✓ Проверка изображений: {status}")
     
-    def toggle_generation_mode(self):
-        """Переключение между standard и multi_format"""
-        current = self.settings['GENERATION_MODE']
-        new_mode = 'multi_format' if current == 'standard' else 'standard'
-        self.set('GENERATION_MODE', new_mode)
-
-        mode_names = {
-            'standard': 'Стандартный (старый алгоритм)',
-            'multi_format': 'Мультиформатный (лицо 4:3 + оборот 3:2)'
+    def change_generation_mode(self):
+        """Меню выбора режима генерации"""
+        current_mode = self.settings['GENERATION_MODE']
+        
+        # Определение режимов с их описаниями
+        modes = {
+            '1': {
+                'code': 'standard',
+                'name': 'Стандартный (множественные генерации)',
+                'description': 'Многократные генерации на карточку'
+            },
+            '2': {
+                'code': 'multi_format',
+                'name': 'Мультиформатный без референсов (лицо 4:3 + оборот 3:2)',
+                'description': 'Пары изображений (лицо 4:3 + оборот 3:2) без использования референсов'
+            },
+            '3': {
+                'code': 'multi_format_with_refs',
+                'name': 'Мультиформатный с референсами (лицо 4:3 + оборот 3:2)',
+                'description': 'Пары изображений (лицо 4:3 + оборот 3:2) с использованием референсов'
+            }
         }
-        print(f"✓ Режим изменён: {mode_names[new_mode]}")
+        
+        try:
+            print("-" * 60)
+            print("МЕНЮ ВЫБОРА РЕЖИМА ГЕНЕРАЦИИ")
+            print("-" * 60)
+            
+            # Отображаем текущий режим
+            current_marker = ""
+            for key, mode in modes.items():
+                if mode['code'] == current_mode:
+                    current_marker = " ← текущий"
+                    break
+            
+            # Показываем все режимы с примерами промптов
+            for key, mode in modes.items():
+                marker = current_marker if mode['code'] == current_mode else ""
+                print(f"  {key}. {mode['name']}{marker}")
+                print(f"     {mode['description']}")
+                
+                # Примеры промптов для каждого режима
+                if mode['code'] == 'standard':
+                    print("     Примеры промптов:")
+                    print("       Карточка 1 - Промпт 1: ТЕКСТ ПРОМПТА.")
+                    print("       Карточка 1 - Промпт 2: ТЕКСТ ПРОМПТА.")
+                    print("       Карточка 1 - Промпт 3: ТЕКСТ ПРОМПТА.")
+                    print("       Карточка 2 - Промпт 1: ТЕКСТ ПРОМПТА.")
+                    print("       Карточка 2 - Промпт 2: ТЕКСТ ПРОМПТА.")
+                
+                elif mode['code'] == 'multi_format':
+                    print("     Примеры промптов:")
+                    print("       Карточка 63 лицо Нефть - Промпт 1: ТЕКСТ ПРОМПТА")
+                    print("       Карточка 63 оборот Нефть - Промпт 1: ТЕКСТ ПРОМПТА")
+                    print("       Карточка 63 лицо Нефть - Промпт 2: ТЕКСТ ПРОМПТА")
+                    print("       Карточка 63 оборот Нефть - Промпт 2: ТЕКСТ ПРОМПТА")
+                
+                elif mode['code'] == 'multi_format_with_refs':
+                    print("     Требуются референсы в папке data/images:")
+                    print("       - лицо_№_название.png или .jpg")
+                    print("       - оборот_№_название.png или .jpg")
+                    print("     Формат промптов такой же, как в мультиформатном без референсов:")
+                    print("       Карточка 63 лицо Нефть - Промпт 1: ТЕКСТ ПРОМПТА")
+                    print("       Карточка 63 оборот Нефть - Промпт 1: ТЕКСТ ПРОМПТА")
+                
+                print()
+            
+            print("  0. Отмена")
+            print("-" * 60)
+            
+            choice = input("Выберите режим (1-3): ").strip()
+            
+            if not choice or choice == '0':
+                print("Выбор режима отменён")
+                return
+            
+            if choice not in modes:
+                print("Ошибка: Неверный номер режима!")
+                return
+            
+            selected_mode = modes[choice]
+            
+            if selected_mode['code'] == current_mode:
+                print(f"✓ Режим уже установлен: {selected_mode['name']}")
+                return
+            
+            # Устанавливаем новый режим
+            self.set('GENERATION_MODE', selected_mode['code'])
+            print(f"✓ Режим изменён: {selected_mode['name']}")
+            
+        except ValueError:
+            print("Ошибка: Введите число!")
+        except KeyboardInterrupt:
+            print("\nВыбор режима отменён")
+        except Exception as e:
+            print(f"Ошибка при выборе режима: {e}")

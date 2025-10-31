@@ -21,11 +21,12 @@ class ConsoleInterface:
         print("  Ctrl+4 - переключить ПРОВЕРКУ ИЗОБРАЖЕНИЙ")
         print("  Ctrl+5 - показать ТЕКУЩИЕ НАСТРОЙКИ")
         print("  Ctrl+6 - настроить КОНЕЧНУЮ КАРТОЧКУ (до какой)")
-        print("  Ctrl+7 - ПЕРЕКЛЮЧИТЬ РЕЖИМ ГЕНЕРАЦИИ ⭐")
+        print("  Ctrl+7 - ВЫБРАТЬ РЕЖИМ ГЕНЕРАЦИИ ⭐")
         print("  Ctrl+8 - НАСТРОИТЬ ВРЕМЯ ОЖИДАНИЯ ИЗОБРАЖЕНИЯ ⏰")
         print("  Ctrl+Shift+V - НАСТРОИТЬ РАБОЧЕЕ ОКНО 🪟")
         print("  Ctrl+Shift+S - ЗАПУСТИТЬ автоматизацию")
         print("  Ctrl+Shift+Q - ОСТАНОВИТЬ автоматизацию")
+        print("  Ctrl+Esc - убить консоль (аналог Ctrl+C)")
         print("  Esc - выход из программы")
         print("-" * 80)
         print(f"Настройки загружены из data/settings.json")
@@ -59,14 +60,17 @@ class ConsoleInterface:
         generation_mode = settings_manager.get('GENERATION_MODE')
         mode_names = {
             'standard': 'Стандартный (множественные генерации)',
-            'multi_format': 'Мультиформатный (лицо 4:3 + оборот 3:2)'
+            'multi_format': 'Мультиформатный без референсов (лицо 4:3 + оборот 3:2)',
+            'multi_format_with_refs': 'Мультиформатный с референсами (лицо 4:3 + оборот 3:2)'
         }
         
         print(f"  🎯 РЕЖИМ: {mode_names.get(generation_mode, generation_mode)}")
         
-        if generation_mode == 'multi_format':
+        if generation_mode in ['multi_format', 'multi_format_with_refs']:
             print(f"  Пар промптов на карточку: зависит от файла")
             print(f"  Изображений на пару: 2 (лицо + оборот)")
+            if generation_mode == 'multi_format_with_refs':
+                print(f"  ⚠️ Референсы требуются в папке data/images")
         else:
             print(f"  Генераций на карточку: {settings_manager.get('GENERATIONS_PER_CARD')}")
         
@@ -77,8 +81,8 @@ class ConsoleInterface:
         print("Координаты:")
         missing_coords = [name for name, coord in COORDINATES.items() if coord == (0, 0)]
         
-        # Проверка FORMAT_SELECTOR для multi_format
-        if generation_mode == 'multi_format':
+        # Проверка FORMAT_SELECTOR для multi_format режимов
+        if generation_mode in ['multi_format', 'multi_format_with_refs']:
             if COORDINATES.get('FORMAT_SELECTOR', (0, 0)) == (0, 0):
                 print("  ❌ FORMAT_SELECTOR не задан! Обязателен для этого режима!")
                 missing_coords = [name for name in missing_coords if name != 'FORMAT_SELECTOR']
@@ -101,7 +105,7 @@ class ConsoleInterface:
             actual_cards = min(cards_from_start, settings_manager.get('CARDS_TO_PROCESS'))
             print(f"  Будет обработано карточек: {actual_cards}")
             
-            if generation_mode == 'multi_format':
+            if generation_mode in ['multi_format', 'multi_format_with_refs']:
                 # Для мультиформатного режима считаем пары и изображения
                 total_pairs = sum(len(pairs) for card_num, pairs in all_prompts.items() 
                                 if card_num >= settings_manager.get('START_FROM_CARD') 
@@ -111,6 +115,8 @@ class ConsoleInterface:
                 print(f"  Всего изображений: {total_images}")
                 estimated_time = total_images * (DELAYS['GENERATION_WAIT'] + 10) / 60
                 print(f"  Примерное время выполнения: {estimated_time:.1f} минут")
+                if generation_mode == 'multi_format_with_refs':
+                    print(f"  ⚠️ Режим с референсами пока не реализован")
             else:
                 # Стандартный режим
                 total_generations = actual_cards * settings_manager.get('GENERATIONS_PER_CARD')

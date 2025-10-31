@@ -432,7 +432,7 @@ class MultiFormatGenerator:
         
         self.logger.log_action(f"🚀 Процесс мультиформатного генератора запущен (PID: {multiprocessing.current_process().pid})")
         self.logger.log_action(f"⚙️ Настройки: старт={start_card}, лимит={cards_to_process}, проверка={check_image_enabled}")
-        self.logger.log_action(f"🎯 Режим: Мультиформатный (лицо 4:3 + оборот 3:2)")
+        self.logger.log_action(f"🎯 Режим: Мультиформатный без референсов (лицо 4:3 + оборот 3:2)")
         
         file_handler = FileHandler(self.settings_manager)
         cards_to_process_list = file_handler.get_cards_to_process()

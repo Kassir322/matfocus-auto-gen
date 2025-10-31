@@ -41,7 +41,7 @@ class ProcessManager:
         # Проверка критичных координат в зависимости от режима
         critical_coords = ['PROMPT_INPUT', 'IMAGE_LOCATION', 'NEW_CHAT_BUTTON', 'CHAT_NAME_INPUT']
         
-        if generation_mode == 'multi_format':
+        if generation_mode in ['multi_format', 'multi_format_with_refs']:
             critical_coords.append('FORMAT_SELECTOR')
         
         empty_critical = [name for name in critical_coords if COORDINATES[name] == (0, 0)]
@@ -55,9 +55,15 @@ class ProcessManager:
                 error_msg.append(f"Относительные движения: {', '.join(empty_movements)}")
             print(f"[ГЛАВНЫЙ] ОШИБКА: Не заданы {' и '.join(error_msg)}")
             
-            if generation_mode == 'multi_format' and 'FORMAT_SELECTOR' in empty_critical:
+            if generation_mode in ['multi_format', 'multi_format_with_refs'] and 'FORMAT_SELECTOR' in empty_critical:
                 print("   Используйте Ctrl+0 для настройки координаты")
                 print("   FORMAT_SELECTOR - выпадающий список выбора формата (справа от промпта)")
+            return
+        
+        # Проверка режима с референсами (ещё не реализован)
+        if generation_mode == 'multi_format_with_refs':
+            print("[ГЛАВНЫЙ] ⚠️ Режим 'Мультиформатный с референсами' пока не реализован!")
+            print("[ГЛАВНЫЙ] ⚠️ Используйте режим 'Мультиформатный без референсов' или 'Стандартный'")
             return
         
         # Дополнительные проверки для multi_format режима
@@ -90,7 +96,7 @@ class ProcessManager:
                 args=(self.stop_event, start_card, check_image_enabled,
                       generation_wait, cards_to_process)
             )
-        else:
+        elif generation_mode == 'standard':
             # Стандартный режим (ImageGenerator)
             from core.image_generator import ImageGenerator
             generator = ImageGenerator(settings_manager)

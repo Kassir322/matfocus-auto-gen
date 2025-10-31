@@ -135,7 +135,7 @@ class FileHandler:
                 card_name, pairs_list = all_prompts[card_num]
                 print(f"[ПАРСЕР] Карточка {card_num} ({card_name}): {len(pairs_list)} пар")
                 
-                if generation_mode == 'multi_format':
+                if generation_mode in ['multi_format', 'multi_format_with_refs']:
                     # Для мультиформатного режима возвращаем кортеж (номер, название, список пар)
                     cards_to_process_list.append((card_num, card_name, pairs_list))
                 else:
