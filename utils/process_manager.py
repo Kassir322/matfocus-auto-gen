@@ -44,6 +44,9 @@ class ProcessManager:
         if generation_mode in ['multi_format', 'multi_format_with_refs']:
             critical_coords.append('FORMAT_SELECTOR')
         
+        if generation_mode == 'multi_format_with_refs':
+            critical_coords.append('PROMPT_INPUT_AFTER_IMAGE')
+        
         empty_critical = [name for name in critical_coords if COORDINATES[name] == (0, 0)]
         empty_movements = [name for name, movement in RELATIVE_MOVEMENTS.items() if movement == (0, 0)]
 
@@ -58,6 +61,10 @@ class ProcessManager:
             if generation_mode in ['multi_format', 'multi_format_with_refs'] and 'FORMAT_SELECTOR' in empty_critical:
                 print("   Используйте Ctrl+0 для настройки координаты")
                 print("   FORMAT_SELECTOR - выпадающий список выбора формата (справа от промпта)")
+            
+            if generation_mode == 'multi_format_with_refs' and 'PROMPT_INPUT_AFTER_IMAGE' in empty_critical:
+                print("   Используйте Ctrl+0 для настройки координаты")
+                print("   PROMPT_INPUT_AFTER_IMAGE - поле ввода промпта после вставки изображения (выше обычного)")
             return
         
         # Дополнительные проверки для multi_format режимов

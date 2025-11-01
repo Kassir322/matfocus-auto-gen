@@ -51,6 +51,7 @@ class HotkeyManager:
             'CHAT_NAME_POPUP': 'Поле ввода в попапе (если есть)',
             'CHAT_NAME_CONFIRM': 'Кнопка подтверждения в попапе (если есть)',
             'FORMAT_SELECTOR': 'Выпадающий список выбора формата (ОБЯЗАТЕЛЬНО для мультиформатного режима!)',
+            'PROMPT_INPUT_AFTER_IMAGE': 'Поле ввода промпта после вставки изображения (ОБЯЗАТЕЛЬНО для режима с референсами!)',
             'TO_SAVE_OPTION': 'Относительное движение к пункту "сохранить изображение"'
         }
         
@@ -59,6 +60,8 @@ class HotkeyManager:
             status = "⚠️ не задана" if self.coordinates_manager.get_coordinate(coord_name) == (0, 0) else "✓ задана"
             
             if coord_name == 'FORMAT_SELECTOR':
+                print(f"  {i}. {coord_name} - {description} [{status}] ⭐")
+            elif coord_name == 'PROMPT_INPUT_AFTER_IMAGE':
                 print(f"  {i}. {coord_name} - {description} [{status}] ⭐")
             else:
                 print(f"  {i}. {coord_name} - {description} [{status}]")
@@ -83,6 +86,10 @@ class HotkeyManager:
                 if coord_name == 'FORMAT_SELECTOR':
                     print("⭐ ВАЖНО: Это координата обязательна для мультиформатного режима!")
                     print("   Найдите выпадающий список формата изображения (обычно справа от поля промпта)")
+                elif coord_name == 'PROMPT_INPUT_AFTER_IMAGE':
+                    print("⭐ ВАЖНО: Это координата обязательна для режима с референсами!")
+                    print("   Найдите место клика в поле ввода промпта ПОСЛЕ вставки изображения-референса")
+                    print("   (обычно чуть выше обычного поля ввода, так как чат расширяется после вставки изображения)")
                 
                 print("Наведите курсор на нужный элемент и нажмите Ctrl+Shift+P")
                 self.coordinate_capture_mode = True

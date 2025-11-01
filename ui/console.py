@@ -87,6 +87,12 @@ class ConsoleInterface:
                 print("  ❌ FORMAT_SELECTOR не задан! Обязателен для этого режима!")
                 missing_coords = [name for name in missing_coords if name != 'FORMAT_SELECTOR']
         
+        # Проверка PROMPT_INPUT_AFTER_IMAGE для режима с референсами
+        if generation_mode == 'multi_format_with_refs':
+            if COORDINATES.get('PROMPT_INPUT_AFTER_IMAGE', (0, 0)) == (0, 0):
+                print("  ❌ PROMPT_INPUT_AFTER_IMAGE не задан! Обязателен для режима с референсами!")
+                missing_coords = [name for name in missing_coords if name != 'PROMPT_INPUT_AFTER_IMAGE']
+        
         if missing_coords:
             print(f"  ⚠️ Не заданы: {', '.join(missing_coords)}")
         else:

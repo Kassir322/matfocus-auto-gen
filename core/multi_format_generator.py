@@ -301,7 +301,18 @@ class MultiFormatGenerator:
                 return False
             
             # 5. Возвращаемся к полю ввода промпта
-            if not self.chat_manager.click_coordinate('PROMPT_INPUT', "возврат к полю ввода промпта"):
+            # В режиме с референсами используем специальную координату (выше обычной),
+            # так как чат расширяется после вставки изображения
+            if generation_mode == 'multi_format_with_refs':
+                # Используем координату для режима с референсами
+                coord_name = 'PROMPT_INPUT_AFTER_IMAGE'
+                description = "возврат к полю ввода промпта после вставки изображения"
+            else:
+                # Обычная координата для режима без референсов
+                coord_name = 'PROMPT_INPUT'
+                description = "возврат к полю ввода промпта"
+            
+            if not self.chat_manager.click_coordinate(coord_name, description):
                 return False
             time.sleep(DELAYS['BETWEEN_CLICKS'])
             
