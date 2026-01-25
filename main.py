@@ -14,14 +14,6 @@ def main():
     # Упрощённый запуск без проверки зависимостей
     print("🚀 Запуск AI Studio Automation...")
     
-    # ТЕСТЫ
-    # print("Запуск тестов...")
-    # run_all_tests()
-    # print()
-    # print("🎉 Все тесты завершены! Система готова к использованию.")
-    # print("Нажмите Enter для продолжения...")
-    # input()
-    
     # Инициализация компонентов
     settings_manager = SettingsManager()
     process_manager = ProcessManager()

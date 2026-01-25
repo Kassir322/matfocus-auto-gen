@@ -408,32 +408,37 @@ class MultiFormatGenerator:
                      prompts_dict: dict, stop_event) -> int:
         """
         Генерация пары (лицо + оборот).
+        Поддерживает неполные пары (когда 'лицо' или 'оборот' может быть None).
 
         Args:
             card_number: номер карточки
             card_name: название карточки
             pair_number: номер пары
-            prompts_dict: {'лицо': 'текст', 'оборот': 'текст'}
+            prompts_dict: {'лицо': 'текст' или None, 'оборот': 'текст' или None}
             stop_event: событие остановки
 
         Returns:
             int: количество успешно созданных изображений (0, 1 или 2)
 
         Алгоритм:
-        1. Генерация лицевой стороны (4:3)
+        1. Генерация лицевой стороны (4:3), если промпт есть
         2. Пауза BETWEEN_GENERATIONS
-        3. Генерация оборотной стороны (3:2)
+        3. Генерация оборотной стороны (3:2), если промпт есть
         """
         try:
             self.logger.log_action(f"======= 🔗 ГЕНЕРАЦИЯ ПАРЫ {pair_number} КАРТОЧКИ {card_number} =======")
             
             success_count = 0
             
-            # Генерация лицевой стороны (4:3)
-            self.logger.log_action(f"Генерация лицевой стороны пары {pair_number}")
-            if self.generate_single_side(card_number, card_name, pair_number, 'лицо', 
-                                       prompts_dict['лицо'], '4:3', stop_event):
-                success_count += 1
+            # Генерация лицевой стороны (4:3), если промпт есть
+            face_prompt = prompts_dict.get('лицо')
+            if face_prompt is not None:
+                self.logger.log_action(f"Генерация лицевой стороны пары {pair_number}")
+                if self.generate_single_side(card_number, card_name, pair_number, 'лицо', 
+                                           face_prompt, '4:3', stop_event):
+                    success_count += 1
+            else:
+                self.logger.log_action(f"⚠️ Пропуск лицевой стороны пары {pair_number} (промпт отсутствует)")
             
             if stop_event.is_set():
                 return success_count
@@ -443,13 +448,18 @@ class MultiFormatGenerator:
                 self.logger.log_action("Пауза между генерациями пары")
                 time.sleep(DELAYS['BETWEEN_GENERATIONS'])
             
-            # Генерация оборотной стороны (3:2)
-            self.logger.log_action(f"Генерация оборотной стороны пары {pair_number}")
-            if self.generate_single_side(card_number, card_name, pair_number, 'оборот', 
-                                       prompts_dict['оборот'], '3:2', stop_event):
-                success_count += 1
+            # Генерация оборотной стороны (3:2), если промпт есть
+            back_prompt = prompts_dict.get('оборот')
+            if back_prompt is not None:
+                self.logger.log_action(f"Генерация оборотной стороны пары {pair_number}")
+                if self.generate_single_side(card_number, card_name, pair_number, 'оборот', 
+                                           back_prompt, '3:2', stop_event):
+                    success_count += 1
+            else:
+                self.logger.log_action(f"⚠️ Пропуск оборотной стороны пары {pair_number} (промпт отсутствует)")
             
-            self.logger.log_action(f"✓ Пара {pair_number} завершена: {success_count}/2 изображений")
+            expected_count = (1 if face_prompt is not None else 0) + (1 if back_prompt is not None else 0)
+            self.logger.log_action(f"✓ Пара {pair_number} завершена: {success_count}/{expected_count} изображений")
             return success_count
             
         except Exception as e:
