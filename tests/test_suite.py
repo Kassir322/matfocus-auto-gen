@@ -337,19 +337,19 @@ def test_coordinates_fix():
         coords_manager = get_coordinates_manager()
         print("   ✅ CoordinatesManager получен")
         
-        # Проверяем что FORMAT_SELECTOR присутствует
-        if 'FORMAT_SELECTOR' in coords_manager.coordinates:
-            print("   ✅ FORMAT_SELECTOR присутствует в координатах")
-            format_coord = coords_manager.get_coordinate('FORMAT_SELECTOR')
-            print(f"   📍 FORMAT_SELECTOR: {format_coord}")
+        # Проверяем что ASPECT_RATIO_SELECTOR присутствует
+        if 'ASPECT_RATIO_SELECTOR' in coords_manager.coordinates:
+            print("   ✅ ASPECT_RATIO_SELECTOR присутствует в координатах")
+            format_coord = coords_manager.get_coordinate('ASPECT_RATIO_SELECTOR')
+            print(f"   📍 ASPECT_RATIO_SELECTOR: {format_coord}")
         else:
-            print("   ❌ FORMAT_SELECTOR отсутствует!")
+            print("   ❌ ASPECT_RATIO_SELECTOR отсутствует!")
             return False
         
         # Проверяем что все обязательные координаты присутствуют
         required_coords = [
             'PROMPT_INPUT', 'IMAGE_LOCATION', 'NEW_CHAT_BUTTON', 
-            'CHAT_NAME_INPUT', 'FORMAT_SELECTOR'
+            'CHAT_NAME_INPUT', 'ASPECT_RATIO_SELECTOR'
         ]
         
         missing_coords = []
@@ -366,10 +366,10 @@ def test_coordinates_fix():
         # Тестируем список координат
         print("\n📋 Тест отображения списка координат...")
         coords_list = coords_manager.list_coordinates()
-        if 'FORMAT_SELECTOR' in coords_list:
-            print("   ✅ FORMAT_SELECTOR отображается в списке")
+        if 'ASPECT_RATIO_SELECTOR' in coords_list:
+            print("   ✅ ASPECT_RATIO_SELECTOR отображается в списке")
         else:
-            print("   ❌ FORMAT_SELECTOR не отображается в списке")
+            print("   ❌ ASPECT_RATIO_SELECTOR не отображается в списке")
             return False
         
         print("\n🎉 ТЕСТ ИСПРАВЛЕНИЯ КООРДИНАТ ЗАВЕРШЕН!")

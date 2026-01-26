@@ -8,7 +8,7 @@ from .base_parser import BaseParser
 
 
 class MultiFormatParser(BaseParser):
-    """Парсер для мультиформатного режима (лицо 4:3 + оборот 3:2)"""
+    """Парсер для мультиформатного режима с настраиваемыми соотношениями сторон"""
     
     def load_prompts(self):
         """

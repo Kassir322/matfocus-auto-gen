@@ -25,6 +25,8 @@ class SettingsManager:
             'GENERATION_MODE': 'standard',                # Режим генерации: 'standard', 'multi_format' или 'multi_format_with_refs'
             'GENERATION_WAIT': 20.0,                      # Время ожидания генерации изображения
             'IMAGE_WAIT_TIME': 25.0,                      # Время ожидания изображения при упрощённой проверке
+            'FACE_ASPECT_RATIO': '4:3',                  # Соотношение сторон для лицевой стороны (например, "4:3", "16:9", "3:4")
+            'BACK_ASPECT_RATIO': '3:2',                  # Соотношение сторон для оборотной стороны (например, "3:2", "16:9", "5:4")
         }
     
     def load_settings(self):
@@ -295,19 +297,26 @@ class SettingsManager:
             },
             '2': {
                 'code': 'multi_format',
-                'name': 'Мультиформатный без референсов (лицо 4:3 + оборот 3:2)',
-                'description': 'Пары изображений (лицо 4:3 + оборот 3:2) без использования референсов'
+                'name': 'Мультиформатный без референсов',
+                'description': 'Пары изображений без использования референсов (соотношения сторон настраиваются)'
             },
             '3': {
                 'code': 'multi_format_with_refs',
-                'name': 'Мультиформатный с референсами (лицо 4:3 + оборот 3:2)',
-                'description': 'Пары изображений (лицо 4:3 + оборот 3:2) с использованием референсов'
+                'name': 'Мультиформатный с референсами',
+                'description': 'Пары изображений с использованием референсов (соотношения сторон настраиваются)'
             }
         }
         
         try:
+            # Получаем текущие соотношения сторон для отображения
+            face_ratio = self.settings.get('FACE_ASPECT_RATIO', '4:3')
+            back_ratio = self.settings.get('BACK_ASPECT_RATIO', '3:2')
+            
             print("-" * 60)
             print("МЕНЮ ВЫБОРА РЕЖИМА ГЕНЕРАЦИИ")
+            print("-" * 60)
+            print(f"Текущие соотношения сторон: лицо {face_ratio}, оборот {back_ratio}")
+            print(f"(Настройка: Ctrl+9)")
             print("-" * 60)
             
             # Отображаем текущий режим
@@ -378,3 +387,82 @@ class SettingsManager:
             print("\nВыбор режима отменён")
         except Exception as e:
             print(f"Ошибка при выборе режима: {e}")
+    
+    def configure_aspect_ratios(self):
+        """Настройка соотношений сторон для мультиформатного режима"""
+        try:
+            print("-" * 60)
+            print("НАСТРОЙКА СООТНОШЕНИЙ СТОРОН")
+            print("-" * 60)
+            
+            current_face = self.settings.get('FACE_ASPECT_RATIO', '4:3')
+            current_back = self.settings.get('BACK_ASPECT_RATIO', '3:2')
+            
+            print(f"Текущее соотношение для лицевой стороны: {current_face}")
+            print(f"Текущее соотношение для оборотной стороны: {current_back}")
+            print()
+            print("Формат ввода: X:Y (например, 16:9, 3:4, 5:4)")
+            print("Оставьте пустым, чтобы не изменять")
+            print()
+            
+            # Настройка лицевой стороны
+            new_face = input(f"Новое соотношение для лицевой стороны [{current_face}]: ").strip()
+            if new_face:
+                if self._validate_aspect_ratio(new_face):
+                    self.set('FACE_ASPECT_RATIO', new_face)
+                    print(f"✓ Соотношение для лицевой стороны установлено: {new_face}")
+                else:
+                    print("❌ Ошибка: неверный формат. Используйте формат X:Y (например, 16:9)")
+                    return
+            else:
+                print(f"Соотношение для лицевой стороны не изменено: {current_face}")
+            
+            print()
+            
+            # Настройка оборотной стороны
+            new_back = input(f"Новое соотношение для оборотной стороны [{current_back}]: ").strip()
+            if new_back:
+                if self._validate_aspect_ratio(new_back):
+                    self.set('BACK_ASPECT_RATIO', new_back)
+                    print(f"✓ Соотношение для оборотной стороны установлено: {new_back}")
+                else:
+                    print("❌ Ошибка: неверный формат. Используйте формат X:Y (например, 16:9)")
+                    return
+            else:
+                print(f"Соотношение для оборотной стороны не изменено: {current_back}")
+            
+            print()
+            print(f"Текущие настройки:")
+            print(f"  Лицевая сторона: {self.settings.get('FACE_ASPECT_RATIO', '4:3')}")
+            print(f"  Оборотная сторона: {self.settings.get('BACK_ASPECT_RATIO', '3:2')}")
+            
+        except KeyboardInterrupt:
+            print("\nНастройка отменена")
+        except Exception as e:
+            print(f"Ошибка при настройке соотношений сторон: {e}")
+    
+    def _validate_aspect_ratio(self, ratio: str) -> bool:
+        """
+        Валидация формата соотношения сторон
+        
+        Args:
+            ratio: строка в формате "X:Y"
+            
+        Returns:
+            bool: True если формат корректный
+        """
+        try:
+            if ':' not in ratio:
+                return False
+            
+            parts = ratio.split(':')
+            if len(parts) != 2:
+                return False
+            
+            # Проверяем, что обе части - числа
+            float(parts[0])
+            float(parts[1])
+            
+            return True
+        except (ValueError, AttributeError):
+            return False

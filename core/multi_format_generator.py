@@ -1,6 +1,6 @@
 """
 Мультиформатный генератор изображений для AI Studio
-Поддерживает генерацию пар изображений (лицо 4:3 + оборот 3:2)
+Поддерживает генерацию пар изображений с настраиваемыми соотношениями сторон
 """
 import time
 import pyautogui
@@ -23,13 +23,13 @@ class MultiFormatGenerator:
         Выбор формата изображения через UI.
 
         Args:
-            format_ratio: "4:3" или "3:2"
+            format_ratio: соотношение сторон (например, "4:3", "3:2", "16:9")
 
         Returns:
             bool: успешность операции
 
         Алгоритм:
-        1. Клик на FORMAT_SELECTOR координату
+        1. Клик на ASPECT_RATIO_SELECTOR координату
         2. Пауза BETWEEN_CLICKS
         3. Ввод format_ratio через pyautogui.write()
         4. Пауза BETWEEN_CLICKS
@@ -40,7 +40,7 @@ class MultiFormatGenerator:
             self.logger.log_action(f"Выбор формата изображения: {format_ratio}")
             
             # 1. Клик на выпадающий список формата
-            if not self.chat_manager.click_coordinate('FORMAT_SELECTOR', "выпадающий список формата"):
+            if not self.chat_manager.click_coordinate('ASPECT_RATIO_SELECTOR', "выпадающий список соотношения сторон"):
                 return False
             time.sleep(DELAYS['BETWEEN_CLICKS'])
             
@@ -421,21 +421,25 @@ class MultiFormatGenerator:
             int: количество успешно созданных изображений (0, 1 или 2)
 
         Алгоритм:
-        1. Генерация лицевой стороны (4:3), если промпт есть
+        1. Генерация лицевой стороны (соотношение из настроек), если промпт есть
         2. Пауза BETWEEN_GENERATIONS
-        3. Генерация оборотной стороны (3:2), если промпт есть
+        3. Генерация оборотной стороны (соотношение из настроек), если промпт есть
         """
         try:
             self.logger.log_action(f"======= 🔗 ГЕНЕРАЦИЯ ПАРЫ {pair_number} КАРТОЧКИ {card_number} =======")
             
+            # Получаем соотношения сторон из настроек
+            face_ratio = self.settings_manager.get('FACE_ASPECT_RATIO')
+            back_ratio = self.settings_manager.get('BACK_ASPECT_RATIO')
+            
             success_count = 0
             
-            # Генерация лицевой стороны (4:3), если промпт есть
+            # Генерация лицевой стороны, если промпт есть
             face_prompt = prompts_dict.get('лицо')
             if face_prompt is not None:
-                self.logger.log_action(f"Генерация лицевой стороны пары {pair_number}")
+                self.logger.log_action(f"Генерация лицевой стороны пары {pair_number} (соотношение: {face_ratio})")
                 if self.generate_single_side(card_number, card_name, pair_number, 'лицо', 
-                                           face_prompt, '4:3', stop_event):
+                                           face_prompt, face_ratio, stop_event):
                     success_count += 1
             else:
                 self.logger.log_action(f"⚠️ Пропуск лицевой стороны пары {pair_number} (промпт отсутствует)")
@@ -448,12 +452,12 @@ class MultiFormatGenerator:
                 self.logger.log_action("Пауза между генерациями пары")
                 time.sleep(DELAYS['BETWEEN_GENERATIONS'])
             
-            # Генерация оборотной стороны (3:2), если промпт есть
+            # Генерация оборотной стороны, если промпт есть
             back_prompt = prompts_dict.get('оборот')
             if back_prompt is not None:
-                self.logger.log_action(f"Генерация оборотной стороны пары {pair_number}")
+                self.logger.log_action(f"Генерация оборотной стороны пары {pair_number} (соотношение: {back_ratio})")
                 if self.generate_single_side(card_number, card_name, pair_number, 'оборот', 
-                                           back_prompt, '3:2', stop_event):
+                                           back_prompt, back_ratio, stop_event):
                     success_count += 1
             else:
                 self.logger.log_action(f"⚠️ Пропуск оборотной стороны пары {pair_number} (промпт отсутствует)")
@@ -529,11 +533,14 @@ class MultiFormatGenerator:
         
         generation_mode = self.settings_manager.get('GENERATION_MODE')
         
-        # Определяем название режима
+        # Определяем название режима с учетом настроек соотношения сторон
+        face_ratio = self.settings_manager.get('FACE_ASPECT_RATIO')
+        back_ratio = self.settings_manager.get('BACK_ASPECT_RATIO')
+        
         if generation_mode == 'multi_format_with_refs':
-            mode_name = "Мультиформатный с референсами (лицо 4:3 + оборот 3:2)"
+            mode_name = f"Мультиформатный с референсами (лицо {face_ratio} + оборот {back_ratio})"
         else:
-            mode_name = "Мультиформатный без референсов (лицо 4:3 + оборот 3:2)"
+            mode_name = f"Мультиформатный без референсов (лицо {face_ratio} + оборот {back_ratio})"
         
         self.logger.log_action(f"🚀 Процесс мультиформатного генератора запущен (PID: {multiprocessing.current_process().pid})")
         self.logger.log_action(f"⚙️ Настройки: старт={start_card}, лимит={cards_to_process}, проверка={check_image_enabled}")

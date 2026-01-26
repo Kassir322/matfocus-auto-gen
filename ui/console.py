@@ -23,6 +23,7 @@ class ConsoleInterface:
         print("  Ctrl+6 - настроить КОНЕЧНУЮ КАРТОЧКУ (до какой)")
         print("  Ctrl+7 - ВЫБРАТЬ РЕЖИМ ГЕНЕРАЦИИ ⭐")
         print("  Ctrl+8 - НАСТРОИТЬ ВРЕМЯ ОЖИДАНИЯ ИЗОБРАЖЕНИЯ ⏰")
+        print("  Ctrl+9 - НАСТРОИТЬ СООТНОШЕНИЯ СТОРОН (для мультиформатного режима) 📐")
         print("  Ctrl+Shift+V - НАСТРОИТЬ РАБОЧЕЕ ОКНО 🪟")
         print("  Ctrl+Shift+S - ЗАПУСТИТЬ автоматизацию")
         print("  Ctrl+Shift+Q - ОСТАНОВИТЬ автоматизацию")
@@ -60,13 +61,17 @@ class ConsoleInterface:
         generation_mode = settings_manager.get('GENERATION_MODE')
         mode_names = {
             'standard': 'Стандартный (множественные генерации)',
-            'multi_format': 'Мультиформатный без референсов (лицо 4:3 + оборот 3:2)',
-            'multi_format_with_refs': 'Мультиформатный с референсами (лицо 4:3 + оборот 3:2)'
+            'multi_format': 'Мультиформатный без референсов',
+            'multi_format_with_refs': 'Мультиформатный с референсами'
         }
         
         print(f"  🎯 РЕЖИМ: {mode_names.get(generation_mode, generation_mode)}")
         
         if generation_mode in ['multi_format', 'multi_format_with_refs']:
+            face_ratio = settings_manager.get('FACE_ASPECT_RATIO', '4:3')
+            back_ratio = settings_manager.get('BACK_ASPECT_RATIO', '3:2')
+            print(f"  Соотношение сторон (лицо): {face_ratio}")
+            print(f"  Соотношение сторон (оборот): {back_ratio}")
             print(f"  Пар промптов на карточку: зависит от файла")
             print(f"  Изображений на пару: 2 (лицо + оборот)")
             if generation_mode == 'multi_format_with_refs':
@@ -81,11 +86,11 @@ class ConsoleInterface:
         print("Координаты:")
         missing_coords = [name for name, coord in COORDINATES.items() if coord == (0, 0)]
         
-        # Проверка FORMAT_SELECTOR для multi_format режимов
+        # Проверка ASPECT_RATIO_SELECTOR для multi_format режимов
         if generation_mode in ['multi_format', 'multi_format_with_refs']:
-            if COORDINATES.get('FORMAT_SELECTOR', (0, 0)) == (0, 0):
-                print("  ❌ FORMAT_SELECTOR не задан! Обязателен для этого режима!")
-                missing_coords = [name for name in missing_coords if name != 'FORMAT_SELECTOR']
+            if COORDINATES.get('ASPECT_RATIO_SELECTOR', (0, 0)) == (0, 0):
+                print("  ❌ ASPECT_RATIO_SELECTOR не задан! Обязателен для этого режима!")
+                missing_coords = [name for name in missing_coords if name != 'ASPECT_RATIO_SELECTOR']
         
         # Проверка PROMPT_INPUT_AFTER_IMAGE для режима с референсами
         if generation_mode == 'multi_format_with_refs':

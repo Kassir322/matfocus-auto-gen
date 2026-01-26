@@ -186,10 +186,16 @@ class ImageGenerator:
                 
                 # Формат названия: Карточка № - НАЗВАНИЕ - генерация №
                 chat_name = f"Карточка {card_number} - {card_name} - генерация {gen_num}"
-                # Очищаем название от спецсимволов для имени файла
-                safe_card_name = card_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
-                # Формат файла: Карточка_№_НАЗВАНИЕ_генерация_№.png
-                filename = f"Карточка_{card_number}_{safe_card_name}_генерация_{gen_num}.png"
+                
+                # Проверяем, является ли название дефолтным (чтобы избежать дублирования в имени файла)
+                default_name = f"Карточка {card_number}"
+                if card_name == default_name:
+                    # Если название дефолтное, не включаем его в имя файла
+                    filename = f"Карточка_{card_number}_генерация_{gen_num}.png"
+                else:
+                    # Если название пользовательское, включаем его
+                    safe_card_name = card_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+                    filename = f"Карточка_{card_number}_{safe_card_name}_генерация_{gen_num}.png"
                 
                 self.logger.log_action(f"Используем промпт {prompt_index + 1}: {prompt[:100]}...")
                 

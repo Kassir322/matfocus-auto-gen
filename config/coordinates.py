@@ -16,7 +16,7 @@ class CoordinatesManager:
             'CHAT_NAME_INPUT': [0, 0],        # Поле ввода названия чата (первый клик)
             'CHAT_NAME_POPUP': [0, 0],        # Поле ввода в попапе
             'CHAT_NAME_CONFIRM': [0, 0],          # Кнопка подтверждения в попапе (если есть)
-            'FORMAT_SELECTOR': [0, 0],            # Выпадающий список выбора формата изображения
+            'ASPECT_RATIO_SELECTOR': [0, 0],     # Выпадающий список выбора соотношения сторон изображения
             'PROMPT_INPUT_AFTER_IMAGE': [0, 0],   # Поле ввода промпта после вставки изображения (для режима с референсами)
         }
         
@@ -121,7 +121,7 @@ class CoordinatesManager:
         coords_info.append("=== КООРДИНАТЫ ===")
         for name, coord in self.coordinates.items():
             status = "✓ задана" if coord != (0, 0) else "⚠️ не задана"
-            if name == 'FORMAT_SELECTOR':
+            if name == 'ASPECT_RATIO_SELECTOR':
                 coords_info.append(f"  {name}: {coord} - {status} [ДЛЯ МУЛЬТИФОРМАТНОГО РЕЖИМА]")
             elif name == 'PROMPT_INPUT_AFTER_IMAGE':
                 coords_info.append(f"  {name}: {coord} - {status} [ДЛЯ РЕЖИМА С РЕФЕРЕНСАМИ]")

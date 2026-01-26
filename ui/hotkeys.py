@@ -50,7 +50,7 @@ class HotkeyManager:
             'CHAT_NAME_INPUT': 'Поле ввода названия чата',
             'CHAT_NAME_POPUP': 'Поле ввода в попапе (если есть)',
             'CHAT_NAME_CONFIRM': 'Кнопка подтверждения в попапе (если есть)',
-            'FORMAT_SELECTOR': 'Выпадающий список выбора формата (ОБЯЗАТЕЛЬНО для мультиформатного режима!)',
+            'ASPECT_RATIO_SELECTOR': 'Выпадающий список выбора соотношения сторон (ОБЯЗАТЕЛЬНО для мультиформатного режима!)',
             'PROMPT_INPUT_AFTER_IMAGE': 'Поле ввода промпта после вставки изображения (ОБЯЗАТЕЛЬНО для режима с референсами!)',
             'TO_SAVE_OPTION': 'Относительное движение к пункту "сохранить изображение"'
         }
@@ -59,7 +59,7 @@ class HotkeyManager:
             description = coord_descriptions.get(coord_name, '')
             status = "⚠️ не задана" if self.coordinates_manager.get_coordinate(coord_name) == (0, 0) else "✓ задана"
             
-            if coord_name == 'FORMAT_SELECTOR':
+            if coord_name == 'ASPECT_RATIO_SELECTOR':
                 print(f"  {i}. {coord_name} - {description} [{status}] ⭐")
             elif coord_name == 'PROMPT_INPUT_AFTER_IMAGE':
                 print(f"  {i}. {coord_name} - {description} [{status}] ⭐")
@@ -83,9 +83,9 @@ class HotkeyManager:
                 print(f"\nВыбрана координата: {coord_name}")
                 print(f"Описание: {description}")
                 
-                if coord_name == 'FORMAT_SELECTOR':
+                if coord_name == 'ASPECT_RATIO_SELECTOR':
                     print("⭐ ВАЖНО: Это координата обязательна для мультиформатного режима!")
-                    print("   Найдите выпадающий список формата изображения (обычно справа от поля промпта)")
+                    print("   Найдите выпадающий список соотношения сторон изображения (обычно справа от поля промпта)")
                 elif coord_name == 'PROMPT_INPUT_AFTER_IMAGE':
                     print("⭐ ВАЖНО: Это координата обязательна для режима с референсами!")
                     print("   Найдите место клика в поле ввода промпта ПОСЛЕ вставки изображения-референса")
@@ -132,6 +132,7 @@ class HotkeyManager:
         keyboard.add_hotkey('ctrl+6', self.settings_manager.configure_end_card)
         keyboard.add_hotkey('ctrl+7', self.settings_manager.change_generation_mode)
         keyboard.add_hotkey('ctrl+8', self.settings_manager.configure_image_wait_time)
+        keyboard.add_hotkey('ctrl+9', self.settings_manager.configure_aspect_ratios)  # Настройка соотношений сторон
         keyboard.add_hotkey('ctrl+shift+v', self.process_manager.setup_window)
         keyboard.add_hotkey('ctrl+shift+s', lambda: self.process_manager.start_automation(self.settings_manager))
         keyboard.add_hotkey('ctrl+shift+q', self.process_manager.stop_automation)

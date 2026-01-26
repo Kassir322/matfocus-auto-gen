@@ -42,7 +42,7 @@ class ProcessManager:
         critical_coords = ['PROMPT_INPUT', 'IMAGE_LOCATION', 'NEW_CHAT_BUTTON', 'CHAT_NAME_INPUT']
         
         if generation_mode in ['multi_format', 'multi_format_with_refs']:
-            critical_coords.append('FORMAT_SELECTOR')
+            critical_coords.append('ASPECT_RATIO_SELECTOR')
         
         if generation_mode == 'multi_format_with_refs':
             critical_coords.append('PROMPT_INPUT_AFTER_IMAGE')
@@ -58,9 +58,9 @@ class ProcessManager:
                 error_msg.append(f"Относительные движения: {', '.join(empty_movements)}")
             print(f"[ГЛАВНЫЙ] ОШИБКА: Не заданы {' и '.join(error_msg)}")
             
-            if generation_mode in ['multi_format', 'multi_format_with_refs'] and 'FORMAT_SELECTOR' in empty_critical:
+            if generation_mode in ['multi_format', 'multi_format_with_refs'] and 'ASPECT_RATIO_SELECTOR' in empty_critical:
                 print("   Используйте Ctrl+0 для настройки координаты")
-                print("   FORMAT_SELECTOR - выпадающий список выбора формата (справа от промпта)")
+                print("   ASPECT_RATIO_SELECTOR - выпадающий список выбора соотношения сторон (справа от промпта)")
             
             if generation_mode == 'multi_format_with_refs' and 'PROMPT_INPUT_AFTER_IMAGE' in empty_critical:
                 print("   Используйте Ctrl+0 для настройки координаты")
