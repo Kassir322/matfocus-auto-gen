@@ -66,10 +66,12 @@ def click_new_chat(coords: dict) -> None:
 
 
 def rename_chat(coords: dict, new_name: str) -> None:
-    """Переименовать текущий чат: клик по названию, вставка new_name, Enter."""
+    """Переименовать текущий чат: клик по названию, выделить всё (Ctrl+A), вставка new_name, Enter."""
     x, y = _point(coords["CHAT_NAME_INPUT"])
     move_and_click(x, y)
     time.sleep(0.1)
+    # Выделить весь текст (например "Untitled prompt"), чтобы вставка заменила его, а не дописала
+    press_keys("ctrl", "a", delay=0.05)
     paste_prompt_text(new_name)
     press_keys("enter")
 

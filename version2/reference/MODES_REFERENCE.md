@@ -14,7 +14,7 @@
 ```
 Одна карточка может иметь несколько строк (M = 1, 2, …).
 
-**Task (одна генерация):** `card_number`, `generation_number`, `prompt_text`. Имя чата: `Карточка {N} - Карточка {N} - генерация {M}`. Имя файла: `Карточка_{N}_лицевая_промпт_{M}.png`.
+**Task (одна генерация):** `card_number`, `generation_number`, `prompt_text`. Имя чата: `Карточка {N} - генерация {M}`. Имя файла: `Карточка_{N}_лицевая_промпт_{M}.png`.
 
 **Ключевые шаги на одну генерацию:** новый чат → клик PROMPT_INPUT → вставка промпта (Ctrl+V) → переименование чата → Ctrl+Enter → ожидание (по LOGGING/IMAGE_READY) → ПКМ по IMAGE_LOCATION → TO_SAVE_OPTION → вставка имени файла → Enter. Координаты: PROMPT_INPUT, IMAGE_LOCATION, NEW_CHAT_BUTTON, CHAT_NAME_INPUT, TO_SAVE_OPTION.
 

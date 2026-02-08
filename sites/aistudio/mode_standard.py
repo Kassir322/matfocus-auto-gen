@@ -124,9 +124,8 @@ def _get_log_filepath() -> str:
 
 
 def _make_chat_name(card_number: int, gen_num: int) -> str:
-    """Имя чата для standard: Карточка N - Карточка N - генерация G (NAMING_RULES)."""
-    card_name = f"Карточка {card_number}"
-    return f"Карточка {card_number} - {card_name} - генерация {gen_num}"
+    """Имя чата для standard: Карточка N - генерация G (NAMING_RULES)."""
+    return f"Карточка {card_number} - генерация {gen_num}"
 
 
 def _make_filename(card_number: int, gen_num: int) -> str:
