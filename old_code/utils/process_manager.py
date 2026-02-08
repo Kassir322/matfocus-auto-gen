@@ -1,10 +1,10 @@
 """
 Управление процессами автоматизации
 """
-from multiprocessing import Event
+import multiprocessing
+from multiprocessing import Process, Event
 from config.coordinates import COORDINATES, RELATIVE_MOVEMENTS, DELAYS
 from utils.window_manager import WindowManager
-from utils import process_control
 
 class ProcessManager:
     def __init__(self):
@@ -18,12 +18,10 @@ class ProcessManager:
             print("[ГЛАВНЫЙ] Автоматизация уже запущена!")
             return
         
-        # Настройка рабочего окна
         print("[ГЛАВНЫЙ] Настройка рабочего окна...")
         if not self.window_manager.setup_automation_window():
-            print("[ГЛАВНЫЙ] ⚠️ Не удалось настроить рабочее окно, но продолжаем...")
+            print("[ГЛАВНЫЙ] Не удалось настроить рабочее окно, но продолжаем...")
         
-        # Получение настроек
         generation_mode = settings_manager.get('GENERATION_MODE')
         start_card = settings_manager.get('START_FROM_CARD')
         generations_per_card = settings_manager.get('GENERATIONS_PER_CARD')
@@ -38,12 +36,9 @@ class ProcessManager:
         print(f"  Генераций на карточку: {generations_per_card}")
         print(f"  Проверка изображений: {check_image_enabled}")
         
-        # Проверка критичных координат в зависимости от режима
         critical_coords = ['PROMPT_INPUT', 'IMAGE_LOCATION', 'NEW_CHAT_BUTTON', 'CHAT_NAME_INPUT']
-        
         if generation_mode in ['multi_format', 'multi_format_with_refs']:
             critical_coords.append('ASPECT_RATIO_SELECTOR')
-        
         if generation_mode == 'multi_format_with_refs':
             critical_coords.append('PROMPT_INPUT_AFTER_IMAGE')
         
@@ -57,61 +52,56 @@ class ProcessManager:
             if empty_movements:
                 error_msg.append(f"Относительные движения: {', '.join(empty_movements)}")
             print(f"[ГЛАВНЫЙ] ОШИБКА: Не заданы {' и '.join(error_msg)}")
-            
-            if generation_mode in ['multi_format', 'multi_format_with_refs'] and 'ASPECT_RATIO_SELECTOR' in empty_critical:
-                print("   Используйте Ctrl+0 для настройки координаты")
-                print("   ASPECT_RATIO_SELECTOR - выпадающий список выбора соотношения сторон (справа от промпта)")
-            
-            if generation_mode == 'multi_format_with_refs' and 'PROMPT_INPUT_AFTER_IMAGE' in empty_critical:
-                print("   Используйте Ctrl+0 для настройки координаты")
-                print("   PROMPT_INPUT_AFTER_IMAGE - поле ввода промпта после вставки изображения (выше обычного)")
             return
         
-        # Дополнительные проверки для multi_format режимов
         if generation_mode in ['multi_format', 'multi_format_with_refs']:
-            # Проверка файла промптов
             from core.file_handler import FileHandler
             file_handler = FileHandler(settings_manager)
             pairs_data = file_handler.load_prompts()
-
             if not pairs_data:
                 print("[ГЛАВНЫЙ] ОШИБКА: Нет валидных пар промптов в файле!")
                 return
-
-            # Показать статистику
-            total_pairs = sum(len(pairs) for pairs in pairs_data.values())
+            total_pairs = sum(len(v[1]) if isinstance(v, tuple) else len(v) for v in pairs_data.values())
             print(f"[ГЛАВНЫЙ] Найдено пар промптов: {total_pairs}")
             print(f"[ГЛАВНЫЙ] Будет создано изображений: {total_pairs * 2}")
         
-        # Запуск процесса через process_control (жёсткий стоп по Esc — terminate)
         print("[ГЛАВНЫЙ] Запуск автоматизации...")
         self.stop_event = Event()
-
-        # Выбор генератора в зависимости от режима (воркеры v1 пока принимают stop_event в args)
+        
         if generation_mode in ['multi_format', 'multi_format_with_refs']:
             from core.multi_format_generator import MultiFormatGenerator
             generator = MultiFormatGenerator(settings_manager)
-            target_fn = generator.automation_worker
-            worker_args = (self.stop_event, start_card, check_image_enabled,
-                           generation_wait, cards_to_process)
+            self.automation_process = Process(
+                target=generator.automation_worker,
+                args=(self.stop_event, start_card, check_image_enabled,
+                      generation_wait, cards_to_process)
+            )
         elif generation_mode == 'standard':
-            # Стандартный режим (ImageGenerator)
             from core.image_generator import ImageGenerator
             generator = ImageGenerator(settings_manager)
-            target_fn = generator.automation_worker
-            worker_args = (self.stop_event, start_card, generations_per_card,
-                           check_image_enabled, generation_wait, cards_to_process)
-        else:
-            return
-
-        self.automation_process = process_control.start_worker(target_fn, worker_args)
-        if self.automation_process is None:
-            self.stop_event = None
-            return
+            self.automation_process = Process(
+                target=generator.automation_worker,
+                args=(self.stop_event, start_card, generations_per_card, 
+                      check_image_enabled, generation_wait, cards_to_process)
+            )
+        
+        self.automation_process.start()
+        print(f"[ГЛАВНЫЙ] Автоматизация запущена в процессе PID: {self.automation_process.pid}")
     
     def stop_automation(self):
-        """Остановка процесса автоматизации (жёсткий стоп через process_control)"""
-        process_control.stop_worker(self.automation_process)
+        """Остановка процесса автоматизации"""
+        if not self.automation_process or not self.automation_process.is_alive():
+            print("[ГЛАВНЫЙ] Автоматизация не запущена!")
+            return
+        print("[ГЛАВНЫЙ] Остановка автоматизации...")
+        if self.stop_event:
+            self.stop_event.set()
+        self.automation_process.join(timeout=5)
+        if self.automation_process.is_alive():
+            print("[ГЛАВНЫЙ] Принудительное завершение процесса...")
+            self.automation_process.terminate()
+            self.automation_process.join()
+        print("[ГЛАВНЫЙ] Автоматизация остановлена")
         self.automation_process = None
         self.stop_event = None
     
@@ -119,8 +109,8 @@ class ProcessManager:
         """Ручная настройка рабочего окна"""
         print("[ГЛАВНЫЙ] Ручная настройка рабочего окна...")
         if self.window_manager.quick_setup_window():
-            print("[ГЛАВНЫЙ] ✅ Рабочее окно настроено успешно!")
+            print("[ГЛАВНЫЙ] Рабочее окно настроено успешно!")
             return True
         else:
-            print("[ГЛАВНЫЙ] ❌ Не удалось настроить рабочее окно")
+            print("[ГЛАВНЫЙ] Не удалось настроить рабочее окно")
             return False

@@ -285,40 +285,30 @@ def test_naming_conventions():
 
 
 def test_hotkeys():
-    """Тест всех hotkeys"""
+    """Тест всех hotkeys (v2: HotkeyManager с тремя callback'ами)."""
     print("=== ⌨️ ТЕСТ HOTKEYS ===")
-    
+
     try:
-        settings_manager = SettingsManager()
-        settings_manager.load_settings()
-        process_manager = ProcessManager()
-        console = ConsoleInterface()
-        hotkey_manager = HotkeyManager(settings_manager, process_manager, console)
-        
+        # v2: три callback'а вместо settings_manager/process_manager/console
+        def noop():
+            pass
+
+        hotkey_manager = HotkeyManager(noop, noop, noop)
+
         print("✓ HotkeyManager создан успешно")
-        
-        # Проверяем что все методы настроек существуют
-        settings_methods = [
-            'configure_start_card',
-            'configure_generations_per_card', 
-            'configure_generation_wait',
-            'toggle_image_check',
-            'configure_cards_limit',
-            'toggle_generation_mode',
-            'configure_image_wait_time'
-        ]
-        
-        for method_name in settings_methods:
-            if hasattr(settings_manager, method_name):
-                print(f"✓ Метод настроек {method_name} найден")
+
+        # Проверяем наличие методов HotkeyManager v2
+        required = ["register_hotkeys", "show_coordinates_menu", "get_mouse_position", "_show_settings_and_plan"]
+        for name in required:
+            if hasattr(hotkey_manager, name):
+                print(f"✓ Метод {name} найден")
             else:
-                print(f"❌ Метод настроек {method_name} НЕ найден!")
+                print(f"❌ Метод {name} НЕ найден!")
                 return False
-        
-        print("✓ Все методы настроек присутствуют")
+
         print("✓ HotkeyManager готов к работе")
         return True
-        
+
     except Exception as e:
         print(f"Ошибка в тесте hotkeys: {e}")
         import traceback
@@ -722,26 +712,25 @@ def test_integration():
     try:
         print("🚀 Тестирование интеграции компонентов...")
         
-        # Создаём все компоненты
-        settings_manager = SettingsManager()
-        process_manager = ProcessManager()
-        console = ConsoleInterface()
-        hotkey_manager = HotkeyManager(settings_manager, process_manager, console)
-        
+        # Создаём компоненты (v2: HotkeyManager с callback'ами)
+        def noop():
+            pass
+
+        hotkey_manager = HotkeyManager(noop, noop, noop)
+        from utils.settings_store import load_settings
+        settings = load_settings()
         print("   ✅ Все компоненты созданы")
-        
-        # Загружаем настройки
-        settings_manager.load_settings()
-        print("   ✅ Настройки загружены")
-        
-        # Проверяем интеграцию
-        generation_mode = settings_manager.get('GENERATION_MODE')
-        print(f"   📊 Режим генерации: {generation_mode}")
-        
-        if generation_mode == 'multi_format':
-            print("   ✅ Мультиформатный режим активен")
+
+        print("   ✅ Настройки загружены (v2 store)")
+
+        # Проверяем интеграцию по настройкам v2
+        generation_mode = settings.get('CURRENT_MODE')
+        print(f"   Режим генерации: {generation_mode}")
+
+        if generation_mode == 'multiformat':
+            print("   Мультиформатный режим активен")
         else:
-            print("   ✅ Стандартный режим активен")
+            print("   Стандартный режим активен")
         
         print("\n🎉 ТЕСТ ИНТЕГРАЦИИ ЗАВЕРШЕН!")
         print("   ✅ Все компоненты интегрированы")
