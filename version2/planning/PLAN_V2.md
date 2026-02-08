@@ -29,7 +29,7 @@ v2 разрабатывается в **отдельном проекте**. Ко
   coordinates_store.py    # Загрузка/сохранение координат (два словаря)
   ui/
     console_menu.py       # Текстовая "панель управления"
-    hotkeys.py            # Регистрация горячих клавиш (полный набор, см. HOTKEYS_V2.md)
+    hotkeys.py            # Регистрация горячих клавиш (полный набор, см. ../reference/HOTKEYS_V2.md)
   sites/
     aistudio/
       helpers.py          # Общие действия для всех режимов AI Studio
@@ -49,7 +49,7 @@ v2 разрабатывается в **отдельном проекте**. Ко
 - **Минимум классов**: по умолчанию используем функции и модули.
 - **Одна функция — одна задача**.
 - **Явные имена**: `run_multiformat_mode`, `wait_until_image_ready`, `select_aspect_ratio`.
-- **Логирование**: полные логи в файл в `logs/` (имя с датой и временем запуска до секунды, см. LOGGING.md) с тегами капсом (`[PLAN]`, `[CARD]`, `[PAIR]`, `[SIDE]`, `[OK]`, `[ERROR]`, `[SUMMARY]`), без эмодзи; в консоль — только супер основные шаги (см. LOGGING.md).
+- **Логирование**: полные логи в файл в `logs/` (имя с датой и временем запуска до секунды, см. ../reference/LOGGING.md) с тегами капсом (`[PLAN]`, `[CARD]`, `[PAIR]`, `[SIDE]`, `[OK]`, `[ERROR]`, `[SUMMARY]`), без эмодзи; в консоль — только супер основные шаги (см. ../reference/LOGGING.md).
 
 ### 4. Управление процессами
 
@@ -79,7 +79,7 @@ v2 разрабатывается в **отдельном проекте**. Ко
 - Простейшее меню:
   - **1** — выбрать сайт;
   - **2** — выбрать режим для текущего сайта;
-  - **3** — выбрать файл промптов (сканирование папки `data/`, только файлы, нумерованный список — см. [SETTINGS_V2.md](SETTINGS_V2.md));
+  - **3** — выбрать файл промптов (сканирование папки `data/`, только файлы, нумерованный список — см. [SETTINGS_V2.md](../reference/SETTINGS_V2.md));
   - **4** — показать план генерации (разбор файла без кликов);
   - **5** — запустить генерацию (создать подпроцесс);
   - **0** — выход.
@@ -91,7 +91,7 @@ v2 разрабатывается в **отдельном проекте**. Ко
   - сколько изображений создано успешно;
   - сколько пропущено/сорвалось по таймауту/ошибкам.
 
-Полный список горячих клавиш и поведение: [HOTKEYS_V2.md](HOTKEYS_V2.md).
+Полный список горячих клавиш и поведение: [HOTKEYS_V2.md](../reference/HOTKEYS_V2.md).
 
 ### 6. Структура `sites/aistudio`
 
@@ -116,7 +116,7 @@ v2 разрабатывается в **отдельном проекте**. Ко
 - `start_generation()` — запуск генерации (обычно `Ctrl+Enter`).
 - `save_image(coordinates, relative_movements, file_name)` — сохранение изображения (точка IMAGE_LOCATION + смещение TO_SAVE_OPTION).
 
-Функции для проверки генерации по скриншоту (параметры настраиваемые из settings — см. [SETTINGS_V2.md](SETTINGS_V2.md)):
+Функции для проверки генерации по скриншоту (параметры настраиваемые из settings — см. [SETTINGS_V2.md](../reference/SETTINGS_V2.md)):
 
 - `grab_result_area(coordinates, box_size)` — скриншот области вокруг `IMAGE_LOCATION`.
 - `compute_difference_score(img1, img2)` — оценка отличия двух картинок.
@@ -151,7 +151,7 @@ v2 разрабатывается в **отдельном проекте**. Ко
 
 - Отвечает за **мультиформатный режим** (лицо + оборот, разные соотношения сторон).
 - Также использует только `helpers.py`.
-- Соотношения сторон задаются настройками `FACE_ASPECT_RATIO` и `BACK_ASPECT_RATIO` (см. [SETTINGS_V2.md](SETTINGS_V2.md)); `BACK_ASPECT_RATIO` опционален для режимов без двух сторон карточки.
+- Соотношения сторон задаются настройками `FACE_ASPECT_RATIO` и `BACK_ASPECT_RATIO` (см. [SETTINGS_V2.md](../reference/SETTINGS_V2.md)); `BACK_ASPECT_RATIO` опционален для режимов без двух сторон карточки.
 - Основные функции:
   - `load_tasks_from_file(path, settings) -> list[Task]`:
     - парсит формат `Карточка N лицо/оборот - Промпт M: текст`;
@@ -166,7 +166,7 @@ v2 разрабатывается в **отдельном проекте**. Ко
 
 - Отвечает за **мультиформатный режим с референсами** (вставка изображений-референсов из `data/images/лицо` и `data/images/оборот`).
 - Использует те же хелперы плюс координату `PROMPT_INPUT_AFTER_IMAGE` (поле ввода после вставки изображения).
-- Алгоритм аналогичен multiformat, но с шагом вставки референса перед промптом; детали — в [INTERFACE_aistudio_modes.md](INTERFACE_aistudio_modes.md) и при переносе из v1 ([V1_TO_V2.md](V1_TO_V2.md)).
+- Алгоритм аналогичен multiformat, но с шагом вставки референса перед промптом; детали — в [INTERFACE_aistudio_modes.md](../reference/INTERFACE_aistudio_modes.md) и при переносе из v1 ([V1_TO_V2.md](V1_TO_V2.md)).
 
 ### 7. Проверка готовности изображения
 
@@ -178,7 +178,7 @@ v2 разрабатывается в **отдельном проекте**. Ко
     - считаем разницу с базовым;
     - если разница выше порога — считаем, что изображение сгенерировано;
     - если время вышло — выходим по таймауту.
-- Если `CHECK_IMAGE_GENERATED` выключена — режим просто ждёт таймаут (`GENERATION_WAIT` / `IMAGE_WAIT_INTERVAL` по [SETTINGS_V2.md](SETTINGS_V2.md)) без анализа скриншота (на случай плохой работы анализа).
+- Если `CHECK_IMAGE_GENERATED` выключена — режим просто ждёт таймаут (`GENERATION_WAIT` / `IMAGE_WAIT_INTERVAL` по [SETTINGS_V2.md](../reference/SETTINGS_V2.md)) без анализа скриншота (на случай плохой работы анализа).
 - Параметры **настраиваемые** (из settings):
   - `timeout_seconds` — максимальное время ожидания генерации (например, `GENERATION_WAIT`);
   - `check_interval` — пауза между проверками (например, `IMAGE_WAIT_INTERVAL`);
@@ -187,7 +187,7 @@ v2 разрабатывается в **отдельном проекте**. Ко
 
 ### 8. Горячие клавиши и поведение
 
-Полный список и описание: [HOTKEYS_V2.md](HOTKEYS_V2.md).
+Полный список и описание: [HOTKEYS_V2.md](../reference/HOTKEYS_V2.md).
 
 - **Старт генерации**: консольное меню пункт «Запустить генерацию» или **Ctrl+Shift+S** (тот же код запуска подпроцесса).
 - **Экстренная остановка**: только **Esc** (в v2 нет Ctrl+Shift+Q):
@@ -210,12 +210,12 @@ v2 разрабатывается в **отдельном проекте**. Ко
 
 Пошаговый план работ с чеклистом: **[ROADMAP_V2.md](ROADMAP_V2.md)**. Порядок реализации режимов: **сначала standard**, затем multiformat, затем multiformat_with_refs.
 
-Связанные документы:
+Связанные документы (в `version2/reference/`):
 
-- [SETTINGS_V2.md](SETTINGS_V2.md) — список настроек и способ настройки координат/окна.
-- [INTERFACE_aistudio_helpers.md](INTERFACE_aistudio_helpers.md) — интерфейс `sites/aistudio/helpers.py`.
-- [INTERFACE_aistudio_modes.md](INTERFACE_aistudio_modes.md) — интерфейсы режимов standard, multiformat (и при необходимости with_refs).
-- [INTERFACE_console_menu.md](INTERFACE_console_menu.md) — интерфейс консольного меню.
-- [V1_TO_V2.md](V1_TO_V2.md) — что в v1 где находится и как переносим в v2.
-- [HOTKEYS_V2.md](HOTKEYS_V2.md) — полный список горячих клавиш.
-- [LOGGING.md](LOGGING.md) — логирование: файл vs консоль, теги без эмодзи.
+- [SETTINGS_V2.md](../reference/SETTINGS_V2.md) — список настроек и способ настройки координат/окна.
+- [INTERFACE_aistudio_helpers.md](../reference/INTERFACE_aistudio_helpers.md) — интерфейс `sites/aistudio/helpers.py`.
+- [INTERFACE_aistudio_modes.md](../reference/INTERFACE_aistudio_modes.md) — интерфейсы режимов standard, multiformat (и при необходимости with_refs).
+- [INTERFACE_console_menu.md](../reference/INTERFACE_console_menu.md) — интерфейс консольного меню.
+- [V1_TO_V2.md](V1_TO_V2.md) — что в v1 где находится и как переносим в v2 (в planning/).
+- [HOTKEYS_V2.md](../reference/HOTKEYS_V2.md) — полный список горячих клавиш.
+- [LOGGING.md](../reference/LOGGING.md) — логирование: файл vs консоль, теги без эмодзи.

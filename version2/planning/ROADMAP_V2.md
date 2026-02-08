@@ -17,11 +17,11 @@
 
 ### Что уже сделано (в этом репозитории, как документация)
 
-- [x] `version2/PLAN_V2.md` — ТЗ и архитектура v2.
-- [x] `version2/INTERFACE_aistudio_helpers.md` — интерфейс `sites/aistudio/helpers.py`.
-- [x] `version2/INTERFACE_aistudio_modes.md` — интерфейсы режимов `standard` и `multiformat`.
-- [x] `version2/INTERFACE_console_menu.md` — интерфейс консольного меню.
-- [x] `version2/SETTINGS_V2.md` — список настроек v2 и способ настройки координат/окна.
+- [x] `version2/planning/PLAN_V2.md` — ТЗ и архитектура v2.
+- [x] `version2/reference/INTERFACE_aistudio_helpers.md` — интерфейс `sites/aistudio/helpers.py`.
+- [x] `version2/reference/INTERFACE_aistudio_modes.md` — интерфейсы режимов `standard` и `multiformat`.
+- [x] `version2/reference/INTERFACE_console_menu.md` — интерфейс консольного меню.
+- [x] `version2/reference/SETTINGS_V2.md` — список настроек v2 и способ настройки координат/окна.
 
 ---
 
@@ -52,7 +52,7 @@
 - [ ] Регистрация Esc: при нажатии вызывается `stop_worker` для текущего процесса генерации.
 - [ ] Интеграция с точкой входа: при «запуск генерации» всегда создаётся подпроцесс; консоль/меню остаются в главном процессе и слушают Esc.
 
-Подробно: **PROCESS_MODEL.md**.
+Подробно: **../reference/PROCESS_MODEL.md**.
 
 #### Этап 2. Хранилища данных (без UI и без pyautogui)
 
@@ -70,7 +70,7 @@
   - ключ `coordinates` → dict точек
   - ключ `relative_movements` → dict смещений
 
-Настройки и координаты: **SETTINGS_V2.md**, **COORDINATES_KEYS.md**.
+Настройки и координаты: **../reference/SETTINGS_V2.md**, **../reference/COORDINATES_KEYS.md**.
 
 #### Этап 3. Консольное меню (пока без генерации)
 
@@ -87,7 +87,7 @@
 - [ ] Показ “сводки перед стартом”:
   - карточек/промптов/изображений (по данным из файла промптов)
 
-Контракт меню: **INTERFACE_console_menu.md**.
+Контракт меню: **../reference/INTERFACE_console_menu.md**.
 
 #### Этап 4. Hotkeys (полный набор, как в v1)
 
@@ -101,7 +101,7 @@
   - Esc: вызов `stop_worker()` (жёсткая остановка подпроцесса; база заложена в Этапе 1)
   - остальные хоткеи из v1 (настройки ожиданий, аспектов, режимов и т.д.)
 
-Список хоткеев: **HOTKEYS_V2.md**.
+Список хоткеев: **../reference/HOTKEYS_V2.md**.
 
 #### Этап 5. Window manager (как в v1)
 
@@ -111,7 +111,7 @@
   - `quick_setup_window()` для Ctrl+Shift+V (находит окно браузера и настраивает)
   - `setup_automation_window()` для автоподготовки перед стартом
 
-Настройка координат (UX): **COORDINATES_SETUP_GUIDE.md**.
+Настройка координат (UX): **../reference/COORDINATES_SETUP_GUIDE.md**.
 
 #### Этап 6. Site: aistudio/helpers.py (база автоматизации UI)
 
@@ -126,7 +126,7 @@
     - если `CHECK_IMAGE_GENERATED = True` → ждём “готово или таймаут”
     - если `CHECK_IMAGE_GENERATED = False` → просто ждём таймаут (без анализа)
 
-Интерфейс helpers: **INTERFACE_aistudio_helpers.md**. Ожидание готовности изображения: **IMAGE_READY_DETECTION.md**.
+Интерфейс helpers: **../reference/INTERFACE_aistudio_helpers.md**. Ожидание готовности изображения: **../reference/IMAGE_READY_DETECTION.md**.
 
 #### Этап 7. Режим 1: standard (первый!)
 
@@ -138,7 +138,7 @@
   - `run_mode(tasks, settings, coordinates, relative_movements) -> None`
   - логирование: в файл с тегами `[PLAN]` `[CARD]` `[OK]` `[SUMMARY]` и др., консоль — только основные шаги
 
-Алгоритм и контракт: **ALGO_standard.md**, **INTERFACE_aistudio_modes.md**. Формат промптов: **PROMPTS_standard_format.md**. Имена чатов/файлов: **NAMING_RULES.md**. Логи: **LOGGING.md**.
+Алгоритм и контракт: **../reference/ALGO_standard.md**, **../reference/INTERFACE_aistudio_modes.md**. Формат промптов: **../reference/PROMPTS_standard_format.md**. Имена чатов/файлов: **../reference/NAMING_RULES.md**. Логи: **../reference/LOGGING.md**.
 
 #### Этап 8. Режим 2: multiformat
 
@@ -148,7 +148,7 @@
   - порядок: лицо, затем оборот
   - сводка в начале и в конце
 
-Алгоритм: **ALGO_multiformat.md**. Формат промптов: **PROMPTS_multiformat_format.md**.
+Алгоритм: **../reference/ALGO_multiformat.md**. Формат промптов: **../reference/PROMPTS_multiformat_format.md**.
 
 #### Этап 9. Режим 3: multiformat_with_refs
 
@@ -157,45 +157,46 @@
   - дополнительные координаты (например `PROMPT_INPUT_AFTER_IMAGE`)
   - вставка референса + дальнейшая генерация
 
-Алгоритм: **ALGO_multiformat_with_refs.md**. Формат референсов: **REFERENCES_format.md**.
+Алгоритм: **../reference/ALGO_multiformat_with_refs.md**. Формат референсов: **../reference/REFERENCES_format.md**.
 
 #### Этап 10. Полировка (понятность и поддержка)
 
-- [ ] Логи в файл во всех режимах (теги капсом, без эмодзи); консоль — минимум (LOGGING.md).
+- [ ] Логи в файл во всех режимах (теги капсом, без эмодзи); консоль — минимум (../reference/LOGGING.md).
 - [ ] “Сводка перед стартом” всегда показывает:
   - сколько карточек будет обработано
   - сколько промптов/пар найдено
   - сколько изображений планируется
-- [ ] Документация: сверить с **HOTKEYS_V2.md**, **TROUBLESHOOTING.md**.
+- [ ] Документация: сверить с **../reference/HOTKEYS_V2.md**, **../reference/TROUBLESHOOTING.md**.
 
 ---
 
 ### Сводка по документам (какой файл за что отвечает)
 
-Разработку можно вести, опираясь на этот ROADMAP: для каждого этапа указаны ссылки на нужные документы. Ниже — краткий указатель по всем файлам в `version2/`.
+Разработку можно вести, опираясь на этот ROADMAP: для каждого этапа указаны ссылки на нужные документы. Ниже — краткий указатель по всем файлам в `version2/planning/` и `version2/reference/`.
 
 | Документ | За что отвечает |
 |----------|-----------------|
-| **ROADMAP_V2.md** (этот файл) | Порядок работ (этапы 0–10), ключевые решения, указатель по документам. **Главная точка входа для промпта.** |
-| **PLAN_V2.md** | ТЗ и архитектура v2: цели, принципы, структура sites/aistudio, что не делаем. |
-| **PROJECT_STRUCTURE.md** | Дерево папок/файлов проекта, назначение модулей, примеры кода. |
-| **PROCESS_MODEL.md** | Модель процессов: главный vs воркер, жёсткий стоп по Esc (terminate), повторный запуск. |
-| **SETTINGS_V2.md** | Список настроек v2, типы, значения по умолчанию, настройка координат и окна (Ctrl+0, Ctrl+Shift+V). |
-| **COORDINATES_KEYS.md** | Все ключи координат и relative_movements, обязательные по режимам, формат JSON. |
-| **COORDINATES_SETUP_GUIDE.md** | Пошаговая настройка координат: Ctrl+0 → выбор → Ctrl+Shift+P, типичные ошибки. |
-| **INTERFACE_console_menu.md** | API консольного меню: show_main_menu, выбор сайта/режима/файла, план, запуск/остановка. |
-| **INTERFACE_aistudio_helpers.md** | API `sites/aistudio/helpers.py`: клики, вставка текста (Ctrl+V), сохранение изображения, ожидание готовности. |
-| **INTERFACE_aistudio_modes.md** | API режимов: load_tasks_from_file, get_plan_info, run_mode; структура Task для standard и multiformat. |
-| **LOGGING.md** | Куда пишем: файл (новый при каждом запуске, имя с датой до секунды) vs консоль; теги капсом, без эмодзи. |
-| **ALGO_standard.md** | Пошаговый алгоритм режима standard: координаты, настройки, генерация одного изображения, имена, логи. |
-| **ALGO_multiformat.md** | Алгоритм multiformat: лицо/оборот, пары, aspect ratio, имена, логи. |
-| **ALGO_multiformat_with_refs.md** | Алгоритм с референсами: поиск референса, вставка в чат, проверка перед стартом. |
-| **PROMPTS_standard_format.md** | Формат файла промптов для standard: regex, примеры, результат парсинга. |
-| **PROMPTS_multiformat_format.md** | Формат файла промптов для multiformat: лицо/оборот, пары, неполные пары. |
-| **REFERENCES_format.md** | Папки data/images/лицо и оборот, формат имени референса, поиск, проверка. |
-| **NAMING_RULES.md** | Формат имён чатов и файлов по режимам; единый шаблон `Карточка_{N}_{сторона}_промпт_{M}.png`. |
-| **IMAGE_READY_DETECTION.md** | Как определять готовность изображения: скриншот области, различие с baseline, параметры, fallback. |
-| **HOTKEYS_V2.md** | Полный список горячих клавиш v2. |
-| **USER_FLOW.md** | Сценарий пользователя: установка, первая настройка, запуск, что видно в консоли и в логах. |
-| **TROUBLESHOOTING.md** | Частые проблемы и решения (координаты, окно, генерация, файлы промптов, референсы). |
-| **V1_TO_V2.md** | Миграция: что в v1 где лежит, как переносим в v2, что отбрасываем. |
+| **planning/ROADMAP_V2.md** (этот файл) | Порядок работ (этапы 0–10), ключевые решения, указатель по документам. **Главная точка входа для промпта.** |
+| **planning/PLAN_V2.md** | ТЗ и архитектура v2: цели, принципы, структура sites/aistudio, что не делаем. |
+| **planning/PROJECT_STRUCTURE.md** | Дерево папок/файлов проекта, назначение модулей, примеры кода. |
+| **planning/V1_TO_V2.md** | Миграция: что в v1 где лежит, как переносим в v2, что отбрасываем. |
+| **reference/PROCESS_MODEL.md** | Модель процессов: главный vs воркер, жёсткий стоп по Esc (terminate), повторный запуск. |
+| **reference/SETTINGS_V2.md** | Список настроек v2, типы, значения по умолчанию, настройка координат и окна (Ctrl+0, Ctrl+Shift+V). |
+| **reference/COORDINATES_KEYS.md** | Все ключи координат и relative_movements, обязательные по режимам, формат JSON. |
+| **reference/COORDINATES_SETUP_GUIDE.md** | Пошаговая настройка координат: Ctrl+0 → выбор → Ctrl+Shift+P, типичные ошибки. |
+| **reference/INTERFACE_console_menu.md** | API консольного меню: show_main_menu, выбор сайта/режима/файла, план, запуск/остановка. |
+| **reference/INTERFACE_aistudio_helpers.md** | API `sites/aistudio/helpers.py`: клики, вставка текста (Ctrl+V), сохранение изображения, ожидание готовности. |
+| **reference/INTERFACE_aistudio_modes.md** | API режимов: load_tasks_from_file, get_plan_info, run_mode; структура Task для standard и multiformat. |
+| **reference/MODES_REFERENCE.md** | Краткая справка по трём режимам (назначение, вход, Task, шаги). **Прикладывать к промпту при написании кода режимов.** |
+| **reference/LOGGING.md** | Куда пишем: файл (новый при каждом запуске, имя с датой до секунды) vs консоль; теги капсом, без эмодзи. |
+| **reference/ALGO_standard.md** | Пошаговый алгоритм режима standard: координаты, настройки, генерация одного изображения, имена, логи. |
+| **reference/ALGO_multiformat.md** | Алгоритм multiformat: лицо/оборот, пары, aspect ratio, имена, логи. |
+| **reference/ALGO_multiformat_with_refs.md** | Алгоритм с референсами: поиск референса, вставка в чат, проверка перед стартом. |
+| **reference/PROMPTS_standard_format.md** | Формат файла промптов для standard: regex, примеры, результат парсинга. |
+| **reference/PROMPTS_multiformat_format.md** | Формат файла промптов для multiformat: лицо/оборот, пары, неполные пары. |
+| **reference/REFERENCES_format.md** | Папки data/images/лицо и оборот, формат имени референса, поиск, проверка. |
+| **reference/NAMING_RULES.md** | Формат имён чатов и файлов по режимам; единый шаблон `Карточка_{N}_{сторона}_промпт_{M}.png`. |
+| **reference/IMAGE_READY_DETECTION.md** | Как определять готовность изображения: скриншот области, различие с baseline, параметры, fallback. |
+| **reference/HOTKEYS_V2.md** | Полный список горячих клавиш v2. |
+| **reference/USER_FLOW.md** | Сценарий пользователя: установка, первая настройка, запуск, что видно в консоли и в логах. |
+| **reference/TROUBLESHOOTING.md** | Частые проблемы и решения (координаты, окно, генерация, файлы промптов, референсы). |
