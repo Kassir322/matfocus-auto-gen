@@ -55,15 +55,29 @@ def safe_filename(name: str) -> str:
 def get_reference_path(side: str, card_number: int, card_name: str):
     """
     Ищет файл референса для указанной стороны и карточки (REFERENCES_format п.6).
+    Поддерживает два формата:
+    1. Простой: {номер}_{сторона}.{ext}  (приоритет)
+    2. Полный: {сторона}_{номер}_{название}.{ext}  (запасной, для обратной совместимости)
+    
     Возвращает путь (str) или None.
     """
-    safe_name = safe_filename(card_name)
     base_folder = os.path.join("data", "images", side)
+    
+    # Сначала ищем простой формат: {номер}_{сторона}.{ext}
+    for ext in ["png", "jpg"]:
+        filename = f"{card_number}_{side}.{ext}"
+        full_path = os.path.join(base_folder, filename)
+        if os.path.exists(full_path):
+            return full_path
+    
+    # Запасной вариант: полный формат с названием (для обратной совместимости)
+    safe_name = safe_filename(card_name)
     for ext in ["png", "jpg"]:
         filename = f"{side}_{card_number}_{safe_name}.{ext}"
         full_path = os.path.join(base_folder, filename)
         if os.path.exists(full_path):
             return full_path
+    
     return None
 
 
@@ -121,9 +135,10 @@ def _make_chat_name(card_number: int, card_name: str, side: str, pair_number: in
     return f"Карточка {card_number} - {card_name} - {side} - Промпт {pair_number}"
 
 
-def _make_filename(card_number: int, side: str, pair_number: int) -> str:
-    """Имя файла: Карточка_N_side_промпт_P.png (NAMING_RULES)."""
-    return f"Карточка_{card_number}_{side}_промпт_{pair_number}.png"
+def _make_filename(card_number: int, card_name: str, side: str, pair_number: int) -> str:
+    """Имя файла: Карточка_N_safe_name_side_промпт_P.png (NAMING_RULES)."""
+    safe_name = safe_filename(card_name)
+    return f"Карточка_{card_number}_{safe_name}_{side}_промпт_{pair_number}.png"
 
 
 def _generate_single_side_with_ref(
@@ -149,7 +164,7 @@ def _generate_single_side_with_ref(
         return False
 
     chat_name = _make_chat_name(card_number, card_name, side, pair_number)
-    file_name = _make_filename(card_number, side, pair_number)
+    file_name = _make_filename(card_number, card_name, side, pair_number)
 
     ref_path = get_reference_path(side, card_number, card_name)
     with_ref = ref_path is not None
@@ -261,13 +276,10 @@ def run_mode(
     missing_refs = ref_result["missing"]
 
     if missing_refs:
-        print("[WARN] Отсутствуют референсы:")
+        print(f"[WARN] Отсутствуют референсы для {len(missing_refs)} сторон:")
         for side, card_num, card_name, expected in missing_refs:
             print(f"  - {side} карточки {card_num} ({card_name})")
-        answer = input("Продолжить без них? (y/n): ").strip().lower()
-        if answer != "y":
-            print("Запуск отменён.")
-            return
+        print(f"[INFO] Продолжаем генерацию без отсутствующих референсов")
 
     face_ratio = settings.get("FACE_ASPECT_RATIO", "4:3")
     back_ratio = settings.get("BACK_ASPECT_RATIO", "3:2")

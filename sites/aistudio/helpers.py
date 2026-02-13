@@ -59,6 +59,19 @@ def paste_prompt_text(prompt_text: str, delay: float = 0.05) -> None:
     press_keys("ctrl", "v", delay=delay)
 
 
+def type_text(text: str, interval: float = 0.01) -> None:
+    """
+    Посимвольный ввод текста через pyautogui.write().
+    Используется для полей, где Ctrl+V не работает (например, dropdown списки).
+    
+    Args:
+        text: текст для ввода
+        interval: пауза между символами (сек), по умолчанию 0.01 для быстрого ввода
+    """
+    pyautogui.write(text, interval=interval)
+    time.sleep(0.05)
+
+
 def click_new_chat(coords: dict) -> None:
     """Клик по кнопке «Новый чат». coords — ключ NEW_CHAT_BUTTON."""
     x, y = _point(coords["NEW_CHAT_BUTTON"])
@@ -77,11 +90,13 @@ def rename_chat(coords: dict, new_name: str) -> None:
 
 
 def select_aspect_ratio(coords: dict, ratio_text: str) -> None:
-    """Выбрать соотношение сторон: клик по селектору, ввод ratio_text, Enter."""
+    """Выбрать соотношение сторон: клик по селектору, быстрый посимвольный ввод, Enter."""
     x, y = _point(coords["ASPECT_RATIO_SELECTOR"])
     move_and_click(x, y)
     time.sleep(0.1)
-    paste_prompt_text(ratio_text)
+    
+    type_text(ratio_text, interval=0.01)  # Быстрый ввод полного значения
+    time.sleep(0.2)  # Пауза перед Enter для обработки dropdown
     press_keys("enter")
 
 
