@@ -112,7 +112,7 @@ def _generate_single_image_api(
         
         write_log_line(
             log_file, 
-            f"[API_REQUEST] model={model}, aspect_ratio={aspect_ratio}, prompt_length={len(prompt_text)}"
+            f"[API_REQUEST] model={model}, size={image_size}, aspect={aspect_ratio}, prompt_length={len(prompt_text)}"
         )
         
         # Генерация изображения через API

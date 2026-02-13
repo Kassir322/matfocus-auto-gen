@@ -239,6 +239,77 @@ class HotkeyManager:
         except KeyboardInterrupt:
             print("\nНастройка отменена")
 
+    def _configure_api_model(self, settings: dict) -> bool:
+        """
+        Выбор модели качества и разрешения для API генерации.
+        
+        Args:
+            settings: словарь настроек (будет изменён)
+            
+        Returns:
+            True если настройки сохранены, False если отменено
+        """
+        print("\n=== НАСТРОЙКА МОДЕЛИ API ===")
+        
+        current_model = settings.get("API_MODEL", "imagen-4.0-generate-001")
+        current_size = settings.get("API_IMAGE_SIZE", "2K")
+        
+        # Список доступных моделей
+        models = {
+            "1": ("imagen-4.0-fast-generate-001", "Imagen 4 Fast", "быстро, базовое качество"),
+            "2": ("imagen-4.0-generate-001", "Imagen 4 Standard", "оптимально, хорошее качество (рекомендуется)"),
+            "3": ("imagen-4.0-ultra-generate-001", "Imagen 4 Ultra", "медленно, максимальное качество"),
+            "4": ("gemini-2.5-flash-image", "Gemini 2.5 Flash", "устаревшая, быстро, низкое качество"),
+        }
+        
+        print("Выберите модель:")
+        for key, (model_id, name, desc) in models.items():
+            current_mark = " (текущая)" if model_id == current_model else ""
+            print(f"  {key}. {name}{current_mark}")
+            print(f"     {desc}")
+        
+        try:
+            model_choice = input("Выбор (Enter — не менять): ").strip()
+            
+            if model_choice and model_choice in models:
+                selected_model = models[model_choice][0]
+                settings["API_MODEL"] = selected_model
+                print(f"✓ Выбрана модель: {models[model_choice][1]}")
+            elif model_choice == "":
+                selected_model = current_model
+            else:
+                print("Неверный выбор.")
+                return False
+            
+            # Выбор разрешения (только для Imagen 4)
+            if selected_model.startswith("imagen-4"):
+                print("\nВыберите разрешение изображения:")
+                print(f"  1. 1K (1024x1024) - быстрее")
+                print(f"  2. 2K (2048x2048) - выше качество (рекомендуется){' (текущее)' if current_size == '2K' else ''}")
+                
+                size_choice = input("Выбор (Enter — не менять): ").strip()
+                
+                if size_choice == "1":
+                    settings["API_IMAGE_SIZE"] = "1K"
+                    print("✓ Разрешение: 1K")
+                elif size_choice == "2":
+                    settings["API_IMAGE_SIZE"] = "2K"
+                    print("✓ Разрешение: 2K")
+                elif size_choice == "":
+                    pass  # Не меняем
+                else:
+                    print("Неверный выбор.")
+                    return False
+            else:
+                # Для старых моделей оставляем 1K
+                settings["API_IMAGE_SIZE"] = "1K"
+            
+            return True
+            
+        except KeyboardInterrupt:
+            print("\nНастройка отменена.")
+            return False
+
     def _check_and_configure_api_key(self, settings: dict) -> bool:
         """
         Проверка и настройка API ключа.
@@ -323,7 +394,13 @@ class HotkeyManager:
                 settings["GENERATION_METHOD"] = "browser"
             elif method_choice == "2":
                 settings["GENERATION_METHOD"] = "api"
-                # Шаг 2: Проверка и настройка API ключа
+                
+                # Шаг 2.5: Выбор модели качества и разрешения
+                if not self._configure_api_model(settings):
+                    print("Отмена настройки.")
+                    return
+                
+                # Шаг 2.6: Проверка и настройка API ключа
                 if not self._check_and_configure_api_key(settings):
                     print("Отмена настройки.")
                     return

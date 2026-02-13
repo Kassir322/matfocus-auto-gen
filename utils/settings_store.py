@@ -24,8 +24,8 @@ DEFAULT_SETTINGS = {
     # Настройки API (интеграция Gemini API)
     "GENERATION_METHOD": "browser",  # "browser" или "api"
     "API_KEY": "",
-    "API_MODEL": "gemini-2.5-flash-image",  # или "gemini-3-pro-image-preview"
-    "API_IMAGE_SIZE": "1K",  # "1K", "2K", "4K" (для Pro модели)
+    "API_MODEL": "imagen-4.0-generate-001",  # imagen-4.0-fast/generate/ultra или gemini-2.5-flash-image
+    "API_IMAGE_SIZE": "2K",  # "1K" или "2K" для Imagen 4; "1K", "2K", "4K" для старых моделей
     "API_TIMEOUT": 60.0,  # таймаут API запросов в секундах
 }
 

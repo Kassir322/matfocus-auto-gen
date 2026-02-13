@@ -96,7 +96,7 @@ def _generate_single_image_api(
         # Для стандартного режима aspect ratio по умолчанию 1:1
         aspect_ratio = "1:1"
         
-        write_log_line(log_file, f"[API_REQUEST] model={model}, prompt_length={len(prompt_text)}")
+        write_log_line(log_file, f"[API_REQUEST] model={model}, size={image_size}, aspect={aspect_ratio}, prompt_length={len(prompt_text)}")
         
         # Генерация изображения через API
         image_bytes, error_msg = api_client.generate_image(
