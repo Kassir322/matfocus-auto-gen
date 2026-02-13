@@ -4,17 +4,6 @@
 import sys
 import time
 
-# Запуск консольного меню v2 (этап 3): python main.py --v2 или python main.py --menu
-if len(sys.argv) > 1 and sys.argv[1] in ("--v2", "--menu"):
-    from utils.settings_store import load_settings
-    from utils.coordinates_store import load_coordinates
-    from ui.console_menu import show_main_menu
-
-    settings = load_settings()
-    coordinates, relative_movements = load_coordinates()
-    show_main_menu(settings, coordinates, relative_movements)
-    sys.exit(0)
-
 from ui.console import ConsoleInterface
 from ui.hotkeys import HotkeyManager
 from utils import process_control
@@ -46,29 +35,63 @@ def main():
 
     def on_start_generation():
         settings = load_settings()
-        coordinates, relative_movements = load_coordinates()
         site = settings.get("CURRENT_SITE")
         mode = settings.get("CURRENT_MODE")
+        generation_method = settings.get("GENERATION_METHOD", "browser")
+        
         if site != "aistudio":
             print("Запуск генерации поддерживается только для сайта aistudio.")
             return
         if mode not in ("standard", "multiformat", "multiformat_with_refs"):
             print("Запуск генерации поддерживается только для режимов standard, multiformat и multiformat_with_refs.")
             return
-        ok, err = can_start_generation(settings)
-        if not ok:
-            print(err)
-            return
-        # Автоподготовка окна перед стартом (этап 5)
-        if not WindowManager().setup_automation_window():
-            print("[ГЛАВНЫЙ] Не удалось настроить рабочее окно, но продолжаем.")
-        if mode == "standard":
-            worker = run_standard_worker
-        elif mode == "multiformat":
-            worker = run_multiformat_worker
+        
+        # Выбор метода генерации: browser или api
+        if generation_method == "api":
+            # API-генерация (без координат и браузера)
+            from utils.generation_runner import (
+                can_start_generation_api,
+                run_standard_worker_api,
+                run_multiformat_worker_api,
+            )
+            
+            ok, err = can_start_generation_api(settings)
+            if not ok:
+                print(err)
+                return
+            
+            # Выбор API-воркера по режиму
+            if mode == "standard":
+                worker = run_standard_worker_api
+            elif mode == "multiformat":
+                worker = run_multiformat_worker_api
+            else:
+                print("Режим с референсами пока не поддерживается в API. Выберите standard или multiformat.")
+                return
+            
+            # Запуск API-воркера (coordinates не передаются)
+            process_control.start_worker(worker, (settings,))
         else:
-            worker = run_multiformat_with_refs_worker
-        process_control.start_worker(worker, (settings, coordinates, relative_movements))
+            # Браузерная генерация (существующий код)
+            coordinates, relative_movements = load_coordinates()
+            
+            ok, err = can_start_generation(settings)
+            if not ok:
+                print(err)
+                return
+            
+            # Автоподготовка окна перед стартом (этап 5)
+            if not WindowManager().setup_automation_window():
+                print("[ГЛАВНЫЙ] Не удалось настроить рабочее окно, но продолжаем.")
+            
+            if mode == "standard":
+                worker = run_standard_worker
+            elif mode == "multiformat":
+                worker = run_multiformat_worker
+            else:
+                worker = run_multiformat_with_refs_worker
+            
+            process_control.start_worker(worker, (settings, coordinates, relative_movements))
 
     console = ConsoleInterface()
     console.show_instructions()

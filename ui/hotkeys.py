@@ -239,29 +239,137 @@ class HotkeyManager:
         except KeyboardInterrupt:
             print("\nНастройка отменена")
 
-    def _configure_mode(self):
-        """Ctrl+7: выбор режима для текущего сайта (CURRENT_MODE)."""
-        settings = settings_store.load_settings()
-        site = settings.get("CURRENT_SITE", "aistudio")
-        modes = MODES_BY_SITE.get(site, ["standard", "multiformat"])
-        current = settings.get("CURRENT_MODE", "standard")
-        print("Выберите режим:")
-        for i, m in enumerate(modes, 1):
-            mark = " (текущий)" if m == current else ""
-            print(f"  {i}. {m}{mark}")
+    def _check_and_configure_api_key(self, settings: dict) -> bool:
+        """
+        Проверка и настройка API ключа.
+        Если ключ есть — предлагает обновить или продолжить.
+        Если ключа нет — обязательно запрашивает ввод.
+        
+        Args:
+            settings: словарь настроек (будет изменён при вводе нового ключа)
+            
+        Returns:
+            True если ключ задан/введён успешно, False если пользователь отменил
+        """
+        from utils import api_client
+        
+        current_key = settings.get("API_KEY", "").strip()
+        
+        print("\n=== НАСТРОЙКА API ===")
+        if current_key:
+            # Ключ уже есть - предлагаем обновить или продолжить
+            print(f"API ключ: {current_key[:10]}... (первые 10 символов)")
+            print("\n1. Ввести новый API ключ")
+            print("2. Продолжить с текущим ключом")
+            print("0. Отмена")
+            print("\nПолучить ключ: https://aistudio.google.com/apikey")
+            
+            try:
+                choice = input("Выбор: ").strip()
+                if choice == "0":
+                    print("Настройка отменена.")
+                    return False
+                elif choice == "2":
+                    return True
+                elif choice != "1":
+                    print("Неверный выбор.")
+                    return False
+                # Продолжаем к вводу нового ключа ниже
+            except KeyboardInterrupt:
+                print("\nНастройка отменена.")
+                return False
+        else:
+            # Ключа нет - обязательный ввод
+            print("API ключ не задан!")
+            print("Получите ключ на: https://aistudio.google.com/apikey")
+        
+        # Запрос ввода ключа
         try:
-            raw = input("Номер (Enter — отмена): ").strip()
-            if not raw:
-                return
-            idx = int(raw)
-            if 1 <= idx <= len(modes):
-                settings["CURRENT_MODE"] = modes[idx - 1]
-                settings_store.save_settings(settings)
-                print(f"Режим установлен: {settings['CURRENT_MODE']}")
+            new_key = input("Введите API ключ (или 0 для отмены): ").strip()
+            if new_key == "0":
+                print("Настройка отменена.")
+                return False
+            
+            # Валидация формата ключа
+            key_valid, key_error = api_client.check_api_key_format(new_key)
+            if not key_valid:
+                print(f"Ошибка: {key_error}")
+                return False
+            
+            settings["API_KEY"] = new_key
+            print("✓ API ключ сохранён.")
+            return True
+            
+        except KeyboardInterrupt:
+            print("\nНастройка отменена.")
+            return False
+
+    def _configure_method_and_mode(self):
+        """Ctrl+7: выбор метода генерации (browser/api) и режима (standard/multiformat/multiformat_with_refs)."""
+        settings = settings_store.load_settings()
+        
+        # Шаг 1: Выбор метода генерации
+        current_method = settings.get("GENERATION_METHOD", "browser")
+        print("\n=== НАСТРОЙКА ГЕНЕРАЦИИ ===")
+        print("Выберите метод генерации:")
+        print("  1. browser (через браузер, требует координаты)")
+        print("  2. api (через Gemini API, быстрее, без координат)")
+        print(f"Текущий: {current_method}")
+        
+        try:
+            method_choice = input("Выбор (Enter — не менять): ").strip()
+            
+            if method_choice == "1":
+                settings["GENERATION_METHOD"] = "browser"
+            elif method_choice == "2":
+                settings["GENERATION_METHOD"] = "api"
+                # Шаг 2: Проверка и настройка API ключа
+                if not self._check_and_configure_api_key(settings):
+                    print("Отмена настройки.")
+                    return
+            elif method_choice == "":
+                # Не меняем метод, продолжаем к выбору режима
+                pass
             else:
-                print("Неверный номер.")
+                print("Неверный выбор.")
+                return
+            
+            # Шаг 3: Выбор режима
+            site = settings.get("CURRENT_SITE", "aistudio")
+            modes = MODES_BY_SITE.get(site, ["standard", "multiformat"])
+            current_mode = settings.get("CURRENT_MODE", "standard")
+            
+            print("\n=== ВЫБОР РЕЖИМА ===")
+            print("Выберите режим:")
+            for i, m in enumerate(modes, 1):
+                mark = " (текущий)" if m == current_mode else ""
+                print(f"  {i}. {m}{mark}")
+            
+            mode_choice = input("Номер (Enter — не менять): ").strip()
+            if mode_choice:
+                idx = int(mode_choice)
+                if 1 <= idx <= len(modes):
+                    selected_mode = modes[idx - 1]
+                    
+                    # Проверка: api + multiformat_with_refs не поддерживается
+                    if settings.get("GENERATION_METHOD") == "api" and selected_mode == "multiformat_with_refs":
+                        print("\n⚠️ ВНИМАНИЕ: Режим с референсами пока не поддерживается в API.")
+                        print("Выберите standard или multiformat, или переключитесь на browser.")
+                        return
+                    
+                    settings["CURRENT_MODE"] = selected_mode
+                else:
+                    print("Неверный номер.")
+                    return
+            
+            # Сохранение настроек
+            settings_store.save_settings(settings)
+            print(f"\n✓ Метод: {settings.get('GENERATION_METHOD')}, Режим: {settings.get('CURRENT_MODE')}")
+            
         except ValueError:
             print("Введите число.")
+        except KeyboardInterrupt:
+            print("\nНастройка отменена.")
 
     def _show_settings_and_plan(self):
         """Ctrl+5: показать текущие настройки и план (on_show_plan)."""
@@ -270,6 +378,17 @@ class HotkeyManager:
         print("ТЕКУЩИЕ НАСТРОЙКИ (v2)")
         print(f"  Сайт: {settings.get('CURRENT_SITE')}")
         print(f"  Режим: {settings.get('CURRENT_MODE')}")
+        
+        # Отображение метода генерации и API ключа
+        generation_method = settings.get('GENERATION_METHOD', 'browser')
+        print(f"  Метод генерации: {generation_method}")
+        if generation_method == 'api':
+            api_key = settings.get('API_KEY', '').strip()
+            if api_key:
+                print(f"  API ключ: {api_key[:10]}... (задан)")
+            else:
+                print(f"  API ключ: не задан")
+        
         print(f"  Файл промптов: {settings.get('PROMPTS_FILE')}")
         print(f"  Стартовая карточка: {settings.get('START_FROM_CARD')}")
         print(f"  Конечная карточка: {settings.get('END_CARD')}")
@@ -299,7 +418,7 @@ class HotkeyManager:
         keyboard.add_hotkey("ctrl+4", self._toggle_image_check)
         keyboard.add_hotkey("ctrl+5", self._show_settings_and_plan)
         keyboard.add_hotkey("ctrl+6", self._configure_end_card)
-        keyboard.add_hotkey("ctrl+7", self._configure_mode)
+        keyboard.add_hotkey("ctrl+7", self._configure_method_and_mode)
         keyboard.add_hotkey("ctrl+8", self._configure_image_wait_interval)
         keyboard.add_hotkey("ctrl+9", self._configure_aspect_ratios)
         keyboard.add_hotkey("ctrl+shift+v", self.on_setup_window)

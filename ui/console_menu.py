@@ -12,13 +12,20 @@ MODES_BY_SITE = {"aistudio": ["standard", "multiformat", "multiformat_with_refs"
 
 
 def show_current_config(settings: dict) -> None:
-    """Выводит текущие значения: сайт, режим, файл промптов."""
+    """Выводит текущие значения: сайт, режим, файл промптов, метод генерации."""
     site = settings.get("CURRENT_SITE") or "не выбрано"
     mode = settings.get("CURRENT_MODE") or "не выбрано"
     prompts_file = settings.get("PROMPTS_FILE") or "не выбрано"
+    generation_method = settings.get("GENERATION_METHOD", "browser")
+    api_key = settings.get("API_KEY", "")
+    api_key_status = "задан" if api_key.strip() else "не задан"
+    
     print(f"Текущий сайт: {site}")
     print(f"Текущий режим: {mode}")
     print(f"Файл промптов: {prompts_file}")
+    print(f"Метод генерации: {generation_method}")
+    if generation_method == "api":
+        print(f"API ключ: {api_key_status}")
 
 
 def select_site(settings: dict) -> None:
@@ -87,6 +94,56 @@ def select_prompts_file(settings: dict) -> None:
             print("Неверный номер.")
     except ValueError:
         print("Введите число.")
+
+
+def select_generation_method(settings: dict) -> None:
+    """Переключение GENERATION_METHOD между 'browser' и 'api'."""
+    current = settings.get("GENERATION_METHOD", "browser")
+    print(f"Текущий метод: {current}")
+    print("Выберите метод генерации:")
+    print("  1. browser (через браузер, требует настройку координат)")
+    print("  2. api (через Gemini API, требует API ключ)")
+    try:
+        raw = input("Номер: ").strip()
+        if raw == "1":
+            settings["GENERATION_METHOD"] = "browser"
+            print("Метод генерации: browser")
+        elif raw == "2":
+            settings["GENERATION_METHOD"] = "api"
+            print("Метод генерации: api")
+            print("Не забудьте настроить API ключ (пункт 7).")
+        else:
+            print("Неверный номер.")
+    except ValueError:
+        print("Введите число.")
+
+
+def configure_api_key(settings: dict) -> None:
+    """Ввод и сохранение API_KEY в settings."""
+    current = settings.get("API_KEY", "")
+    if current:
+        print(f"Текущий API ключ: {current[:10]}... (первые 10 символов)")
+    else:
+        print("API ключ не задан.")
+    print()
+    print("Введите новый API ключ (или пустую строку для отмены):")
+    print("Получить ключ: https://aistudio.google.com/apikey")
+    new_key = input("API ключ: ").strip()
+    
+    if not new_key:
+        print("Отмена.")
+        return
+    
+    # Валидация формата
+    from utils import api_client
+    key_valid, key_error = api_client.check_api_key_format(new_key)
+    
+    if not key_valid:
+        print(f"Ошибка: {key_error}")
+        return
+    
+    settings["API_KEY"] = new_key
+    print("API ключ сохранён.")
 
 
 def show_generation_plan(settings: dict) -> None:
@@ -215,7 +272,7 @@ def show_main_menu(
     coordinates: dict,
     relative_movements: dict,
 ) -> None:
-    """Главный цикл меню: конфигурация, пункты 1–5 и 0 (выход). При выходе сохраняем настройки."""
+    """Главный цикл меню: конфигурация, пункты 1–7 и 0 (выход). При выходе сохраняем настройки."""
     from utils import settings_store
     while True:
         print()
@@ -226,6 +283,8 @@ def show_main_menu(
         print("3 — Выбрать файл промптов")
         print("4 — Показать план генерации")
         print("5 — Запустить генерацию")
+        print("6 — Выбрать метод генерации (browser/api)")
+        print("7 — Настроить API ключ")
         print("0 — Выход")
         choice = input("Выбор: ").strip()
         if choice == "0":
@@ -242,8 +301,12 @@ def show_main_menu(
             show_generation_plan(settings)
         elif choice == "5":
             start_generation_with_process(settings, coordinates, relative_movements)
+        elif choice == "6":
+            select_generation_method(settings)
+        elif choice == "7":
+            configure_api_key(settings)
         else:
-            print("Неверный ввод. Введите 0–5.")
+            print("Неверный ввод. Введите 0–7.")
 
 
 if __name__ == "__main__":

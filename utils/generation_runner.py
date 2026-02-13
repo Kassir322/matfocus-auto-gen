@@ -128,3 +128,121 @@ def run_multiformat_with_refs_worker(settings: dict, coordinates: dict, relative
         return
 
     mode_multiformat_with_refs.run_mode(tasks, settings, coordinates, relative_movements)
+
+
+# --- API режимы генерации ---
+
+
+def can_start_generation_api(settings: dict) -> tuple[bool, str | None]:
+    """
+    Проверки перед стартом API-генерации.
+    
+    Проверяет:
+    - API_KEY задан и валиден
+    - Файл промптов существует
+    - Режим поддерживает API (standard или multiformat)
+    
+    Args:
+        settings: словарь настроек
+        
+    Returns:
+        (ok: bool, error_message: str | None)
+    """
+    # Проверка API ключа
+    api_key = settings.get("API_KEY", "").strip()
+    if not api_key:
+        return False, "API_KEY не задан. Настройте API ключ в меню."
+    
+    # Валидация формата API ключа
+    from utils import api_client
+    key_valid, key_error = api_client.check_api_key_format(api_key)
+    if not key_valid:
+        return False, key_error
+    
+    # Проверка файла промптов
+    path = settings.get("PROMPTS_FILE") or ""
+    if not path or not path.strip():
+        return False, "Файл промптов не выбран."
+    if not os.path.isfile(path):
+        return False, f"Файл не найден: {path}"
+    
+    # Проверка режима (API поддерживает standard и multiformat, но не with_refs в первой версии)
+    mode = settings.get("CURRENT_MODE", "standard")
+    if mode == "multiformat_with_refs":
+        return False, "Режим с референсами пока не поддерживается в API. Выберите standard или multiformat."
+    
+    # Проверка задач
+    if mode == "multiformat":
+        from sites.aistudio import mode_multiformat_api
+        tasks = mode_multiformat_api.load_tasks_from_file(path)
+    else:
+        from sites.aistudio import mode_standard_api
+        tasks = mode_standard_api.load_tasks_from_file(path)
+    
+    if not tasks:
+        return False, "Файл пустой или не содержит валидных строк."
+    
+    # Фильтр по диапазону
+    start_card = int(settings.get("START_FROM_CARD", 1))
+    end_card = settings.get("END_CARD")
+    if end_card is not None:
+        end_card = int(end_card)
+    else:
+        end_card = max(t["card_number"] for t in tasks)
+    filtered = [t for t in tasks if start_card <= t["card_number"] <= end_card]
+    if not filtered:
+        return False, "Нет задач в выбранном диапазоне карточек."
+    
+    return True, None
+
+
+def run_standard_worker_api(settings: dict, coordinates: dict = None, relative_movements: dict = None) -> None:
+    """
+    Воркер для режима standard через API (без браузера).
+    Вызывается в подпроцессе; coordinates и relative_movements не используются.
+    
+    Args:
+        settings: словарь настроек (должен содержать API_KEY, API_MODEL и т.д.)
+        coordinates: не используется (совместимость сигнатуры)
+        relative_movements: не используется (совместимость сигнатуры)
+    """
+    from sites.aistudio import mode_standard_api
+    
+    path = settings.get("PROMPTS_FILE") or ""
+    if not path or not path.strip():
+        print("Файл промптов не выбран. Укажите в настройках.")
+        return
+    
+    tasks = mode_standard_api.load_tasks_from_file(path)
+    if not tasks:
+        print("Файл пустой или не содержит валидных строк.")
+        return
+    
+    # Фильтр по диапазону выполняется внутри run_mode
+    mode_standard_api.run_mode(tasks, settings, coordinates, relative_movements)
+
+
+def run_multiformat_worker_api(settings: dict, coordinates: dict = None, relative_movements: dict = None) -> None:
+    """
+    Воркер для режима multiformat через API (без браузера).
+    Вызывается в подпроцессе; coordinates и relative_movements не используются.
+    
+    Args:
+        settings: словарь настроек (должен содержать API_KEY, API_MODEL и т.д.)
+        coordinates: не используется (совместимость сигнатуры)
+        relative_movements: не используется (совместимость сигнатуры)
+    """
+    from sites.aistudio import mode_multiformat_api
+    
+    path = settings.get("PROMPTS_FILE") or ""
+    if not path or not path.strip():
+        print("Файл промптов не выбран. Укажите в настройках.")
+        return
+    
+    tasks = mode_multiformat_api.load_tasks_from_file(path)
+    if not tasks:
+        print("Файл пустой или не содержит валидных строк.")
+        return
+    
+    # Фильтр по диапазону выполняется внутри run_mode
+    mode_multiformat_api.run_mode(tasks, settings, coordinates, relative_movements)

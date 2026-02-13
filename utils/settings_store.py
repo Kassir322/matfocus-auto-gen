@@ -21,6 +21,12 @@ DEFAULT_SETTINGS = {
     "CHECK_IMAGE_GENERATED": True,
     "FACE_ASPECT_RATIO": "4:3",
     "BACK_ASPECT_RATIO": "3:2",
+    # Настройки API (интеграция Gemini API)
+    "GENERATION_METHOD": "browser",  # "browser" или "api"
+    "API_KEY": "",
+    "API_MODEL": "gemini-2.5-flash-image",  # или "gemini-3-pro-image-preview"
+    "API_IMAGE_SIZE": "1K",  # "1K", "2K", "4K" (для Pro модели)
+    "API_TIMEOUT": 60.0,  # таймаут API запросов в секундах
 }
 
 
