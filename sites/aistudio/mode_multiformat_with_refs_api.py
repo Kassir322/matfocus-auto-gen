@@ -1,6 +1,8 @@
 """
-Мультиформатный режим генерации через Gemini API (лицо/оборот, aspect ratio).
-Использует utils/api_client.py для генерации изображений напрямую через API.
+Мультиформатный режим с референсами через Gemini API (лицо/оборот, aspect ratio, референсные изображения).
+Использует utils/api_client.py для генерации изображений через API с поддержкой двух моделей:
+- API_MODEL — для промптов без референсов
+- API_MODEL_WITH_REFS — для промптов с референсными изображениями
 """
 import os
 import time
@@ -17,6 +19,43 @@ from utils.log_writer import write_log_line
 
 # Задержка между запросами к API (для соблюдения rate limits)
 API_REQUEST_DELAY = 1.0
+
+
+def safe_filename(name: str) -> str:
+    """Преобразует название карточки в безопасное имя файла (REFERENCES_format п.4)."""
+    safe = name.replace(" ", "_").replace("/", "_").replace("\\", "_")
+    for char in [":", "*", "?", '"', "<", ">", "|"]:
+        safe = safe.replace(char, "")
+    return safe
+
+
+def get_reference_path(side: str, card_number: int, card_name: str):
+    """
+    Ищет файл референса для указанной стороны и карточки (REFERENCES_format п.6).
+    Поддерживает два формата:
+    1. Простой: {номер}_{сторона}.{ext}  (приоритет)
+    2. Полный: {сторона}_{номер}_{название}.{ext}  (запасной, для обратной совместимости)
+    
+    Возвращает путь (str) или None.
+    """
+    base_folder = os.path.join("data", "images", side)
+    
+    # Сначала ищем простой формат: {номер}_{сторона}.{ext}
+    for ext in ["png", "jpg"]:
+        filename = f"{card_number}_{side}.{ext}"
+        full_path = os.path.join(base_folder, filename)
+        if os.path.exists(full_path):
+            return full_path
+    
+    # Запасной вариант: полный формат с названием (для обратной совместимости)
+    safe_name = safe_filename(card_name)
+    for ext in ["png", "jpg"]:
+        filename = f"{side}_{card_number}_{safe_name}.{ext}"
+        full_path = os.path.join(base_folder, filename)
+        if os.path.exists(full_path):
+            return full_path
+    
+    return None
 
 
 def load_tasks_from_file(path: str) -> list[dict]:
@@ -53,19 +92,23 @@ def _get_log_filepath() -> str:
     return os.path.join("logs", f"auto-gen_{timestamp}.log")
 
 
-def _make_filename(card_number: int, side: str, pair_num: int) -> str:
+def _make_filename(card_number: int, card_name: str, side: str, pair_num: int, model_name: str) -> str:
     """
-    Имя файла для multiformat: Карточка_N_лицо|оборот_промпт_M.png (NAMING_RULES).
+    Имя файла для multiformat_with_refs с указанием модели:
+    Карточка_{N}_{safe_name}_{side}_промпт_{P}_{model}.png (NAMING_RULES + model).
     
     Args:
         card_number: номер карточки
+        card_name: название карточки
         side: "лицо" или "оборот"
         pair_num: номер пары промптов
+        model_name: полное имя модели (например, "imagen-4.0-generate-001" или "gemini-2.5-flash-image")
         
     Returns:
         Имя файла
     """
-    return f"Карточка_{card_number}_{side}_промпт_{pair_num}.png"
+    safe_name = safe_filename(card_name)
+    return f"Карточка_{card_number}_{safe_name}_{side}_промпт_{pair_num}_{model_name}.png"
 
 
 def _generate_single_image_api(
@@ -75,18 +118,22 @@ def _generate_single_image_api(
     log_file,
 ) -> bool:
     """
-    Генерация одного изображения через API с поддержкой aspect ratio.
+    Генерация одного изображения через API с автоматическим выбором модели.
+    Определяет наличие референса и выбирает соответствующую модель:
+    - Если референс найден → API_MODEL_WITH_REFS (мультимодальная модель)
+    - Если референс не найден → API_MODEL (генеративная модель)
     
     Args:
         task: задача с полями card_number, card_name, pair_number, side, prompt_text
         client: экземпляр genai.Client
-        settings: настройки (API_MODEL, API_IMAGE_SIZE, FACE_ASPECT_RATIO, BACK_ASPECT_RATIO)
+        settings: настройки (API_MODEL, API_MODEL_WITH_REFS, API_IMAGE_SIZE, FACE_ASPECT_RATIO, BACK_ASPECT_RATIO)
         log_file: файл для логирования
         
     Returns:
         True при успешном сохранении, False при ошибке
     """
     card_number = task["card_number"]
+    card_name = task["card_name"]
     pair_num = task["pair_number"]
     side = task["side"]
     prompt_text = task.get("prompt_text", "").strip()
@@ -95,12 +142,25 @@ def _generate_single_image_api(
         write_log_line(log_file, f"[WARN] Пропуск: пустой промпт карточка {card_number} пара {pair_num} {side}")
         return False
     
-    file_name = _make_filename(card_number, side, pair_num)
-    write_log_line(log_file, f"[SIDE] {side}: генерация через API")
+    # Определение наличия референса
+    ref_path = get_reference_path(side, card_number, card_name)
+    
+    # Выбор модели в зависимости от наличия референса
+    if ref_path:
+        model = settings.get("API_MODEL_WITH_REFS", "gemini-2.5-flash-image")
+        write_log_line(log_file, f"[REF] Найден референс: {ref_path}")
+        write_log_line(log_file, f"[MODEL] Используется модель с референсами: {model}")
+    else:
+        model = settings.get("API_MODEL", "imagen-4.0-generate-001")
+        write_log_line(log_file, f"[INFO] Референс не найден, генерация без референса")
+        write_log_line(log_file, f"[MODEL] Используется модель без референсов: {model}")
+    
+    # Формирование имени файла с моделью
+    file_name = _make_filename(card_number, card_name, side, pair_num, model)
+    write_log_line(log_file, f"[GEN] Генерация: {file_name}")
     
     try:
         # Параметры API из настроек
-        model = settings.get("API_MODEL", "gemini-2.5-flash-image")
         image_size = settings.get("API_IMAGE_SIZE", "1K")
         timeout = float(settings.get("API_TIMEOUT", 60.0))
         
@@ -112,18 +172,31 @@ def _generate_single_image_api(
         
         write_log_line(
             log_file, 
-            f"[API_REQUEST] model={model}, size={image_size}, aspect={aspect_ratio}, prompt_length={len(prompt_text)}"
+            f"[API_REQUEST] model={model}, size={image_size}, aspect={aspect_ratio}, prompt_length={len(prompt_text)}, with_ref={ref_path is not None}"
         )
         
-        # Генерация изображения через API
-        image_bytes, error_msg = api_client.generate_image(
-            client=client,
-            prompt=prompt_text,
-            model=model,
-            aspect_ratio=aspect_ratio,
-            image_size=image_size,
-            timeout=timeout,
-        )
+        # Генерация изображения через API (с референсом или без)
+        if ref_path:
+            # Генерация с референсным изображением
+            image_bytes, error_msg = api_client.generate_image_with_reference(
+                client=client,
+                prompt=prompt_text,
+                reference_image_path=ref_path,
+                model=model,
+                aspect_ratio=aspect_ratio,
+                image_size=image_size,
+                timeout=timeout,
+            )
+        else:
+            # Генерация без референса
+            image_bytes, error_msg = api_client.generate_image(
+                client=client,
+                prompt=prompt_text,
+                model=model,
+                aspect_ratio=aspect_ratio,
+                image_size=image_size,
+                timeout=timeout,
+            )
         
         if not image_bytes:
             if error_msg:
@@ -160,11 +233,12 @@ def run_mode(
     relative_movements: dict = None,  # не используется в API режиме
 ) -> None:
     """
-    Выполнение генерации для мультиформатного режима через API.
+    Выполнение генерации для мультиформатного режима с референсами через API.
+    Автоматически выбирает модель в зависимости от наличия референсного изображения.
     
     Args:
         tasks: список задач из load_tasks_from_file
-        settings: настройки (API_KEY, API_MODEL, FACE_ASPECT_RATIO, BACK_ASPECT_RATIO и т.д.)
+        settings: настройки (API_KEY, API_MODEL, API_MODEL_WITH_REFS, FACE_ASPECT_RATIO, BACK_ASPECT_RATIO и т.д.)
         coordinates: не используется (совместимость сигнатуры с браузерным режимом)
         relative_movements: не используется (совместимость сигнатуры)
     """
@@ -210,7 +284,7 @@ def run_mode(
     try:
         info = get_plan_info(tasks)
         plan_msg = (
-            f"[PLAN] Режим: multiformat (API). Карточек: {info['cards_count']}, "
+            f"[PLAN] Режим: multiformat_with_refs (API). Карточек: {info['cards_count']}, "
             f"пар: {info['pairs_count']}, изображений: {info['images_planned']}"
         )
         write_log_line(log_file, plan_msg)
@@ -219,10 +293,12 @@ def run_mode(
         if prompts_file:
             write_log_line(log_file, f"[PLAN] Файл промптов: {prompts_file}")
         
-        model = settings.get("API_MODEL", "gemini-2.5-flash-image")
+        model_no_ref = settings.get("API_MODEL", "imagen-4.0-generate-001")
+        model_with_ref = settings.get("API_MODEL_WITH_REFS", "gemini-2.5-flash-image")
         face_aspect = settings.get("FACE_ASPECT_RATIO", "4:3")
         back_aspect = settings.get("BACK_ASPECT_RATIO", "16:9")
-        write_log_line(log_file, f"[PLAN] API модель: {model}")
+        write_log_line(log_file, f"[PLAN] Модель без референсов: {model_no_ref}")
+        write_log_line(log_file, f"[PLAN] Модель с референсами: {model_with_ref}")
         write_log_line(log_file, f"[PLAN] Aspect ratio: лицо={face_aspect}, оборот={back_aspect}")
         
         # Логирование папки для сохранения изображений
@@ -258,7 +334,7 @@ def run_mode(
                 pairs_seen.add(pair_key)
                 last_pair = pair_key
             
-            # Генерация через API
+            # Генерация через API (с автоматическим выбором модели)
             ok = _generate_single_image_api(task, client, settings, log_file)
             if ok:
                 done_images += 1

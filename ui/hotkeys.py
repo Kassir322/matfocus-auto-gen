@@ -223,17 +223,43 @@ class HotkeyManager:
         """Ctrl+9: настроить FACE_ASPECT_RATIO и BACK_ASPECT_RATIO (формат X:Y)."""
         settings = settings_store.load_settings()
         face = settings.get("FACE_ASPECT_RATIO", "4:3")
-        back = settings.get("BACK_ASPECT_RATIO", "3:2")
-        print("Формат: X:Y (например 16:9, 3:4). Пустая строка — не менять.")
+        back = settings.get("BACK_ASPECT_RATIO", "16:9")
+        generation_method = settings.get("GENERATION_METHOD", "browser")
+        
+        print("\n=== НАСТРОЙКА СООТНОШЕНИЙ СТОРОН ===")
+        
+        # Показать поддерживаемые значения для API режима
+        if generation_method == "api":
+            print("\nВАЖНО: Для Imagen 4 поддерживаются только следующие соотношения:")
+            print("  - 1:1 (квадрат)")
+            print("  - 4:3 (горизонтальная)")
+            print("  - 3:4 (вертикальная)")
+            print("  - 16:9 (широкая горизонтальная, рекомендуется для оборота)")
+            print("  - 9:16 (широкая вертикальная)")
+            print("\nДля Gemini моделей поддерживаются все стандартные соотношения.")
+        
+        print("\nФормат: X:Y (например 16:9, 4:3). Пустая строка — не менять.")
         try:
             raw_face = input(f"Соотношение для лицевой стороны [{face}]: ").strip()
             if raw_face and _validate_aspect_ratio(raw_face):
+                # Дополнительная проверка для API режима с Imagen
+                if generation_method == "api":
+                    api_model = settings.get("API_MODEL", "")
+                    if api_model.startswith("imagen-4") and raw_face not in ["1:1", "4:3", "3:4", "16:9", "9:16"]:
+                        print("Внимание: соотношение", raw_face, "может не поддерживаться Imagen 4.")
+                        print("Рекомендуется использовать: 1:1, 4:3, 3:4, 16:9, 9:16")
                 settings["FACE_ASPECT_RATIO"] = raw_face
-                print(f"Лицевая сторона: {raw_face}")
+                print("Лицевая сторона:", raw_face)
             raw_back = input(f"Соотношение для оборотной стороны [{back}]: ").strip()
             if raw_back and _validate_aspect_ratio(raw_back):
+                # Дополнительная проверка для API режима с Imagen
+                if generation_method == "api":
+                    api_model = settings.get("API_MODEL", "")
+                    if api_model.startswith("imagen-4") and raw_back not in ["1:1", "4:3", "3:4", "16:9", "9:16"]:
+                        print("Внимание: соотношение", raw_back, "может не поддерживаться Imagen 4.")
+                        print("Рекомендуется использовать: 1:1, 4:3, 3:4, 16:9, 9:16")
                 settings["BACK_ASPECT_RATIO"] = raw_back
-                print(f"Оборотная сторона: {raw_back}")
+                print("Оборотная сторона:", raw_back)
             if raw_face or raw_back:
                 settings_store.save_settings(settings)
         except KeyboardInterrupt:
@@ -249,12 +275,17 @@ class HotkeyManager:
         Returns:
             True если настройки сохранены, False если отменено
         """
-        print("\n=== НАСТРОЙКА МОДЕЛИ API ===")
+        print("\n=== НАСТРОЙКА МОДЕЛЕЙ API ===")
         
         current_model = settings.get("API_MODEL", "imagen-4.0-generate-001")
+        current_model_refs = settings.get("API_MODEL_WITH_REFS", "gemini-2.5-flash-image")
         current_size = settings.get("API_IMAGE_SIZE", "2K")
         
-        # Список доступных моделей
+        # 1. Настройка модели для промптов БЕЗ референсов
+        print("\n--- МОДЕЛЬ ДЛЯ ПРОМПТОВ БЕЗ РЕФЕРЕНСОВ ---")
+        print("Используется в режимах: standard, multiformat, multiformat_with_refs (если референс отсутствует)")
+        
+        # Список доступных моделей для промптов без референсов
         models = {
             "1": ("imagen-4.0-fast-generate-001", "Imagen 4 Fast", "быстро, базовое качество"),
             "2": ("imagen-4.0-generate-001", "Imagen 4 Standard", "оптимально, хорошее качество (рекомендуется)"),
@@ -262,7 +293,7 @@ class HotkeyManager:
             "4": ("gemini-2.5-flash-image", "Gemini 2.5 Flash", "устаревшая, быстро, низкое качество"),
         }
         
-        print("Выберите модель:")
+        print("\nВыберите модель для промптов БЕЗ референсов:")
         for key, (model_id, name, desc) in models.items():
             current_mark = " (текущая)" if model_id == current_model else ""
             print(f"  {key}. {name}{current_mark}")
@@ -274,14 +305,49 @@ class HotkeyManager:
             if model_choice and model_choice in models:
                 selected_model = models[model_choice][0]
                 settings["API_MODEL"] = selected_model
-                print(f"✓ Выбрана модель: {models[model_choice][1]}")
+                print(f"✓ Выбрана модель (без референсов): {models[model_choice][1]}")
             elif model_choice == "":
                 selected_model = current_model
             else:
                 print("Неверный выбор.")
                 return False
             
-            # Выбор разрешения (только для Imagen 4)
+            # 2. Настройка модели для промптов С референсами
+            print("\n--- МОДЕЛЬ ДЛЯ ПРОМПТОВ С РЕФЕРЕНСАМИ ---")
+            print("Используется в режиме: multiformat_with_refs (когда референс найден)")
+            print("ВАЖНО: Только мультимодальные модели Gemini поддерживают работу с референсными изображениями!")
+            
+            # Список мультимодальных моделей для промптов с референсами
+            models_with_ref = {
+                "1": ("gemini-2.5-flash-image", "Gemini 2.5 Flash Image", "быстро, рекомендуется для референсов"),
+                "2": ("gemini-3-pro-image-preview", "Gemini 3 Pro Image Preview", "экспериментальная, более высокое качество"),
+            }
+            
+            print("\nВыберите модель для промптов С референсами:")
+            for key, (model_id, name, desc) in models_with_ref.items():
+                current_mark = " (текущая)" if model_id == current_model_refs else ""
+                print(f"  {key}. {name}{current_mark}")
+                print(f"     {desc}")
+            
+            model_refs_choice = input("Выбор (Enter — не менять): ").strip()
+            
+            if model_refs_choice and model_refs_choice in models_with_ref:
+                selected_model_refs = models_with_ref[model_refs_choice][0]
+                settings["API_MODEL_WITH_REFS"] = selected_model_refs
+                print(f"✓ Выбрана модель (с референсами): {models_with_ref[model_refs_choice][1]}")
+            elif model_refs_choice == "":
+                selected_model_refs = current_model_refs
+            else:
+                print("Неверный выбор.")
+                return False
+            
+            # Подсказка: Imagen 4 поддерживает только определённые соотношения сторон
+            if selected_model.startswith("imagen-4"):
+                print("\nImagen 4 поддерживает только следующие соотношения сторон:")
+                print("  1:1, 4:3, 3:4, 16:9, 9:16")
+                print("  Настройте через Ctrl+9 если используются другие значения.")
+            
+            # 3. Выбор разрешения (только для Imagen 4)
             if selected_model.startswith("imagen-4"):
                 print("\nВыберите разрешение изображения:")
                 print(f"  1. 1K (1024x1024) - быстрее")
@@ -427,13 +493,6 @@ class HotkeyManager:
                 idx = int(mode_choice)
                 if 1 <= idx <= len(modes):
                     selected_mode = modes[idx - 1]
-                    
-                    # Проверка: api + multiformat_with_refs не поддерживается
-                    if settings.get("GENERATION_METHOD") == "api" and selected_mode == "multiformat_with_refs":
-                        print("\n⚠️ ВНИМАНИЕ: Режим с референсами пока не поддерживается в API.")
-                        print("Выберите standard или multiformat, или переключитесь на browser.")
-                        return
-                    
                     settings["CURRENT_MODE"] = selected_mode
                 else:
                     print("Неверный номер.")

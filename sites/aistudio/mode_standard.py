@@ -259,7 +259,7 @@ def run_mode(
         cards_seen = set()
         last_card = None
 
-        for task in tasks:
+        for idx, task in enumerate(tasks):
             card_number = task["card_number"]
             if card_number != last_card:
                 if last_card is not None:
@@ -275,6 +275,13 @@ def run_mode(
                 done_generations += 1
             # Прогресс в консоль (только основные шаги)
             print(f"Генерация {done_generations} из {total_generations}")
+            
+            # Проверка: последний ли это промпт для текущей карточки
+            is_last_prompt_for_card = (idx == len(tasks) - 1) or (tasks[idx + 1]["card_number"] != card_number)
+            if is_last_prompt_for_card:
+                # Сохранить следующий номер карточки в настройках для продолжения при следующем запуске
+                from utils.settings_store import update_start_card
+                update_start_card(card_number + 1)
 
         summary_msg = f"[SUMMARY] Карточек: {len(cards_seen)}, генераций: {done_generations}/{total_generations}"
         write_log_line(log_file, summary_msg)

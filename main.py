@@ -53,6 +53,7 @@ def main():
                 can_start_generation_api,
                 run_standard_worker_api,
                 run_multiformat_worker_api,
+                run_multiformat_with_refs_worker_api,
             )
             
             ok, err = can_start_generation_api(settings)
@@ -65,8 +66,10 @@ def main():
                 worker = run_standard_worker_api
             elif mode == "multiformat":
                 worker = run_multiformat_worker_api
+            elif mode == "multiformat_with_refs":
+                worker = run_multiformat_with_refs_worker_api
             else:
-                print("Режим с референсами пока не поддерживается в API. Выберите standard или multiformat.")
+                print("Неизвестный режим. Выберите standard, multiformat или multiformat_with_refs.")
                 return
             
             # Запуск API-воркера (coordinates не передаются)

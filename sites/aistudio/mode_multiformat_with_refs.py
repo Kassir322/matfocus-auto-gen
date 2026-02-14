@@ -308,7 +308,7 @@ def run_mode(
         last_card = None
         last_pair = None
 
-        for task in tasks:
+        for idx, task in enumerate(tasks):
             card_number = task["card_number"]
             pair_number = task["pair_number"]
             side = task["side"]
@@ -343,6 +343,13 @@ def run_mode(
             if ok:
                 done_images += 1
             print(f"Генерация {done_images} из {total_images}")
+            
+            # Проверка: последний ли это промпт для текущей карточки
+            is_last_prompt_for_card = (idx == len(tasks) - 1) or (tasks[idx + 1]["card_number"] != card_number)
+            if is_last_prompt_for_card:
+                # Сохранить следующий номер карточки в настройках для продолжения при следующем запуске
+                from utils.settings_store import update_start_card
+                update_start_card(card_number + 1)
 
         summary_msg = (
             f"[SUMMARY] Карточек: {len(cards_seen)}, пар: {len(pairs_seen)}, "

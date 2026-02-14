@@ -20,11 +20,12 @@ DEFAULT_SETTINGS = {
     "IMAGE_WAIT_INTERVAL": 2.0,
     "CHECK_IMAGE_GENERATED": True,
     "FACE_ASPECT_RATIO": "4:3",
-    "BACK_ASPECT_RATIO": "3:2",
+    "BACK_ASPECT_RATIO": "16:9",  # для Imagen 4 поддерживаются: 1:1, 9:16, 16:9, 4:3, 3:4
     # Настройки API (интеграция Gemini API)
     "GENERATION_METHOD": "browser",  # "browser" или "api"
     "API_KEY": "",
-    "API_MODEL": "imagen-4.0-generate-001",  # imagen-4.0-fast/generate/ultra или gemini-2.5-flash-image
+    "API_MODEL": "imagen-4.0-generate-001",  # модель для промптов без референсов (imagen-4.0-fast/generate/ultra или gemini-2.5-flash-image)
+    "API_MODEL_WITH_REFS": "gemini-2.5-flash-image",  # модель для промптов с референсными изображениями (только мультимодальные: gemini-2.5-flash-image, gemini-3-pro-image-preview)
     "API_IMAGE_SIZE": "2K",  # "1K" или "2K" для Imagen 4; "1K", "2K", "4K" для старых моделей
     "API_TIMEOUT": 60.0,  # таймаут API запросов в секундах
 }
@@ -75,3 +76,16 @@ def save_settings(settings: dict) -> None:
         os.makedirs(dir_path, exist_ok=True)
     with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
         json.dump(settings, f, indent=2, ensure_ascii=False)
+
+
+def update_start_card(card_number: int) -> None:
+    """
+    Обновляет START_FROM_CARD в настройках до указанного номера карточки.
+    Используется для продолжения работы с места остановки при следующем запуске.
+    
+    Args:
+        card_number: номер карточки для установки в START_FROM_CARD
+    """
+    settings = load_settings()
+    settings["START_FROM_CARD"] = card_number
+    save_settings(settings)

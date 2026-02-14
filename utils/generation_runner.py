@@ -166,15 +166,16 @@ def can_start_generation_api(settings: dict) -> tuple[bool, str | None]:
     if not os.path.isfile(path):
         return False, f"Файл не найден: {path}"
     
-    # Проверка режима (API поддерживает standard и multiformat, но не with_refs в первой версии)
+    # Проверка режима (API поддерживает все режимы: standard, multiformat, multiformat_with_refs)
     mode = settings.get("CURRENT_MODE", "standard")
-    if mode == "multiformat_with_refs":
-        return False, "Режим с референсами пока не поддерживается в API. Выберите standard или multiformat."
     
     # Проверка задач
     if mode == "multiformat":
         from sites.aistudio import mode_multiformat_api
         tasks = mode_multiformat_api.load_tasks_from_file(path)
+    elif mode == "multiformat_with_refs":
+        from sites.aistudio import mode_multiformat_with_refs_api
+        tasks = mode_multiformat_with_refs_api.load_tasks_from_file(path)
     else:
         from sites.aistudio import mode_standard_api
         tasks = mode_standard_api.load_tasks_from_file(path)
@@ -207,6 +208,10 @@ def run_standard_worker_api(settings: dict, coordinates: dict = None, relative_m
         relative_movements: не используется (совместимость сигнатуры)
     """
     from sites.aistudio import mode_standard_api
+    from utils import api_client
+    
+    # Сбросить папку сессии для создания новой папки при каждом запуске генерации
+    api_client.reset_session_folder()
     
     path = settings.get("PROMPTS_FILE") or ""
     if not path or not path.strip():
@@ -233,6 +238,10 @@ def run_multiformat_worker_api(settings: dict, coordinates: dict = None, relativ
         relative_movements: не используется (совместимость сигнатуры)
     """
     from sites.aistudio import mode_multiformat_api
+    from utils import api_client
+    
+    # Сбросить папку сессии для создания новой папки при каждом запуске генерации
+    api_client.reset_session_folder()
     
     path = settings.get("PROMPTS_FILE") or ""
     if not path or not path.strip():
@@ -246,3 +255,34 @@ def run_multiformat_worker_api(settings: dict, coordinates: dict = None, relativ
     
     # Фильтр по диапазону выполняется внутри run_mode
     mode_multiformat_api.run_mode(tasks, settings, coordinates, relative_movements)
+
+
+def run_multiformat_with_refs_worker_api(settings: dict, coordinates: dict = None, relative_movements: dict = None) -> None:
+    """
+    Воркер для режима multiformat_with_refs через API (без браузера).
+    Вызывается в подпроцессе; coordinates и relative_movements не используются.
+    Поддерживает автоматический выбор модели в зависимости от наличия референса.
+    
+    Args:
+        settings: словарь настроек (должен содержать API_KEY, API_MODEL, API_MODEL_WITH_REFS и т.д.)
+        coordinates: не используется (совместимость сигнатуры)
+        relative_movements: не используется (совместимость сигнатуры)
+    """
+    from sites.aistudio import mode_multiformat_with_refs_api
+    from utils import api_client
+    
+    # Сбросить папку сессии для создания новой папки при каждом запуске генерации
+    api_client.reset_session_folder()
+    
+    path = settings.get("PROMPTS_FILE") or ""
+    if not path or not path.strip():
+        print("Файл промптов не выбран. Укажите в настройках.")
+        return
+    
+    tasks = mode_multiformat_with_refs_api.load_tasks_from_file(path)
+    if not tasks:
+        print("Файл пустой или не содержит валидных строк.")
+        return
+    
+    # Фильтр по диапазону выполняется внутри run_mode
+    mode_multiformat_with_refs_api.run_mode(tasks, settings, coordinates, relative_movements)

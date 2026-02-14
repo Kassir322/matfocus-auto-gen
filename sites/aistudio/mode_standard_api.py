@@ -205,13 +205,18 @@ def run_mode(
         model = settings.get("API_MODEL", "gemini-2.5-flash-image")
         write_log_line(log_file, f"[PLAN] API модель: {model}")
         
+        # Логирование папки для сохранения изображений
+        session_folder = api_client.get_session_output_folder()
+        write_log_line(log_file, f"[PLAN] Папка для сохранения изображений: {session_folder}")
+        print(f"Изображения будут сохранены в: {session_folder}")
+        
         print("Генерация через API запущена. Esc — остановка.")
         total_generations = len(tasks)
         done_generations = 0
         cards_seen = set()
         last_card = None
         
-        for task in tasks:
+        for idx, task in enumerate(tasks):
             card_number = task["card_number"]
             
             if card_number != last_card:
@@ -229,6 +234,13 @@ def run_mode(
             
             # Прогресс в консоль (только основные шаги)
             print(f"Генерация {done_generations}/{total_generations}")
+            
+            # Проверка: последний ли это промпт для текущей карточки
+            is_last_prompt_for_card = (idx == len(tasks) - 1) or (tasks[idx + 1]["card_number"] != card_number)
+            if is_last_prompt_for_card:
+                # Сохранить следующий номер карточки в настройках для продолжения при следующем запуске
+                from utils.settings_store import update_start_card
+                update_start_card(card_number + 1)
             
             # Задержка между запросами (для соблюдения rate limits)
             if done_generations < total_generations:
