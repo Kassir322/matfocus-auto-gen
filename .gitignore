@@ -180,6 +180,9 @@ Thumbs.db
 # data/coordinates.json
 data/
 
+# Generated images output
+generated_images/
+
 # Keep example/template files
 !data/settings_example.json
 !data/coordinates_example.json

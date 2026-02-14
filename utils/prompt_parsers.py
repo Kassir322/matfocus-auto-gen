@@ -9,8 +9,8 @@ from collections import defaultdict
 # Regex для стандартного формата: Карточка N - Промпт M: текст
 STANDARD_LINE_PATTERN = re.compile(r"^Карточка (\d+) - Промпт (\d+): (.+)$")
 
-# Regex для мультиформатного формата: Карточка N лицо|оборот название - Промпт M: текст
-MULTIFORMAT_LINE_PATTERN = re.compile(r"^Карточка (\d+) (лицо|оборот) ([^-]+) - Промпт (\d+): (.+)$")
+# Regex для мультиформатного формата: Карточка N лицо|оборот название - Промпт M: текст (название может содержать дефисы, напр. Русско-японская война)
+MULTIFORMAT_LINE_PATTERN = re.compile(r"^Карточка (\d+) (лицо|оборот) (.+?) - Промпт (\d+): (.+)$")
 
 
 def parse_standard_prompts(path: str) -> list[dict]:

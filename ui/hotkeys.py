@@ -144,6 +144,7 @@ class HotkeyManager:
                 return
             if start > end:
                 settings["END_CARD"] = start
+                print(f"Конечная карточка установлена в {start}. Для обработки нескольких карточек настройте её через Ctrl+6.")
             settings["START_FROM_CARD"] = start
             settings_store.apply_defaults(settings)
             settings_store.save_settings(settings)

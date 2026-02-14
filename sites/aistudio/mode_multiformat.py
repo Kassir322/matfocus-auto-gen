@@ -11,8 +11,8 @@ from datetime import datetime
 from sites.aistudio import helpers
 from utils.log_writer import write_log_line
 
-# Regex по PROMPTS_multiformat_format: Карточка N лицо|оборот название - Промпт M: текст
-LINE_PATTERN = re.compile(r"^Карточка (\d+) (лицо|оборот) ([^-]+) - Промпт (\d+): (.+)$")
+# Regex по PROMPTS_multiformat_format: Карточка N лицо|оборот название - Промпт M: текст (название может содержать дефисы, напр. Русско-японская война)
+LINE_PATTERN = re.compile(r"^Карточка (\d+) (лицо|оборот) (.+?) - Промпт (\d+): (.+)$")
 
 # Задержки как в mode_standard (ALGO_multiformat п.12)
 BETWEEN_CLICKS = 0.5

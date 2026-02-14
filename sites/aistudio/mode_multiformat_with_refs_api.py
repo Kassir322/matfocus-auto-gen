@@ -249,6 +249,8 @@ def run_mode(
         end_card = int(end_card)
     
     tasks = filter_tasks_by_range(tasks, start_card, end_card)
+    # Фактическая конечная карточка для лога (если END_CARD не задан — до конца списка)
+    actual_end = end_card if end_card is not None else (max(t["card_number"] for t in tasks) if tasks else start_card)
     
     if not tasks:
         print("Нет задач в выбранном диапазоне карточек.")
@@ -288,6 +290,7 @@ def run_mode(
             f"пар: {info['pairs_count']}, изображений: {info['images_planned']}"
         )
         write_log_line(log_file, plan_msg)
+        write_log_line(log_file, f"[PLAN] Диапазон карточек: {start_card}–{actual_end}")
         
         prompts_file = settings.get("PROMPTS_FILE", "")
         if prompts_file:
