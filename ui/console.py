@@ -24,9 +24,10 @@ class ConsoleInterface:
         print("  Ctrl+8 — настроить IMAGE_WAIT_INTERVAL")
         print("  Ctrl+9 — настроить FACE_ASPECT_RATIO и BACK_ASPECT_RATIO")
         print("  Ctrl+Shift+V — настройка рабочего окна браузера")
-        print("  Ctrl+Shift+S — старт генерации (подпроцесс)")
+        print("  Ctrl+Shift+S — старт генерации (браузер)")
+        print("  Ctrl+Shift+A — старт генерации (API в фоне)")
         print("  Ctrl+Esc — убить консоль (аналог Ctrl+C)")
-        print("  Esc — экстренная остановка подпроцесса генерации")
+        print("  Esc — экстренная остановка подпроцесса (только браузер)")
         print("-" * 80)
         print("Настройки: data/settings.json. Координаты: data/coordinates.json")
         print("-" * 80)
@@ -41,7 +42,7 @@ class ConsoleInterface:
         print("  Общие шаги:")
         print("    3. Настройте параметры (Ctrl+1, 3, 4, 6, 7, 8, 9)")
         print("    4. Проверьте настройки и план (Ctrl+5)")
-        print("    5. Запустите генерацию (Ctrl+Shift+S). Остановка — Esc")
+        print("    5. Браузер: Ctrl+Shift+S (остановка — Esc). API: Ctrl+Shift+A (хоткеи в фоне отключены)")
         print("=" * 80)
     
     def show_current_settings(self, settings_manager):

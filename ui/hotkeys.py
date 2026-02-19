@@ -53,18 +53,21 @@ def _validate_aspect_ratio(ratio: str) -> bool:
 class HotkeyManager:
     """
     Менеджер хоткеев v2.
-    Конструктор: on_start_generation, on_setup_window, on_show_plan — три callback'а.
+    Конструктор: on_start_generation, on_setup_window, on_show_plan; опционально on_start_api для Ctrl+Shift+A.
     """
 
-    def __init__(self, on_start_generation, on_setup_window, on_show_plan):
+    def __init__(self, on_start_generation, on_setup_window, on_show_plan, on_start_api=None):
         self.on_start_generation = on_start_generation
         self.on_setup_window = on_setup_window
         self.on_show_plan = on_show_plan
+        self.on_start_api = on_start_api
         self.coordinate_capture_mode = False
         self.coordinate_to_set = None
 
     def get_mouse_position(self):
         """Ctrl+Shift+P: получить координаты курсора или сохранить в выбранную координату."""
+        if self._block_if_api_running():
+            return
         x, y = pyautogui.position()
 
         if self.coordinate_capture_mode and self.coordinate_to_set:
@@ -78,6 +81,8 @@ class HotkeyManager:
 
     def show_coordinates_menu(self):
         """Ctrl+0: меню настройки координат (список ключей по COORDINATES_KEYS §8)."""
+        if self._block_if_api_running():
+            return
         coordinates, relative_movements = load_coordinates()
         all_keys = list(DEFAULT_COORDINATES.keys()) + list(DEFAULT_RELATIVE_MOVEMENTS.keys())
 
@@ -130,6 +135,8 @@ class HotkeyManager:
 
     def _configure_start_card(self):
         """Ctrl+1: настроить START_FROM_CARD."""
+        if self._block_if_api_running():
+            return
         settings = settings_store.load_settings()
         start = settings.get("START_FROM_CARD", 1)
         end = settings.get("END_CARD", 50)
@@ -154,6 +161,8 @@ class HotkeyManager:
 
     def _configure_end_card(self):
         """Ctrl+6: настроить END_CARD."""
+        if self._block_if_api_running():
+            return
         settings = settings_store.load_settings()
         start = settings.get("START_FROM_CARD", 1)
         end = settings.get("END_CARD", 50)
@@ -175,6 +184,8 @@ class HotkeyManager:
 
     def _configure_generation_wait(self):
         """Ctrl+3: настроить GENERATION_WAIT (10–120 сек)."""
+        if self._block_if_api_running():
+            return
         settings = settings_store.load_settings()
         cur = settings.get("GENERATION_WAIT", 20.0)
         print(f"Текущее время ожидания генерации: {cur} сек")
@@ -194,6 +205,8 @@ class HotkeyManager:
 
     def _configure_image_wait_interval(self):
         """Ctrl+8: настроить IMAGE_WAIT_INTERVAL (1–60 сек)."""
+        if self._block_if_api_running():
+            return
         settings = settings_store.load_settings()
         cur = settings.get("IMAGE_WAIT_INTERVAL", 2.0)
         print(f"Текущий интервал проверки изображения: {cur} сек")
@@ -213,6 +226,8 @@ class HotkeyManager:
 
     def _toggle_image_check(self):
         """Ctrl+4: переключить CHECK_IMAGE_GENERATED."""
+        if self._block_if_api_running():
+            return
         settings = settings_store.load_settings()
         cur = settings.get("CHECK_IMAGE_GENERATED", True)
         settings["CHECK_IMAGE_GENERATED"] = not cur
@@ -222,6 +237,8 @@ class HotkeyManager:
 
     def _configure_aspect_ratios(self):
         """Ctrl+9: настроить FACE_ASPECT_RATIO и BACK_ASPECT_RATIO (формат X:Y)."""
+        if self._block_if_api_running():
+            return
         settings = settings_store.load_settings()
         face = settings.get("FACE_ASPECT_RATIO", "4:3")
         back = settings.get("BACK_ASPECT_RATIO", "16:9")
@@ -444,6 +461,8 @@ class HotkeyManager:
 
     def _configure_method_and_mode(self):
         """Ctrl+7: выбор метода генерации (browser/api) и режима (standard/multiformat/multiformat_with_refs)."""
+        if self._block_if_api_running():
+            return
         settings = settings_store.load_settings()
         
         # Шаг 1: Выбор метода генерации
@@ -510,6 +529,8 @@ class HotkeyManager:
 
     def _show_settings_and_plan(self):
         """Ctrl+5: показать текущие настройки и план (on_show_plan)."""
+        if self._block_if_api_running():
+            return
         settings = settings_store.load_settings()
         print("-" * 50)
         print("ТЕКУЩИЕ НАСТРОЙКИ (v2)")
@@ -542,8 +563,30 @@ class HotkeyManager:
         """Ctrl+Esc: убить консоль (SIGINT)."""
         os.kill(os.getpid(), signal.SIGINT)
 
+    def _block_if_api_running(self) -> bool:
+        """Возвращает True, если запущен API-воркер — тогда хоткей нужно игнорировать (пользователь пользуется ПК в фоне)."""
+        return process_control.get_current_worker_type() == "api"
+
+    def _wrapped_on_setup_window(self):
+        if self._block_if_api_running():
+            return
+        self.on_setup_window()
+
+    def _wrapped_on_start_generation(self):
+        if self._block_if_api_running():
+            return
+        self.on_start_generation()
+
+    def _wrapped_on_start_api(self):
+        if self._block_if_api_running():
+            return
+        if self.on_start_api is not None:
+            self.on_start_api()
+
     def on_esc_stop_worker(self):
-        """Esc: только жёсткая остановка воркера генерации (v2)."""
+        """Esc: жёсткая остановка только браузерного воркера; при API-режиме Esc не обрабатывается."""
+        if self._block_if_api_running():
+            return
         process_control.stop_worker()
 
     def register_hotkeys(self):
@@ -558,7 +601,9 @@ class HotkeyManager:
         keyboard.add_hotkey("ctrl+7", self._configure_method_and_mode)
         keyboard.add_hotkey("ctrl+8", self._configure_image_wait_interval)
         keyboard.add_hotkey("ctrl+9", self._configure_aspect_ratios)
-        keyboard.add_hotkey("ctrl+shift+v", self.on_setup_window)
-        keyboard.add_hotkey("ctrl+shift+s", self.on_start_generation)
+        keyboard.add_hotkey("ctrl+shift+v", self._wrapped_on_setup_window)
+        keyboard.add_hotkey("ctrl+shift+s", self._wrapped_on_start_generation)
+        if self.on_start_api is not None:
+            keyboard.add_hotkey("ctrl+shift+a", self._wrapped_on_start_api)
         keyboard.add_hotkey("ctrl+esc", self.kill_console)
         keyboard.add_hotkey("esc", self.on_esc_stop_worker)
