@@ -202,6 +202,7 @@ dist/
 *.bak
 *.backup
 *~
+auto-gen_backup_2026-04-22_14-51-52.zip
 
 # IDE and editor files
 *.swp
