@@ -1,126 +1,116 @@
 """
-Управление процессами автоматизации
+Legacy compatibility shim for the old ProcessManager API.
+
+The active v2 runtime does not use this module. `main.py` starts workers via
+`utils.process_control` and generation entrypoints from `utils.generation_runner`.
+
+This shim stays only for backward compatibility and legacy tests. New runtime
+code should not depend on it.
 """
+
 from multiprocessing import Event
-from config.coordinates import COORDINATES, RELATIVE_MOVEMENTS, DELAYS
-from utils.window_manager import WindowManager
+import warnings
+
 from utils import process_control
+from utils.window_manager import WindowManager
+
 
 class ProcessManager:
+    """
+    Legacy wrapper retained for compatibility.
+
+    Not part of the active v2 public runtime contract.
+    """
+
     def __init__(self):
         self.automation_process = None
         self.stop_event = None
         self.window_manager = WindowManager()
-    
+
+    def _warn_legacy(self) -> None:
+        warnings.warn(
+            "utils.process_manager.ProcessManager is legacy and is not used by "
+            "the active v2 runtime. Use utils.process_control and "
+            "utils.generation_runner instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
     def start_automation(self, settings_manager):
-        """Запуск процесса автоматизации"""
+        """
+        Legacy automation start path.
+
+        Kept only for compatibility with the old API shape. Active v2 startup
+        goes through `main.py` and `utils.generation_runner`.
+        """
+        self._warn_legacy()
+
         if self.automation_process and self.automation_process.is_alive():
-            print("[ГЛАВНЫЙ] Автоматизация уже запущена!")
-            return
-        
-        # Настройка рабочего окна
-        print("[ГЛАВНЫЙ] Настройка рабочего окна...")
+            print("[LEGACY] Автоматизация уже запущена.")
+            return None
+
+        print("[LEGACY] Запуск через compatibility shim. Для v2 используйте main.py.")
+
         if not self.window_manager.setup_automation_window():
-            print("[ГЛАВНЫЙ] ⚠️ Не удалось настроить рабочее окно, но продолжаем...")
-        
-        # Получение настроек
-        generation_mode = settings_manager.get('GENERATION_MODE')
-        start_card = settings_manager.get('START_FROM_CARD')
-        generations_per_card = settings_manager.get('GENERATIONS_PER_CARD')
-        check_image_enabled = settings_manager.get('CHECK_IMAGE_GENERATED')
-        generation_wait = DELAYS['GENERATION_WAIT']
-        cards_to_process = settings_manager.get('CARDS_TO_PROCESS')
-        
-        print(f"[ГЛАВНЫЙ] Запуск с настройками:")
-        print(f"  Режим генерации: {generation_mode}")
-        print(f"  Лимит карточек: {cards_to_process}")
-        print(f"  Стартовая карточка: {start_card}")
-        print(f"  Генераций на карточку: {generations_per_card}")
-        print(f"  Проверка изображений: {check_image_enabled}")
-        
-        # Проверка критичных координат в зависимости от режима
-        critical_coords = ['PROMPT_INPUT', 'IMAGE_LOCATION', 'NEW_CHAT_BUTTON', 'CHAT_NAME_INPUT']
-        
-        if generation_mode in ['multi_format', 'multi_format_with_refs']:
-            critical_coords.append('ASPECT_RATIO_SELECTOR')
-        
-        if generation_mode == 'multi_format_with_refs':
-            critical_coords.append('PROMPT_INPUT_AFTER_IMAGE')
-        
-        empty_critical = [name for name in critical_coords if COORDINATES[name] == (0, 0)]
-        empty_movements = [name for name, movement in RELATIVE_MOVEMENTS.items() if movement == (0, 0)]
+            print("[LEGACY] Не удалось настроить рабочее окно, но запуск продолжается.")
 
-        if empty_critical or empty_movements:
-            error_msg = []
-            if empty_critical:
-                error_msg.append(f"Критичные координаты: {', '.join(empty_critical)}")
-            if empty_movements:
-                error_msg.append(f"Относительные движения: {', '.join(empty_movements)}")
-            print(f"[ГЛАВНЫЙ] ОШИБКА: Не заданы {' и '.join(error_msg)}")
-            
-            if generation_mode in ['multi_format', 'multi_format_with_refs'] and 'ASPECT_RATIO_SELECTOR' in empty_critical:
-                print("   Используйте Ctrl+0 для настройки координаты")
-                print("   ASPECT_RATIO_SELECTOR - выпадающий список выбора соотношения сторон (справа от промпта)")
-            
-            if generation_mode == 'multi_format_with_refs' and 'PROMPT_INPUT_AFTER_IMAGE' in empty_critical:
-                print("   Используйте Ctrl+0 для настройки координаты")
-                print("   PROMPT_INPUT_AFTER_IMAGE - поле ввода промпта после вставки изображения (выше обычного)")
-            return
-        
-        # Дополнительные проверки для multi_format режимов
-        if generation_mode in ['multi_format', 'multi_format_with_refs']:
-            # Проверка файла промптов
-            from core.file_handler import FileHandler
-            file_handler = FileHandler(settings_manager)
-            pairs_data = file_handler.load_prompts()
-
-            if not pairs_data:
-                print("[ГЛАВНЫЙ] ОШИБКА: Нет валидных пар промптов в файле!")
-                return
-
-            # Показать статистику
-            total_pairs = sum(len(pairs) for pairs in pairs_data.values())
-            print(f"[ГЛАВНЫЙ] Найдено пар промптов: {total_pairs}")
-            print(f"[ГЛАВНЫЙ] Будет создано изображений: {total_pairs * 2}")
-        
-        # Запуск процесса через process_control (жёсткий стоп по Esc — terminate)
-        print("[ГЛАВНЫЙ] Запуск автоматизации...")
+        generation_mode = settings_manager.get("GENERATION_MODE")
+        start_card = settings_manager.get("START_FROM_CARD")
+        generations_per_card = settings_manager.get("GENERATIONS_PER_CARD")
+        check_image_enabled = settings_manager.get("CHECK_IMAGE_GENERATED")
+        cards_to_process = settings_manager.get("CARDS_TO_PROCESS")
         self.stop_event = Event()
 
-        # Выбор генератора в зависимости от режима (воркеры v1 пока принимают stop_event в args)
-        if generation_mode in ['multi_format', 'multi_format_with_refs']:
+        if generation_mode in ["multi_format", "multi_format_with_refs"]:
             from core.multi_format_generator import MultiFormatGenerator
+            from config.coordinates import DELAYS
+
             generator = MultiFormatGenerator(settings_manager)
             target_fn = generator.automation_worker
-            worker_args = (self.stop_event, start_card, check_image_enabled,
-                           generation_wait, cards_to_process)
-        elif generation_mode == 'standard':
-            # Стандартный режим (ImageGenerator)
+            worker_args = (
+                self.stop_event,
+                start_card,
+                check_image_enabled,
+                DELAYS["GENERATION_WAIT"],
+                cards_to_process,
+            )
+        elif generation_mode == "standard":
             from core.image_generator import ImageGenerator
+            from config.coordinates import DELAYS
+
             generator = ImageGenerator(settings_manager)
             target_fn = generator.automation_worker
-            worker_args = (self.stop_event, start_card, generations_per_card,
-                           check_image_enabled, generation_wait, cards_to_process)
+            worker_args = (
+                self.stop_event,
+                start_card,
+                generations_per_card,
+                check_image_enabled,
+                DELAYS["GENERATION_WAIT"],
+                cards_to_process,
+            )
         else:
-            return
+            print(f"[LEGACY] Неизвестный режим генерации: {generation_mode}")
+            self.stop_event = None
+            return None
 
         self.automation_process = process_control.start_worker(target_fn, worker_args)
         if self.automation_process is None:
             self.stop_event = None
-            return
-    
+        return self.automation_process
+
     def stop_automation(self):
-        """Остановка процесса автоматизации (жёсткий стоп через process_control)"""
+        """Legacy stop path routed through v2 low-level process control."""
+        self._warn_legacy()
         process_control.stop_worker(self.automation_process)
         self.automation_process = None
         self.stop_event = None
-    
+
     def setup_window(self):
-        """Ручная настройка рабочего окна"""
-        print("[ГЛАВНЫЙ] Ручная настройка рабочего окна...")
+        """Legacy helper for manual browser-window setup."""
+        self._warn_legacy()
+        print("[LEGACY] Ручная настройка рабочего окна...")
         if self.window_manager.quick_setup_window():
-            print("[ГЛАВНЫЙ] ✅ Рабочее окно настроено успешно!")
+            print("[LEGACY] Рабочее окно настроено успешно.")
             return True
-        else:
-            print("[ГЛАВНЫЙ] ❌ Не удалось настроить рабочее окно")
-            return False
+        print("[LEGACY] Не удалось настроить рабочее окно.")
+        return False

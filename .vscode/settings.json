@@ -1,17 +1,15 @@
 {
-  "markdown.styles": [
-    "./docs/markdown-preview.css"
-  ],
-  "markdown.preview.scrollEditorWithPreview": true,
-  "markdown.preview.scrollPreviewWithEditor": true,
-  "markdown.preview.typographer": true,
-  "markdown.validate.enabled": true,
-  "markdown.updateLinksOnFileMove.enabled": "always",
-  "[markdown]": {
-    "editor.wordWrap": "bounded",
-    "editor.wordWrapColumn": 100,
-    "editor.minimap.enabled": false,
-    "editor.renderWhitespace": "boundary",
-    "files.trimTrailingWhitespace": false
-  }
+	"markdown.styles": ["./docs/markdown-preview.css"],
+	"markdown.preview.scrollEditorWithPreview": true,
+	"markdown.preview.scrollPreviewWithEditor": true,
+	"markdown.preview.typographer": true,
+	"markdown.validate.enabled": true,
+	"markdown.updateLinksOnFileMove.enabled": "always",
+	"[markdown]": {
+		"editor.wordWrap": "bounded",
+		"editor.wordWrapColumn": 100,
+		"editor.minimap.enabled": false,
+		"editor.renderWhitespace": "boundary",
+		"files.trimTrailingWhitespace": false
+	}
 }

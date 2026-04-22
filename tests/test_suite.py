@@ -7,10 +7,13 @@ from core.file_handler import FileHandler
 from core.multi_format_generator import MultiFormatGenerator
 from config.settings import SettingsManager
 from config.coordinates import get_coordinates_manager
-from utils.process_manager import ProcessManager
+from utils.process_manager import ProcessManager as LegacyProcessManager
 from ui.console import ConsoleInterface
 from ui.hotkeys import HotkeyManager
 from utils.window_manager import WindowManager
+
+# NOTE: this file mostly covers legacy config/core-based flows kept for
+# compatibility. The active v2 runtime contract is tested separately.
 
 
 def test_parser():
@@ -754,7 +757,7 @@ def test_final_system():
         
         # Создаём все компоненты
         settings_manager = SettingsManager()
-        process_manager = ProcessManager()
+        process_manager = LegacyProcessManager()
         console = ConsoleInterface()
         
         print("   ✅ Основные компоненты созданы")
