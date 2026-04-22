@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Nanobanana Aspect Ratio Saver",
+  "version": "1.0",
+  "description": "Запоминает выбранное значение Aspect Ratio в Nanobanana",
+  "permissions": [
+    "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://aistudio.google.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ]
+}
