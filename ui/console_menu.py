@@ -263,7 +263,11 @@ def start_generation_with_process(
         print(f"Сводка: карточек: {info['cards_count']}, пар: {info['pairs_count']}, изображений: {info['images_planned']}")
         worker = run_multiformat_with_refs_worker
 
-    process_control.start_worker(worker, (settings, coordinates, relative_movements))
+    process_control.start_worker(
+        worker,
+        (settings, coordinates, relative_movements),
+        worker_type="browser",
+    )
     print("Генерация запущена в подпроцессе. Для остановки по Esc запускайте программу без --menu (режим с хоткеями).")
 
 
