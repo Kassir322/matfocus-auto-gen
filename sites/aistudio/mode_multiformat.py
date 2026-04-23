@@ -71,9 +71,14 @@ def _parse_file_to_cards(path: str) -> dict:
                             "pairs_dict": defaultdict(lambda: {"лицо": None, "оборот": None}),
                         }
                     if temp_data[card_num]["name"] != card_name:
-                        pass  # используем первое название (по PROMPTS_multiformat_format)
+                        print(
+                            f"[WARN] Строка {line_num}: название '{card_name}' отличается "
+                            f"от '{temp_data[card_num]['name']}'"
+                        )
                     temp_data[card_num]["pairs_dict"][pair_num][side] = prompt_text
-                # невалидные строки пропускаем
+                else:
+                    preview = line[:80]
+                    print(f"[WARN] Строка {line_num} не распознана: {preview}")
     except (FileNotFoundError, OSError, UnicodeDecodeError):
         return {}
 
@@ -82,6 +87,11 @@ def _parse_file_to_cards(path: str) -> dict:
         card_data = temp_data[card_num]
         pairs_dict = card_data["pairs_dict"]
         sorted_pairs = [pairs_dict[k] for k in sorted(pairs_dict.keys())]
+        for pair_idx, pair in enumerate(sorted_pairs, start=1):
+            if pair["лицо"] is None:
+                print(f"[WARN] Карточка {card_num}, пара {pair_idx}: отсутствует лицевая сторона")
+            if pair["оборот"] is None:
+                print(f"[WARN] Карточка {card_num}, пара {pair_idx}: отсутствует оборотная сторона")
         result[card_num] = {"name": card_data["name"], "pairs": sorted_pairs}
     return result
 
@@ -238,13 +248,19 @@ def _generate_single_side(
             else:
                 box_size = (100, 100)
             diff_threshold = float(settings.get("IMAGE_CHECK_THRESHOLD", 0.1))
-            helpers.wait_until_image_ready(
+            image_ready = helpers.wait_until_image_ready(
                 coordinates,
                 timeout_seconds=generation_wait,
                 check_interval=check_interval,
                 box_size=box_size,
                 diff_threshold=diff_threshold,
             )
+            if not image_ready:
+                write_log_line(
+                    log_file,
+                    f"[WARN] Таймаут ожидания изображения: карточка {card_number}, "
+                    f"пара {pair_number}, сторона {side}",
+                )
         else:
             time.sleep(generation_wait)
 
@@ -305,6 +321,7 @@ def run_mode(
         print("Генерация запущена. Esc — остановка.")
         total_images = len(tasks)
         done_images = 0
+        attempted_images = 0
         cards_seen = set()
         pairs_seen = set()
         last_card = None
@@ -342,9 +359,10 @@ def run_mode(
             ok = _generate_single_side(
                 task, aspect_ratio, coordinates, relative_movements, settings, log_file
             )
+            attempted_images += 1
             if ok:
                 done_images += 1
-            print(f"Генерация {done_images} из {total_images}")
+            print(f"Генерация {done_images}/{attempted_images} из {total_images}")
             
             # Проверка: последний ли это промпт для текущей карточки
             is_last_prompt_for_card = (idx == len(tasks) - 1) or (tasks[idx + 1]["card_number"] != card_number)
