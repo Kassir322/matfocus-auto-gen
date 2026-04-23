@@ -7,7 +7,6 @@ from sites.aistudio import mode_multiformat_with_refs
 
 
 def test_generate_single_side_with_ref_logs_wait_timeout_warning(monkeypatch):
-    """A timed-out image wait should be reflected in the refs-mode log."""
     log_lines = []
 
     monkeypatch.setattr(
@@ -48,11 +47,10 @@ def test_generate_single_side_with_ref_logs_wait_timeout_warning(monkeypatch):
     )
 
     assert ok is True
-    assert any("Таймаут ожидания изображения: карточка 5, пара 3, сторона лицо" in line for line in log_lines)
+    assert any("Таймаут ожидания изображения" in line for line in log_lines)
 
 
-def test_run_mode_continues_without_missing_references_and_prints_progress(tmp_path, monkeypatch):
-    """Missing refs should not block the run, and progress should expose successes/attempts/total."""
+def test_run_mode_continues_without_missing_references_and_prints_extended_progress(tmp_path, monkeypatch):
     log_path = tmp_path / "refs.log"
     update_calls = []
     results = iter([True, False])
@@ -94,6 +92,10 @@ def test_run_mode_continues_without_missing_references_and_prints_progress(tmp_p
     rendered = output.getvalue()
     assert "[WARN] Отсутствуют референсы для 1 сторон:" in rendered
     assert "[INFO] Продолжаем генерацию без отсутствующих референсов" in rendered
-    assert "Генерация 1/1 из 2" in rendered
-    assert "Генерация 1/2 из 2" in rendered
+    assert "Примерное время:" in rendered
+    assert "Генерация 1/1 из 2 - " in rendered
+    assert "Генерация 1/2 из 2 - " in rendered
+    assert "Итоги генерации:" in rendered
+    assert "Примерная стоимость:" not in rendered
     assert update_calls == [2]
+

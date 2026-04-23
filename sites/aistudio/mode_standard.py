@@ -9,6 +9,7 @@ from collections import defaultdict
 from datetime import datetime
 
 from sites.aistudio import helpers
+from utils import generation_stats
 from utils.log_writer import write_log_line
 
 # Regex по PROMPTS_standard_format: Карточка N - Промпт M: текст
@@ -149,8 +150,10 @@ def _generate_single_image(
     card_number = task["card_number"]
     gen_num = task["generation_number"]
     prompt_text = task.get("prompt_text", "").strip()
+    task.pop("_last_failure_reason", None)
 
     if not prompt_text:
+        task["_last_failure_reason"] = "пустой промпт"
         write_log_line(log_file, f"[WARN] Пропуск: пустой промпт карточка {card_number} генерация {gen_num}")
         return False
 
@@ -209,9 +212,11 @@ def _generate_single_image(
         time.sleep(2.0)  # AFTER_SAVE
 
         write_log_line(log_file, f"[OK] Файл сохранён: {file_name}")
+        task.pop("_last_failure_reason", None)
         return True
 
     except Exception as e:
+        task["_last_failure_reason"] = str(e)
         write_log_line(log_file, f"[ERROR] Ошибка при генерации/сохранении {file_name}: {e}")
         return False
 
@@ -295,6 +300,180 @@ def run_mode(
         summary_msg = f"[SUMMARY] Карточек: {len(cards_seen)}, генераций: {done_generations}/{total_generations}"
         write_log_line(log_file, summary_msg)
         print(f"Готово. Обработано карточек: {len(cards_seen)}, генераций: {done_generations}/{total_generations}")
+
+    finally:
+        log_file.close()
+
+
+def _generate_single_image(
+    task: dict,
+    coordinates: dict,
+    relative_movements: dict,
+    settings: dict,
+    log_file,
+) -> bool:
+    card_number = task["card_number"]
+    gen_num = task["generation_number"]
+    prompt_text = task.get("prompt_text", "").strip()
+    task.pop("_last_failure_reason", None)
+
+    if not prompt_text:
+        task["_last_failure_reason"] = "пустой промпт"
+        write_log_line(log_file, f"[WARN] Пропуск: пустой промпт карточка {card_number} генерация {gen_num}")
+        return False
+
+    chat_name = _make_chat_name(card_number, gen_num)
+    file_name = _make_filename(card_number, gen_num)
+
+    write_log_line(log_file, f"[GEN] Генерация: {chat_name}")
+
+    try:
+        helpers.click_new_chat(coordinates)
+        time.sleep(NEW_CHAT_WAIT)
+
+        helpers.click_prompt_input(coordinates)
+        time.sleep(BETWEEN_CLICKS)
+        helpers.paste_prompt_text(prompt_text, delay=AFTER_PASTE)
+
+        helpers.rename_chat(coordinates, chat_name)
+        time.sleep(CHAT_RENAME_WAIT)
+
+        helpers.click_prompt_input(coordinates)
+        time.sleep(BETWEEN_CLICKS)
+        helpers.start_generation()
+        time.sleep(BETWEEN_CLICKS)
+
+        generation_wait = float(settings.get("GENERATION_WAIT", 20.0))
+        if settings.get("CHECK_IMAGE_GENERATED", True):
+            check_interval = float(settings.get("IMAGE_WAIT_INTERVAL", 2.0))
+            box_size = settings.get("IMAGE_CHECK_BOX_SIZE", (100, 100))
+            if isinstance(box_size, (list, tuple)) and len(box_size) >= 2:
+                box_size = (int(box_size[0]), int(box_size[1]))
+            else:
+                box_size = (100, 100)
+            diff_threshold = float(settings.get("IMAGE_CHECK_THRESHOLD", 0.1))
+            image_ready = helpers.wait_until_image_ready(
+                coordinates,
+                timeout_seconds=generation_wait,
+                check_interval=check_interval,
+                box_size=box_size,
+                diff_threshold=diff_threshold,
+            )
+            if not image_ready:
+                write_log_line(
+                    log_file,
+                    f"[WARN] Таймаут ожидания изображения: карточка {card_number}, генерация {gen_num}",
+                )
+        else:
+            time.sleep(generation_wait)
+
+        helpers.save_image(coordinates, relative_movements, file_name)
+        time.sleep(2.0)
+
+        task.pop("_last_failure_reason", None)
+        write_log_line(log_file, f"[OK] Файл сохранён: {file_name}")
+        return True
+
+    except Exception as e:
+        task["_last_failure_reason"] = str(e)
+        write_log_line(log_file, f"[ERROR] Ошибка при генерации/сохранении {file_name}: {e}")
+        return False
+
+
+def run_mode(
+    tasks: list[dict],
+    settings: dict,
+    coordinates: dict,
+    relative_movements: dict,
+) -> None:
+    start_card = int(settings.get("START_FROM_CARD", 1))
+    end_card = settings.get("END_CARD")
+    if end_card is not None:
+        end_card = int(end_card)
+    tasks = _filter_tasks_by_range(tasks, start_card, end_card)
+    actual_end = end_card if end_card is not None else (max(t["card_number"] for t in tasks) if tasks else start_card)
+
+    if not tasks:
+        print("Нет задач в выбранном диапазоне карточек.")
+        return
+
+    missing = _check_required_coordinates(coordinates, relative_movements)
+    if missing:
+        print("Отсутствуют обязательные координаты:", ", ".join(missing))
+        return
+
+    log_path = _get_log_filepath()
+    log_file = open(log_path, "w", encoding="utf-8")
+
+    try:
+        info = get_plan_info(tasks)
+        prompts_file = settings.get("PROMPTS_FILE", "")
+        stats = generation_stats.GenerationRunStats(
+            planned_total=len(tasks),
+            generation_method="browser",
+            mode_name="standard",
+            estimated_total_seconds=generation_stats.estimate_total_seconds(
+                planned_total=len(tasks),
+                generation_method="browser",
+                mode_name="standard",
+                settings=settings,
+            ),
+        )
+
+        write_log_line(log_file, f"[PLAN] Режим: standard. Карточек: {info['cards_count']}, генераций: {info['generations_count']}")
+        if prompts_file:
+            write_log_line(log_file, f"[PLAN] Файл промптов: {prompts_file}")
+
+        for line in stats.start_summary_lines(
+            [
+                "Режим: standard (browser)",
+                f"Диапазон карточек: {start_card}–{actual_end}",
+                f"Файл промптов: {prompts_file or 'не указан'}",
+            ]
+        ):
+            print(line)
+            write_log_line(log_file, f"[PLAN] {line}")
+
+        print("Генерация запущена. Esc — остановка.")
+        total_generations = len(tasks)
+        cards_seen = set()
+        last_card = None
+
+        for idx, task in enumerate(tasks):
+            card_number = task["card_number"]
+            if card_number != last_card:
+                if last_card is not None:
+                    time.sleep(BETWEEN_CARDS)
+                write_log_line(log_file, f"[CARD] Карточка {card_number}")
+                cards_seen.add(card_number)
+                last_card = card_number
+            else:
+                time.sleep(BETWEEN_GENERATIONS)
+
+            label = f"карточка {card_number} генерация {task['generation_number']}"
+            attempt_started = time.monotonic()
+            result = _generate_single_image(task, coordinates, relative_movements, settings, log_file)
+            duration_seconds = time.monotonic() - attempt_started
+            ok, reason = generation_stats.normalize_attempt_result(task, result)
+            stats.register_attempt(label, ok, duration_seconds, reason)
+
+            print(stats.progress_line(duration_seconds))
+            write_log_line(log_file, stats.progress_log_line(label, duration_seconds, ok, reason))
+
+            is_last_prompt_for_card = (idx == len(tasks) - 1) or (tasks[idx + 1]["card_number"] != card_number)
+            if is_last_prompt_for_card:
+                from utils.settings_store import update_start_card
+
+                update_start_card(card_number + 1)
+
+        write_log_line(log_file, f"[SUMMARY] Карточек: {len(cards_seen)}, генераций: {stats.succeeded}/{total_generations}")
+        for line in stats.summary_lines():
+            print(line)
+            if line.startswith("- "):
+                write_log_line(log_file, f"[FAILED] {line[2:]}")
+            else:
+                write_log_line(log_file, f"[SUMMARY] {line}")
+        print(f"Готово. Обработано карточек: {len(cards_seen)}, генераций: {stats.succeeded}/{total_generations}")
 
     finally:
         log_file.close()

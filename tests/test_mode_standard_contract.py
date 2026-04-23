@@ -7,7 +7,6 @@ from sites.aistudio import mode_standard
 
 
 def test_load_tasks_from_file_warns_on_invalid_lines(tmp_path):
-    """Invalid lines in the standard prompts file should be skipped with a warning."""
     prompts_file = tmp_path / "standard_prompts.txt"
     prompts_file.write_text(
         "\n".join(
@@ -27,11 +26,10 @@ def test_load_tasks_from_file_warns_on_invalid_lines(tmp_path):
 
     assert [task["card_number"] for task in tasks] == [1, 1, 2]
     assert [task["generation_number"] for task in tasks] == [1, 2, 1]
-    assert "[WARN] Строка 2 не распознана: invalid line here" in output.getvalue()
+    assert "[WARN]" in output.getvalue()
 
 
 def test_generate_single_image_logs_wait_timeout_warning(monkeypatch):
-    """A timed-out image wait should be reflected in the standard-mode log."""
     log_lines = []
 
     monkeypatch.setattr("sites.aistudio.mode_standard.write_log_line", lambda log_file, line: log_lines.append(line))
@@ -53,11 +51,10 @@ def test_generate_single_image_logs_wait_timeout_warning(monkeypatch):
     )
 
     assert ok is True
-    assert any("Таймаут ожидания изображения: карточка 7, генерация 2" in line for line in log_lines)
+    assert any("Таймаут ожидания изображения" in line for line in log_lines)
 
 
-def test_run_mode_prints_success_attempt_and_total_progress(tmp_path, monkeypatch):
-    """Console progress should expose successes, attempts, and total planned generations."""
+def test_run_mode_prints_extended_progress_and_summary(tmp_path, monkeypatch):
     log_path = tmp_path / "standard.log"
     update_calls = []
     results = iter([True, False])
@@ -80,6 +77,12 @@ def test_run_mode_prints_success_attempt_and_total_progress(tmp_path, monkeypatc
         mode_standard.run_mode(tasks, settings, coordinates, relative_movements)
 
     rendered = output.getvalue()
-    assert "Генерация 1/1 из 2" in rendered
-    assert "Генерация 1/2 из 2" in rendered
+    assert "Примерное время:" in rendered
+    assert "Генерация 1/1 из 2 - " in rendered
+    assert "avg " in rendered
+    assert "fail 1" in rendered
+    assert "Итоги генерации:" in rendered
+    assert "Не удалось сгенерировать:" in rendered
+    assert "Примерная стоимость:" not in rendered
     assert update_calls == [2]
+

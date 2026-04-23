@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 
 from utils import api_client
+from utils import generation_stats
 from utils.log_writer import write_log_line
 from utils.prompt_parsers import (
     filter_tasks_by_range,
@@ -35,13 +36,19 @@ def _make_filename(card_number: int, side: str, pair_num: int) -> str:
     return f"Карточка_{card_number}_{side}_промпт_{pair_num}.png"
 
 
+def _make_task_label(task: dict) -> str:
+    return f"карточка {task['card_number']} {task['side']} пара {task['pair_number']}"
+
+
 def _generate_single_image_api(task: dict, client, settings: dict, log_file) -> bool:
     card_number = task["card_number"]
     pair_num = task["pair_number"]
     side = task["side"]
     prompt_text = task.get("prompt_text", "").strip()
+    task.pop("_last_failure_reason", None)
 
     if not prompt_text:
+        task["_last_failure_reason"] = "пустой промпт"
         write_log_line(log_file, f"[WARN] Пропуск: пустой промпт карточка {card_number} пара {pair_num} {side}")
         return False
 
@@ -73,19 +80,23 @@ def _generate_single_image_api(task: dict, client, settings: dict, log_file) -> 
 
     if not image_bytes:
         if error_msg:
+            task["_last_failure_reason"] = error_msg.splitlines()[0].strip() or "API ошибка"
             write_log_line(log_file, f"[ERROR] API ошибка для {file_name}:")
             for line in error_msg.split("\n"):
                 if line.strip():
                     write_log_line(log_file, f"[ERROR]   {line}")
         else:
+            task["_last_failure_reason"] = "API вернул пустой результат"
             write_log_line(log_file, f"[ERROR] API вернул пустой результат для {file_name}")
         return False
 
     write_log_line(log_file, f"[API_RESPONSE] Получено изображение, размер: {len(image_bytes)} байт")
     if not api_client.save_image_bytes(image_bytes, file_name):
+        task["_last_failure_reason"] = "не удалось сохранить файл"
         write_log_line(log_file, f"[ERROR] Не удалось сохранить файл: {file_name}")
         return False
 
+    task.pop("_last_failure_reason", None)
     write_log_line(log_file, f"[OK] Файл сохранён: {file_name}")
     return True
 
@@ -133,29 +144,65 @@ def run_mode(
 
     try:
         info = get_plan_info(tasks)
+        prompts_file = settings.get("PROMPTS_FILE", "")
+        model = api_client.get_api_model(settings, provider)
+        quality = api_client.get_api_quality(settings, provider)
+        session_folder = api_client.get_session_output_folder()
+        face_ratio = settings.get("FACE_ASPECT_RATIO", "4:3")
+        back_ratio = settings.get("BACK_ASPECT_RATIO", "16:9")
+
         write_log_line(
             log_file,
             f"[PLAN] Режим: multiformat (API). Карточек: {info['cards_count']}, пар: {info['pairs_count']}, изображений: {info['images_planned']}",
         )
         write_log_line(log_file, f"[PLAN] Диапазон карточек: {start_card}–{actual_end}")
-        prompts_file = settings.get("PROMPTS_FILE", "")
         if prompts_file:
             write_log_line(log_file, f"[PLAN] Файл промптов: {prompts_file}")
         write_log_line(log_file, f"[PLAN] Провайдер: {provider_name}")
-        write_log_line(log_file, f"[PLAN] API модель: {api_client.get_api_model(settings, provider)}")
-        write_log_line(
-            log_file,
-            f"[PLAN] Aspect ratio: лицо={settings.get('FACE_ASPECT_RATIO', '4:3')}, оборот={settings.get('BACK_ASPECT_RATIO', '16:9')}",
-        )
-
-        session_folder = api_client.get_session_output_folder()
+        write_log_line(log_file, f"[PLAN] API модель: {model}")
+        write_log_line(log_file, f"[PLAN] Aspect ratio: лицо={face_ratio}, оборот={back_ratio}")
         write_log_line(log_file, f"[PLAN] Папка для сохранения изображений: {session_folder}")
+
+        face_count = sum(1 for task in tasks if task["side"] == "лицо")
+        back_count = len(tasks) - face_count
+        estimate_items = [
+            {"count": face_count, "provider": provider, "model": model, "quality": quality, "aspect_ratio": face_ratio},
+            {"count": back_count, "provider": provider, "model": model, "quality": quality, "aspect_ratio": back_ratio},
+        ]
+        estimated_cost_total, estimated_cost_per_image = generation_stats.estimate_api_totals(estimate_items)
+        stats = generation_stats.GenerationRunStats(
+            planned_total=len(tasks),
+            generation_method="api",
+            mode_name="multiformat",
+            estimated_total_seconds=generation_stats.estimate_total_seconds(
+                planned_total=len(tasks),
+                generation_method="api",
+                mode_name="multiformat",
+                settings=settings,
+                estimate_items=estimate_items,
+            ),
+            estimated_cost_total=estimated_cost_total,
+            estimated_cost_per_image=estimated_cost_per_image,
+        )
+        start_lines = stats.start_summary_lines(
+            [
+                "Режим: multiformat (API)",
+                f"Провайдер: {provider_name}",
+                f"Модель: {model}",
+                f"Quality: {quality or 'n/a'}",
+                f"Aspect ratio: лицо={face_ratio}, оборот={back_ratio}",
+                f"Диапазон карточек: {start_card}–{actual_end}",
+                f"Файл промптов: {prompts_file or 'не указан'}",
+            ]
+        )
+        for line in start_lines:
+            print(line)
+            write_log_line(log_file, f"[PLAN] {line}")
+
         print(f"Изображения будут сохранены в: {session_folder}")
         print("Генерация через API запущена. Esc — остановка.")
 
         total_images = len(tasks)
-        done_images = 0
-        attempted_images = 0
         cards_seen = set()
         pairs_seen = set()
         last_card = None
@@ -178,12 +225,15 @@ def run_mode(
                 pairs_seen.add(pair_key)
                 last_pair = pair_key
 
-            ok = _generate_single_image_api(task, client, settings, log_file)
-            attempted_images += 1
-            if ok:
-                done_images += 1
+            label = _make_task_label(task)
+            attempt_started = time.monotonic()
+            result = _generate_single_image_api(task, client, settings, log_file)
+            duration_seconds = time.monotonic() - attempt_started
+            ok, reason = generation_stats.normalize_attempt_result(task, result)
+            stats.register_attempt(label, ok, duration_seconds, reason)
 
-            print(f"Генерация {done_images}/{attempted_images} из {total_images}")
+            print(stats.progress_line(duration_seconds))
+            write_log_line(log_file, stats.progress_log_line(label, duration_seconds, ok, reason))
 
             is_last_prompt_for_card = (idx == len(tasks) - 1) or (tasks[idx + 1]["card_number"] != card_number)
             if is_last_prompt_for_card:
@@ -191,14 +241,21 @@ def run_mode(
 
                 update_start_card(card_number + 1)
 
-            if attempted_images < total_images:
+            if stats.attempted < total_images:
                 time.sleep(API_REQUEST_DELAY)
 
         write_log_line(
             log_file,
-            f"[SUMMARY] Карточек: {len(cards_seen)}, пар: {len(pairs_seen)}, изображений: {done_images}/{total_images}",
+            f"[SUMMARY] Карточек: {len(cards_seen)}, пар: {len(pairs_seen)}, изображений: {stats.succeeded}/{total_images}",
         )
-        print(f"Готово. Обработано карточек: {len(cards_seen)}, пар: {len(pairs_seen)}, изображений: {done_images}/{total_images}")
+        for line in stats.summary_lines():
+            print(line)
+            if line.startswith("- "):
+                write_log_line(log_file, f"[FAILED] {line[2:]}")
+            else:
+                write_log_line(log_file, f"[SUMMARY] {line}")
+        print(f"Готово. Обработано карточек: {len(cards_seen)}, пар: {len(pairs_seen)}, изображений: {stats.succeeded}/{total_images}")
         print(f"Лог сохранён: {log_path}")
     finally:
         log_file.close()
+

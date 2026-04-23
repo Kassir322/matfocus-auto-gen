@@ -10,6 +10,7 @@ import time
 from datetime import datetime
 
 from utils import api_client
+from utils import generation_stats
 from utils.log_writer import write_log_line
 from utils.prompt_parsers import (
     filter_tasks_by_range,
@@ -63,19 +64,27 @@ def _make_filename(card_number: int, card_name: str, side: str, pair_num: int, p
     return f"Карточка_{card_number}_{safe_name}_{side}_промпт_{pair_num}_{provider_name}_{model_name}.png"
 
 
+def _make_task_label(task: dict, with_reference: bool) -> str:
+    ref_mark = " with_ref" if with_reference else ""
+    return f"карточка {task['card_number']} {task['side']} пара {task['pair_number']}{ref_mark}"
+
+
 def _generate_single_image_api(task: dict, clients: dict, settings: dict, log_file) -> bool:
     card_number = task["card_number"]
     card_name = task["card_name"]
     pair_num = task["pair_number"]
     side = task["side"]
     prompt_text = task.get("prompt_text", "").strip()
+    task.pop("_last_failure_reason", None)
 
     if not prompt_text:
+        task["_last_failure_reason"] = "пустой промпт"
         write_log_line(log_file, f"[WARN] Пропуск: пустой промпт карточка {card_number} пара {pair_num} {side}")
         return False
 
     ref_path = get_reference_path(side, card_number, card_name)
     with_reference = ref_path is not None
+    task["_with_reference"] = with_reference
     provider = api_client.get_api_provider(settings, with_reference=with_reference)
     provider_name = api_client.get_provider_display_name(provider)
     model = api_client.get_api_model(settings, provider, with_reference=with_reference)
@@ -124,19 +133,23 @@ def _generate_single_image_api(task: dict, clients: dict, settings: dict, log_fi
 
     if not image_bytes:
         if error_msg:
+            task["_last_failure_reason"] = error_msg.splitlines()[0].strip() or "API ошибка"
             write_log_line(log_file, f"[ERROR] API ошибка для {file_name}:")
             for line in error_msg.split("\n"):
                 if line.strip():
                     write_log_line(log_file, f"[ERROR]   {line}")
         else:
+            task["_last_failure_reason"] = "API вернул пустой результат"
             write_log_line(log_file, f"[ERROR] API вернул пустой результат для {file_name}")
         return False
 
     write_log_line(log_file, f"[API_RESPONSE] Получено изображение, размер: {len(image_bytes)} байт")
     if not api_client.save_image_bytes(image_bytes, file_name):
+        task["_last_failure_reason"] = "не удалось сохранить файл"
         write_log_line(log_file, f"[ERROR] Не удалось сохранить файл: {file_name}")
         return False
 
+    task.pop("_last_failure_reason", None)
     write_log_line(log_file, f"[OK] Файл сохранён: {file_name}")
     return True
 
@@ -190,38 +203,96 @@ def run_mode(
 
     try:
         info = get_plan_info(tasks)
+        prompts_file = settings.get("PROMPTS_FILE", "")
+        provider_no_ref = api_client.get_api_provider(settings, with_reference=False)
+        provider_with_ref = api_client.get_api_provider(settings, with_reference=True)
+        model_no_ref = api_client.get_api_model(settings, provider_no_ref, with_reference=False)
+        model_with_ref = api_client.get_api_model(settings, provider_with_ref, with_reference=True)
+        quality_no_ref = api_client.get_api_quality(settings, provider_no_ref)
+        quality_with_ref = api_client.get_api_quality(settings, provider_with_ref)
+        face_ratio = settings.get("FACE_ASPECT_RATIO", "4:3")
+        back_ratio = settings.get("BACK_ASPECT_RATIO", "16:9")
+        session_folder = api_client.get_session_output_folder()
+
         write_log_line(
             log_file,
             f"[PLAN] Режим: multiformat_with_refs (API). Карточек: {info['cards_count']}, пар: {info['pairs_count']}, изображений: {info['images_planned']}",
         )
         write_log_line(log_file, f"[PLAN] Диапазон карточек: {start_card}–{actual_end}")
-        prompts_file = settings.get("PROMPTS_FILE", "")
         if prompts_file:
             write_log_line(log_file, f"[PLAN] Файл промптов: {prompts_file}")
-
-        provider_no_ref = api_client.get_api_provider(settings, with_reference=False)
-        provider_with_ref = api_client.get_api_provider(settings, with_reference=True)
         write_log_line(
             log_file,
-            f"[PLAN] Без референсов: provider={api_client.get_provider_display_name(provider_no_ref)}, model={api_client.get_api_model(settings, provider_no_ref, with_reference=False)}",
+            f"[PLAN] Без референсов: provider={api_client.get_provider_display_name(provider_no_ref)}, model={model_no_ref}",
         )
         write_log_line(
             log_file,
-            f"[PLAN] С референсами: provider={api_client.get_provider_display_name(provider_with_ref)}, model={api_client.get_api_model(settings, provider_with_ref, with_reference=True)}",
+            f"[PLAN] С референсами: provider={api_client.get_provider_display_name(provider_with_ref)}, model={model_with_ref}",
         )
-        write_log_line(
-            log_file,
-            f"[PLAN] Aspect ratio: лицо={settings.get('FACE_ASPECT_RATIO', '4:3')}, оборот={settings.get('BACK_ASPECT_RATIO', '16:9')}",
-        )
-
-        session_folder = api_client.get_session_output_folder()
+        write_log_line(log_file, f"[PLAN] Aspect ratio: лицо={face_ratio}, оборот={back_ratio}")
         write_log_line(log_file, f"[PLAN] Папка для сохранения изображений: {session_folder}")
+
+        estimate_items = []
+        refs_found = 0
+        refs_missing = 0
+        for task in tasks:
+            ref_path = get_reference_path(task["side"], task["card_number"], task["card_name"])
+            with_reference = ref_path is not None
+            if with_reference:
+                refs_found += 1
+            else:
+                refs_missing += 1
+            provider = api_client.get_api_provider(settings, with_reference=with_reference)
+            model = api_client.get_api_model(settings, provider, with_reference=with_reference)
+            quality = api_client.get_api_quality(settings, provider)
+            aspect_ratio = face_ratio if task["side"] == "лицо" else back_ratio
+            estimate_items.append(
+                {
+                    "count": 1,
+                    "provider": provider,
+                    "model": model,
+                    "quality": quality,
+                    "aspect_ratio": aspect_ratio,
+                    "with_reference": with_reference,
+                }
+            )
+
+        estimated_cost_total, estimated_cost_per_image = generation_stats.estimate_api_totals(estimate_items)
+        stats = generation_stats.GenerationRunStats(
+            planned_total=len(tasks),
+            generation_method="api",
+            mode_name="multiformat_with_refs",
+            estimated_total_seconds=generation_stats.estimate_total_seconds(
+                planned_total=len(tasks),
+                generation_method="api",
+                mode_name="multiformat_with_refs",
+                settings=settings,
+                estimate_items=estimate_items,
+            ),
+            estimated_cost_total=estimated_cost_total,
+            estimated_cost_per_image=estimated_cost_per_image,
+        )
+        start_lines = stats.start_summary_lines(
+            [
+                "Режим: multiformat_with_refs (API)",
+                f"Без референсов: {api_client.get_provider_display_name(provider_no_ref)} / {model_no_ref}",
+                f"С референсами: {api_client.get_provider_display_name(provider_with_ref)} / {model_with_ref}",
+                f"Quality без refs: {quality_no_ref or 'n/a'}",
+                f"Quality с refs: {quality_with_ref or 'n/a'}",
+                f"Aspect ratio: лицо={face_ratio}, оборот={back_ratio}",
+                f"Диапазон карточек: {start_card}–{actual_end}",
+                f"Файл промптов: {prompts_file or 'не указан'}",
+                f"Референсы найдены: {refs_found}, без референсов: {refs_missing}",
+            ]
+        )
+        for line in start_lines:
+            print(line)
+            write_log_line(log_file, f"[PLAN] {line}")
+
         print(f"Изображения будут сохранены в: {session_folder}")
         print("Генерация через API запущена. Esc — остановка.")
 
         total_images = len(tasks)
-        done_images = 0
-        attempted_images = 0
         cards_seen = set()
         pairs_seen = set()
         last_card = None
@@ -244,12 +315,15 @@ def run_mode(
                 pairs_seen.add(pair_key)
                 last_pair = pair_key
 
-            ok = _generate_single_image_api(task, clients, settings, log_file)
-            attempted_images += 1
-            if ok:
-                done_images += 1
+            attempt_started = time.monotonic()
+            result = _generate_single_image_api(task, clients, settings, log_file)
+            duration_seconds = time.monotonic() - attempt_started
+            ok, reason = generation_stats.normalize_attempt_result(task, result)
+            label = _make_task_label(task, bool(task.get("_with_reference", False)))
+            stats.register_attempt(label, ok, duration_seconds, reason)
 
-            print(f"Генерация {done_images}/{attempted_images} из {total_images}")
+            print(stats.progress_line(duration_seconds))
+            write_log_line(log_file, stats.progress_log_line(label, duration_seconds, ok, reason))
 
             is_last_prompt_for_card = (idx == len(tasks) - 1) or (tasks[idx + 1]["card_number"] != card_number)
             if is_last_prompt_for_card:
@@ -257,14 +331,21 @@ def run_mode(
 
                 update_start_card(card_number + 1)
 
-            if attempted_images < total_images:
+            if stats.attempted < total_images:
                 time.sleep(API_REQUEST_DELAY)
 
         write_log_line(
             log_file,
-            f"[SUMMARY] Карточек: {len(cards_seen)}, пар: {len(pairs_seen)}, изображений: {done_images}/{total_images}",
+            f"[SUMMARY] Карточек: {len(cards_seen)}, пар: {len(pairs_seen)}, изображений: {stats.succeeded}/{total_images}",
         )
-        print(f"Готово. Обработано карточек: {len(cards_seen)}, пар: {len(pairs_seen)}, изображений: {done_images}/{total_images}")
+        for line in stats.summary_lines():
+            print(line)
+            if line.startswith("- "):
+                write_log_line(log_file, f"[FAILED] {line[2:]}")
+            else:
+                write_log_line(log_file, f"[SUMMARY] {line}")
+        print(f"Готово. Обработано карточек: {len(cards_seen)}, пар: {len(pairs_seen)}, изображений: {stats.succeeded}/{total_images}")
         print(f"Лог сохранён: {log_path}")
     finally:
         log_file.close()
+
