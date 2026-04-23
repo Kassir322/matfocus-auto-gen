@@ -27,6 +27,24 @@ def _point(coords_or_list):
     return (int(p[0]), int(p[1])) if p is not None else (0, 0)
 
 
+def _get_clipboard_text() -> str | None:
+    """Безопасно получить текущий текст из буфера обмена, если доступно."""
+    try:
+        return pyperclip.paste()
+    except Exception:
+        return None
+
+
+def _restore_clipboard_text(previous_text: str | None) -> None:
+    """Безопасно восстановить текстовый буфер обмена, если удалось его прочитать раньше."""
+    if previous_text is None:
+        return
+    try:
+        pyperclip.copy(previous_text)
+    except Exception:
+        pass
+
+
 # --- Низкоуровневые функции ---
 
 
@@ -55,8 +73,12 @@ def click_prompt_input(coords: dict) -> None:
 
 def paste_prompt_text(prompt_text: str, delay: float = 0.05) -> None:
     """Вставить текст промпта через буфер обмена и Ctrl+V. Фокус должен быть в поле ввода."""
-    pyperclip.copy(prompt_text)
-    press_keys("ctrl", "v", delay=delay)
+    previous_text = _get_clipboard_text()
+    try:
+        pyperclip.copy(prompt_text)
+        press_keys("ctrl", "v", delay=delay)
+    finally:
+        _restore_clipboard_text(previous_text)
 
 
 def type_text(text: str, interval: float = 0.01) -> None:
@@ -160,10 +182,14 @@ def save_image(coords: dict, relative_movements: dict, file_name: str) -> None:
     pyautogui.click()
     time.sleep(_SAVE_DIALOG_WAIT)
 
-    pyperclip.copy(file_name)
-    press_keys("ctrl", "v")
-    time.sleep(0.05)
-    press_keys("enter")
+    previous_text = _get_clipboard_text()
+    try:
+        pyperclip.copy(file_name)
+        press_keys("ctrl", "v")
+        time.sleep(0.05)
+        press_keys("enter")
+    finally:
+        _restore_clipboard_text(previous_text)
 
 
 # --- Проверка готовности изображения по скриншоту ---
