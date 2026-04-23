@@ -38,8 +38,23 @@ def test_console_interface_is_instruction_only():
 
     rendered = output.getvalue()
     assert "Ctrl+Shift+S" in rendered
-    assert "Ctrl+7" in rendered
+    assert "--menu" in rendered
+    assert "Ctrl+7" not in rendered
     assert not hasattr(console, "show_current_settings")
+
+
+def test_main_menu_flag_runs_cli_menu(monkeypatch):
+    """`main.py --menu` should open the CLI menu instead of the hotkey runtime."""
+    show_menu = Mock()
+
+    monkeypatch.setattr(main.sys, "argv", ["main.py", "--menu"])
+    monkeypatch.setattr("ui.console_menu.show_main_menu", show_menu)
+    monkeypatch.setattr(main, "load_settings", lambda: {"CURRENT_SITE": "aistudio"})
+    monkeypatch.setattr(main, "load_coordinates", lambda: ({}, {}))
+
+    main.main()
+
+    show_menu.assert_called_once()
 
 
 def test_hotkey_manager_constructor_stays_callback_based():

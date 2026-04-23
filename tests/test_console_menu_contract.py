@@ -35,8 +35,8 @@ def test_show_main_menu_stops_active_worker_before_exit(monkeypatch):
     assert "Выход." in rendered
 
 
-def test_show_generation_plan_handles_expected_read_errors(monkeypatch):
-    """File/import/read problems should be turned into a user-facing message."""
+def test_show_generation_plan_bubbles_expected_read_errors(monkeypatch):
+    """Read/import problems should stay visible instead of being silently masked."""
     settings = {
         "CURRENT_SITE": "aistudio",
         "CURRENT_MODE": "standard",
@@ -48,11 +48,8 @@ def test_show_generation_plan_handles_expected_read_errors(monkeypatch):
         lambda path: (_ for _ in ()).throw(OSError("boom")),
     )
 
-    output = io.StringIO()
-    with redirect_stdout(output):
+    with pytest.raises(OSError):
         console_menu.show_generation_plan(settings)
-
-    assert "Ошибка при чтении файла или файл не найден." in output.getvalue()
 
 
 def test_show_generation_plan_does_not_mask_unexpected_runtime_errors(monkeypatch):
@@ -74,3 +71,50 @@ def test_show_generation_plan_does_not_mask_unexpected_runtime_errors(monkeypatc
 
     with pytest.raises(RuntimeError):
         console_menu.show_generation_plan(settings)
+
+
+def test_show_main_menu_routes_into_files_section(monkeypatch):
+    """Root CLI menu should route into the files section by numeric choice."""
+    settings = {
+        "CURRENT_SITE": "aistudio",
+        "CURRENT_MODE": "standard",
+        "PROMPTS_FILE": "data/prompts.txt",
+        "START_FROM_CARD": 1,
+        "END_CARD": 5,
+    }
+    calls = []
+
+    answers = iter(["2", "0", "0"])
+    monkeypatch.setattr(builtins, "input", lambda prompt="": next(answers))
+    monkeypatch.setattr(console_menu, "show_files_menu", lambda current_settings: calls.append(current_settings))
+    monkeypatch.setattr(console_menu, "show_current_config", lambda current_settings: None)
+    monkeypatch.setattr("utils.process_control.get_current_worker", lambda: None)
+    monkeypatch.setattr("utils.settings_store.save_settings", lambda current_settings: None)
+
+    console_menu.show_main_menu(settings, {}, {})
+
+    assert calls == [settings]
+
+
+def test_select_prompts_file_persists_choice_from_data_directory(monkeypatch):
+    """Prompt file selection should persist a file chosen from data/."""
+    settings = {"PROMPTS_FILE": "data/old.txt"}
+    saved = []
+
+    monkeypatch.setattr("os.path.isdir", lambda path: True)
+    monkeypatch.setattr("os.listdir", lambda path: ["notes.md", "older.txt", "newer.txt"])
+    monkeypatch.setattr("os.path.isfile", lambda path: True)
+    monkeypatch.setattr(
+        "os.path.getctime",
+        lambda path: {
+            "data\\older.txt": 100.0,
+            "data\\newer.txt": 200.0,
+        }[path],
+    )
+    monkeypatch.setattr(builtins, "input", lambda prompt="": "1")
+    monkeypatch.setattr("utils.settings_store.save_settings", lambda current_settings: saved.append(dict(current_settings)))
+
+    console_menu.select_prompts_file(settings)
+
+    assert settings["PROMPTS_FILE"].endswith("data\\newer.txt")
+    assert saved[-1]["PROMPTS_FILE"].endswith("data\\newer.txt")

@@ -10,7 +10,7 @@ def _noop():
 
 
 def test_hotkey_registration_includes_active_v2_bindings(monkeypatch):
-    """The hotkey manager should register the full active v2 binding set."""
+    """The hotkey manager should register only runtime v2 bindings."""
     registered = []
 
     def fake_add_hotkey(binding, callback):
@@ -29,6 +29,14 @@ def test_hotkey_registration_includes_active_v2_bindings(monkeypatch):
     assert "ctrl+shift+a" in bindings
     assert "ctrl+esc" in bindings
     assert "esc" in bindings
+    assert "ctrl+1" not in bindings
+    assert "ctrl+3" not in bindings
+    assert "ctrl+4" not in bindings
+    assert "ctrl+5" not in bindings
+    assert "ctrl+6" not in bindings
+    assert "ctrl+7" not in bindings
+    assert "ctrl+8" not in bindings
+    assert "ctrl+9" not in bindings
     assert "ctrl+2" not in bindings
     assert "ctrl+shift+q" not in bindings
 

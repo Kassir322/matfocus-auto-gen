@@ -597,14 +597,6 @@ class HotkeyManager:
         """Регистрация всех горячих клавиш по HOTKEYS_V2. Без Ctrl+2 и Ctrl+Shift+Q."""
         keyboard.add_hotkey("ctrl+shift+p", self.get_mouse_position)
         keyboard.add_hotkey("ctrl+0", self.show_coordinates_menu)
-        keyboard.add_hotkey("ctrl+1", self._configure_start_card)
-        keyboard.add_hotkey("ctrl+3", self._configure_generation_wait)
-        keyboard.add_hotkey("ctrl+4", self._toggle_image_check)
-        keyboard.add_hotkey("ctrl+5", self._show_settings_and_plan)
-        keyboard.add_hotkey("ctrl+6", self._configure_end_card)
-        keyboard.add_hotkey("ctrl+7", self._configure_method_and_mode)
-        keyboard.add_hotkey("ctrl+8", self._configure_image_wait_interval)
-        keyboard.add_hotkey("ctrl+9", self._configure_aspect_ratios)
         keyboard.add_hotkey("ctrl+shift+v", self._wrapped_on_setup_window)
         keyboard.add_hotkey("ctrl+shift+s", self._wrapped_on_start_generation)
         if self.on_start_api is not None:

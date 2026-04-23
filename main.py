@@ -1,6 +1,7 @@
 """
-Главная точка входа в программу автоматизации AI Studio
+Главная точка входа в программу автоматизации AI Studio.
 """
+import sys
 import time
 
 from ui.console import ConsoleInterface
@@ -9,20 +10,27 @@ from utils import process_control
 from utils.coordinates_store import load_coordinates
 from utils.generation_runner import (
     can_start_generation,
-    run_standard_worker,
-    run_multiformat_worker,
     run_multiformat_with_refs_worker,
+    run_multiformat_worker,
+    run_standard_worker,
 )
 from utils.settings_store import load_settings
 from utils.window_manager import WindowManager
 
 
 def main():
-    """Главная функция (v2 hotkeys: callback'и, без SettingsManager/ProcessManager для хоткеев)."""
+    """Главная функция активного v2 runtime."""
     print("Запуск AI Studio Automation (v2)...")
 
+    if "--menu" in sys.argv:
+        from ui.console_menu import show_main_menu
+
+        settings = load_settings()
+        coordinates, relative_movements = load_coordinates()
+        show_main_menu(settings, coordinates, relative_movements)
+        return
+
     def start_api_generation_from_settings(settings: dict) -> None:
-        """Запуск API-воркера по настройкам (вызывается по Ctrl+Shift+A, чтобы не конкурировать с input() в меню настроек)."""
         site = settings.get("CURRENT_SITE")
         mode = settings.get("CURRENT_MODE")
 
@@ -30,14 +38,17 @@ def main():
             print("Запуск генерации поддерживается только для сайта aistudio.")
             return
         if mode not in ("standard", "multiformat", "multiformat_with_refs"):
-            print("Запуск генерации поддерживается только для режимов standard, multiformat и multiformat_with_refs.")
+            print(
+                "Запуск генерации поддерживается только для режимов "
+                "standard, multiformat и multiformat_with_refs."
+            )
             return
 
         from utils.generation_runner import (
             can_start_generation_api,
-            run_standard_worker_api,
-            run_multiformat_worker_api,
             run_multiformat_with_refs_worker_api,
+            run_multiformat_worker_api,
+            run_standard_worker_api,
         )
 
         ok, err = can_start_generation_api(settings)
@@ -49,11 +60,8 @@ def main():
             worker = run_standard_worker_api
         elif mode == "multiformat":
             worker = run_multiformat_worker_api
-        elif mode == "multiformat_with_refs":
-            worker = run_multiformat_with_refs_worker_api
         else:
-            print("Неизвестный режим. Выберите standard, multiformat или multiformat_with_refs.")
-            return
+            worker = run_multiformat_with_refs_worker_api
 
         process_control.start_worker(worker, (settings,), worker_type="api")
 
@@ -66,6 +74,7 @@ def main():
 
     def on_show_plan(settings):
         from ui.console_menu import show_generation_plan
+
         show_generation_plan(settings)
 
     def on_start_generation():
@@ -78,44 +87,42 @@ def main():
             print("Запуск генерации поддерживается только для сайта aistudio.")
             return
         if mode not in ("standard", "multiformat", "multiformat_with_refs"):
-            print("Запуск генерации поддерживается только для режимов standard, multiformat и multiformat_with_refs.")
+            print(
+                "Запуск генерации поддерживается только для режимов "
+                "standard, multiformat и multiformat_with_refs."
+            )
             return
 
-        # Выбор метода генерации: browser или api (API запускается по Ctrl+Shift+A, чтобы не занимать stdin)
         if generation_method == "api":
             print("Метод генерации: api. Для запуска API нажмите Ctrl+Shift+A.")
             return
+
+        coordinates, relative_movements = load_coordinates()
+        ok, err = can_start_generation(settings)
+        if not ok:
+            print(err)
+            return
+
+        if not WindowManager().setup_automation_window():
+            print("[ГЛАВНЫЙ] Не удалось настроить рабочее окно, но продолжаем.")
+
+        if mode == "standard":
+            worker = run_standard_worker
+        elif mode == "multiformat":
+            worker = run_multiformat_worker
         else:
-            # Браузерная генерация (существующий код)
-            coordinates, relative_movements = load_coordinates()
+            worker = run_multiformat_with_refs_worker
 
-            ok, err = can_start_generation(settings)
-            if not ok:
-                print(err)
-                return
-
-            # Автоподготовка окна перед стартом (этап 5)
-            if not WindowManager().setup_automation_window():
-                print("[ГЛАВНЫЙ] Не удалось настроить рабочее окно, но продолжаем.")
-
-            if mode == "standard":
-                worker = run_standard_worker
-            elif mode == "multiformat":
-                worker = run_multiformat_worker
-            else:
-                worker = run_multiformat_with_refs_worker
-
-            process_control.start_worker(
-                worker,
-                (settings, coordinates, relative_movements),
-                worker_type="browser",
-            )
+        process_control.start_worker(
+            worker,
+            (settings, coordinates, relative_movements),
+            worker_type="browser",
+        )
 
     def on_start_api():
-        """Запуск только API-воркера (Ctrl+Shift+A), без чтения stdin — меню настроек работают корректно."""
         settings = load_settings()
         if settings.get("GENERATION_METHOD") != "api":
-            print("Сейчас выбран не метод 'api'. Нажмите Ctrl+7 и выберите api, затем Ctrl+Shift+A.")
+            print("Сейчас выбран не метод 'api'. Откройте CLI-меню или настройте метод заранее.")
             return
         start_api_generation_from_settings(settings)
 
@@ -123,13 +130,17 @@ def main():
     console.show_instructions()
 
     hotkey_manager = HotkeyManager(
-        on_start_generation, on_setup_window, on_show_plan, on_start_api=on_start_api
+        on_start_generation,
+        on_setup_window,
+        on_show_plan,
+        on_start_api=on_start_api,
     )
     hotkey_manager.register_hotkeys()
 
     print(
         "Программа запущена. Горячие клавиши активны. "
-        "Браузер: Ctrl+Shift+S. API: Ctrl+Shift+A (в API-режиме хоткеи отключены)."
+        "CLI-меню: python main.py --menu. "
+        "Браузер: Ctrl+Shift+S. API: Ctrl+Shift+A."
     )
 
     try:
