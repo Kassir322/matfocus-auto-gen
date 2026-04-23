@@ -8,6 +8,7 @@ import subprocess
 import os
 import pygetwindow as gw
 
+
 class WindowManager:
     def __init__(self, logger=None):
         self.logger = logger
@@ -16,6 +17,14 @@ class WindowManager:
         self.window_height = 1000
         self.window_x = 0
         self.window_y = 0
+        self.browser_titles = [
+            "Google Chrome",
+            "Mozilla Firefox",
+            "Microsoft Edge",
+            "Chrome",
+            "Firefox",
+            "Edge",
+        ]
 
     def _log(self, message):
         """Пишем в лог только если передан логгер (v2: тег [WINDOW], без эмодзи)."""
@@ -89,8 +98,8 @@ class WindowManager:
         try:
             chrome_args = [
                 "--new-window",
-                "--window-size=1200,1000",
-                "--window-position=0,0",
+                f"--window-size={self.window_width},{self.window_height}",
+                f"--window-position={self.window_x},{self.window_y}",
                 "--disable-web-security",
                 "--disable-features=VizDisplayCompositor",
                 "about:blank"
@@ -107,8 +116,8 @@ class WindowManager:
         try:
             firefox_args = [
                 "-new-window",
-                "-width", "1200",
-                "-height", "1000",
+                "-width", str(self.window_width),
+                "-height", str(self.window_height),
                 "about:blank"
             ]
             subprocess.Popen([browser_path, *firefox_args], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -123,8 +132,8 @@ class WindowManager:
         try:
             edge_args = [
                 "--new-window",
-                "--window-size=1200,1000",
-                "--window-position=0,0",
+                f"--window-size={self.window_width},{self.window_height}",
+                f"--window-position={self.window_x},{self.window_y}",
                 "about:blank"
             ]
             subprocess.Popen([browser_path, *edge_args], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -159,22 +168,20 @@ class WindowManager:
             return False
 
     def find_browser_window(self):
-        """Поиск окна браузера среди открытых окон (по заголовку: Chrome, Firefox, Edge)."""
+        """Поиск окна браузера среди открытых окон с предпочтением уже развёрнутых окон."""
         try:
-            browser_titles = [
-                'Google Chrome',
-                'Mozilla Firefox',
-                'Microsoft Edge',
-                'Chrome',
-                'Firefox',
-                'Edge'
-            ]
             all_windows = gw.getAllWindows()
+            minimized_match = None
             for window in all_windows:
-                if window.title and any(browser in window.title for browser in browser_titles):
-                    if not window.isMinimized:
+                if window.title and any(browser in window.title for browser in self.browser_titles):
+                    if not getattr(window, "isMinimized", False):
                         self._log(f"Найдено окно браузера: {window.title}")
                         return window
+                    if minimized_match is None:
+                        minimized_match = window
+            if minimized_match is not None:
+                self._log(f"Найдено минимизированное окно браузера: {minimized_match.title}")
+                return minimized_match
             self._log("Окно браузера не найдено")
             return None
         except Exception as e:
@@ -185,6 +192,9 @@ class WindowManager:
         """Настройка окна: активация, размер 1200x1000, позиция (0,0)."""
         try:
             self._log("Настройка окна браузера...")
+            if getattr(window, "isMinimized", False) and hasattr(window, "restore"):
+                window.restore()
+                time.sleep(0.5)
             window.activate()
             time.sleep(0.5)
             window.resizeTo(self.window_width, self.window_height)
@@ -244,4 +254,3 @@ class WindowManager:
         except Exception as e:
             self._log(f"Ошибка при быстрой настройке окна: {e}")
             return False
-
