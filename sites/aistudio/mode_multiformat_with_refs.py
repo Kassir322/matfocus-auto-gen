@@ -222,13 +222,19 @@ def _generate_single_side_with_ref(
             else:
                 box_size = (100, 100)
             diff_threshold = float(settings.get("IMAGE_CHECK_THRESHOLD", 0.1))
-            helpers.wait_until_image_ready(
+            image_ready = helpers.wait_until_image_ready(
                 coordinates,
                 timeout_seconds=generation_wait,
                 check_interval=check_interval,
                 box_size=box_size,
                 diff_threshold=diff_threshold,
             )
+            if not image_ready:
+                write_log_line(
+                    log_file,
+                    f"[WARN] Таймаут ожидания изображения: карточка {card_number}, "
+                    f"пара {pair_number}, сторона {side}",
+                )
         else:
             time.sleep(generation_wait)
 
@@ -252,7 +258,7 @@ def run_mode(
 ) -> None:
     """
     Выполнение генерации для режима multiformat_with_refs (лицо + оборот с референсами).
-    Проверка референсов перед стартом; при отсутствующих — вопрос «Продолжить без них? (y/n)».
+    Проверка референсов перед стартом; при отсутствующих — продолжение без них с предупреждением.
     """
     start_card = int(settings.get("START_FROM_CARD", 1))
     end_card = settings.get("END_CARD")
@@ -303,6 +309,7 @@ def run_mode(
         print("Генерация запущена. Esc — остановка.")
         total_images = len(tasks)
         done_images = 0
+        attempted_images = 0
         cards_seen = set()
         pairs_seen = set()
         last_card = None
@@ -340,9 +347,10 @@ def run_mode(
             ok = _generate_single_side_with_ref(
                 task, aspect_ratio, coordinates, relative_movements, settings, log_file
             )
+            attempted_images += 1
             if ok:
                 done_images += 1
-            print(f"Генерация {done_images} из {total_images}")
+            print(f"Генерация {done_images}/{attempted_images} из {total_images}")
             
             # Проверка: последний ли это промпт для текущей карточки
             is_last_prompt_for_card = (idx == len(tasks) - 1) or (tasks[idx + 1]["card_number"] != card_number)
