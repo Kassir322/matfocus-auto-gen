@@ -5,10 +5,9 @@
 import json
 import os
 
-# Путь к файлу настроек (относительно рабочей директории)
+
 SETTINGS_PATH = "data/settings.json"
 
-# Настройки по умолчанию (SETTINGS_V2, раздел 9). SAVE_FOLDER, LOG_ENABLED, GENERATIONS_PER_CARD не добавляем.
 DEFAULT_SETTINGS = {
     "CURRENT_SITE": "aistudio",
     "CURRENT_MODE": "standard",
@@ -20,26 +19,38 @@ DEFAULT_SETTINGS = {
     "IMAGE_WAIT_INTERVAL": 2.0,
     "CHECK_IMAGE_GENERATED": True,
     "FACE_ASPECT_RATIO": "4:3",
-    "BACK_ASPECT_RATIO": "16:9",  # для Imagen 4 поддерживаются: 1:1, 9:16, 16:9, 4:3, 3:4
-    # Настройки API (интеграция Gemini API)
-    "GENERATION_METHOD": "browser",  # "browser" или "api"
+    "BACK_ASPECT_RATIO": "16:9",
+    "GENERATION_METHOD": "browser",
+    "API_PROVIDER": "nanobanana",
+    "API_PROVIDER_WITH_REFS": "nanobanana",
     "API_KEY": "",
-    "API_MODEL": "imagen-4.0-generate-001",  # модель для промптов без референсов (imagen-4.0-fast/generate/ultra или gemini-2.5-flash-image)
-    "API_MODEL_WITH_REFS": "gemini-2.5-flash-image",  # модель для промптов с референсными изображениями (только мультимодальные: gemini-2.5-flash-image, gemini-3-pro-image-preview)
-    "API_IMAGE_SIZE": "2K",  # "1K" или "2K" для Imagen 4; "1K", "2K", "4K" для старых моделей
-    "API_TIMEOUT": 60.0,  # таймаут API запросов в секундах
+    "API_KEY_NANOBANANA": "",
+    "API_KEY_CHATGPT": "",
+    "API_MODEL": "imagen-4.0-generate-001",
+    "API_MODEL_WITH_REFS": "gemini-2.5-flash-image",
+    "API_MODEL_CHATGPT": "gpt-image-2",
+    "API_CHATGPT_QUALITY": "low",
+    "API_IMAGE_SIZE": "2K",
+    "API_TIMEOUT": 60.0,
 }
 
 
 def apply_defaults(settings: dict) -> dict:
     """
     Дополняет словарь недостающими ключами значениями по умолчанию.
-    Изменяет переданный словарь, возвращает тот же объект.
+    Изменяет переданный словарь и возвращает тот же объект.
     """
     for key, value in DEFAULT_SETTINGS.items():
         if key not in settings:
             settings[key] = value
-    # Пересчёт CARDS_TO_PROCESS по диапазону
+
+    legacy_api_key = str(settings.get("API_KEY", "") or "").strip()
+    if legacy_api_key and not str(settings.get("API_KEY_NANOBANANA", "") or "").strip():
+        settings["API_KEY_NANOBANANA"] = legacy_api_key
+
+    # Сохраняем совместимость со старым полем API_KEY.
+    settings["API_KEY"] = str(settings.get("API_KEY_NANOBANANA", "") or "").strip()
+
     start = settings.get("START_FROM_CARD", 1)
     end = settings.get("END_CARD")
     if end is not None and isinstance(start, (int, float)) and isinstance(end, (int, float)):
@@ -50,7 +61,7 @@ def apply_defaults(settings: dict) -> dict:
 def load_settings() -> dict:
     """
     Читает настройки из data/settings.json.
-    Если файла нет или ошибка — возвращает apply_defaults({}).
+    Если файла нет или произошла ошибка — возвращает apply_defaults({}).
     """
     try:
         if not os.path.isfile(SETTINGS_PATH):
@@ -81,8 +92,7 @@ def save_settings(settings: dict) -> None:
 def update_start_card(card_number: int) -> None:
     """
     Обновляет START_FROM_CARD в настройках до указанного номера карточки.
-    Используется для продолжения работы с места остановки при следующем запуске.
-    
+
     Args:
         card_number: номер карточки для установки в START_FROM_CARD
     """

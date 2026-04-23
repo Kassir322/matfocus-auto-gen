@@ -551,8 +551,9 @@
   - hotkey-first основной сценарий;
   - отдельное правило остановки для API-воркера;
   - необязательность референсов в `multiformat_with_refs`;
-  - фактический формат прогресса `X/Y из Z`;
+  - фактический формат прогресса `X/Y из Z`, теперь единообразно и в browser-, и в API-ветках;
   - лог-файл на запуск конкретного `run_mode()`, а не на весь lifetime программы.
+- API-режимы (`mode_standard_api.py`, `mode_multiformat_api.py`, `mode_multiformat_with_refs_api.py`) выровнены по консольному прогрессу с browser-режимами: вместо старых строк вида `Изображение 1/12 (оборот)` теперь печатается `Генерация X/Y из Z`.
 - В проекте остался старый `utils/logger.py`, который не соответствует активной v2-модели логирования, но теперь явно помечен как legacy compatibility слой.
 - Главный оставшийся эксплуатационный разрыв уже не столько в коде, сколько в том, что часть reference-документов глубже по проекту всё ещё историческая и местами противоречит обновлённым пользовательским документам.
 
@@ -601,3 +602,11 @@
 5. `sites/aistudio/mode_standard.py`
 6. `sites/aistudio/mode_multiformat.py`
 7. `sites/aistudio/mode_multiformat_with_refs.py`
+
+## Update 2026-04-23
+
+- API-ветка расширена до двух провайдеров: `nanobanana` и `chatgpt`.
+- В `utils/settings_store.py` добавлены раздельные ключи `API_KEY_NANOBANANA` и `API_KEY_CHATGPT` с legacy-совместимостью через `API_KEY`.
+- В `utils/api_client.py` добавлена маршрутизация по провайдерам и поддержка `gpt-image-2` через OpenAI Images API.
+- Для `chatgpt` aspect ratio в API-режиме формируется автоматически как префикс `ar - X:Y. ` в начале prompt.
+- В `multiformat_with_refs` задачи с референсом продолжают идти через `nanobanana`, а без референса могут идти через выбранный провайдер.

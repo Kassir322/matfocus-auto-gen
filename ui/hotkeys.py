@@ -408,7 +408,9 @@ class HotkeyManager:
         """
         from utils import api_client
         
-        current_key = settings.get("API_KEY", "").strip()
+        provider = api_client.get_api_provider(settings, with_reference=False)
+        field_name = api_client.get_api_key_field(provider)
+        current_key = settings.get(field_name, "").strip()
         
         print("\n=== НАСТРОЙКА API ===")
         if current_key:
@@ -446,12 +448,14 @@ class HotkeyManager:
                 return False
             
             # Валидация формата ключа
-            key_valid, key_error = api_client.check_api_key_format(new_key)
+            key_valid, key_error = api_client.check_api_key_format(new_key, provider=provider)
             if not key_valid:
                 print(f"Ошибка: {key_error}")
                 return False
             
-            settings["API_KEY"] = new_key
+            settings[field_name] = new_key
+            if provider == api_client.PROVIDER_NANOBANANA:
+                settings["API_KEY"] = new_key
             print("✓ API ключ сохранён.")
             return True
             

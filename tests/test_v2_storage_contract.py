@@ -20,6 +20,9 @@ def test_apply_defaults_fills_missing_fields_and_recomputes_cards_to_process():
     assert settings["CURRENT_SITE"] == "aistudio"
     assert settings["CURRENT_MODE"] == "standard"
     assert settings["API_MODEL_WITH_REFS"] == "gemini-2.5-flash-image"
+    assert settings["API_PROVIDER"] == "nanobanana"
+    assert settings["API_PROVIDER_WITH_REFS"] == "nanobanana"
+    assert settings["API_MODEL_CHATGPT"] == "gpt-image-2"
     assert settings["BACK_ASPECT_RATIO"] == "16:9"
     assert settings["CARDS_TO_PROCESS"] == 6
 
@@ -44,7 +47,20 @@ def test_save_and_load_settings_use_json_store_with_defaults(tmp_path, monkeypat
     assert loaded["PROMPTS_FILE"] == "data/custom.txt"
     assert loaded["CARDS_TO_PROCESS"] == 3
     assert loaded["API_MODEL_WITH_REFS"] == "gemini-2.5-flash-image"
+    assert loaded["API_PROVIDER"] == "nanobanana"
     assert loaded["GENERATION_METHOD"] == "browser"
+
+
+def test_apply_defaults_migrates_legacy_api_key_to_nanobanana_field():
+    """Legacy API_KEY should populate the dedicated nanobanana field."""
+    settings = {
+        "API_KEY": "AIzaSyLEGACY_KEY_12345678901234567890",
+    }
+
+    settings_store.apply_defaults(settings)
+
+    assert settings["API_KEY_NANOBANANA"] == "AIzaSyLEGACY_KEY_12345678901234567890"
+    assert settings["API_KEY"] == settings["API_KEY_NANOBANANA"]
 
 
 def test_load_coordinates_returns_two_separate_dicts_with_defaults(tmp_path, monkeypatch):

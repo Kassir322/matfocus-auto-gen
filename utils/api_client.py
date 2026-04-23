@@ -1,22 +1,24 @@
 """
-Клиент для работы с Gemini API (генерация изображений через API вместо браузера).
-Обёртка над google-genai SDK для моделей Imagen 4 и старых моделей Gemini.
-Поддерживает: imagen-4.0-fast/generate/ultra, gemini-2.5-flash-image.
+Клиент для API-генерации изображений.
+
+Поддерживает два провайдера:
+- nanobanana: Google AI Studio / Gemini / Imagen
+- chatgpt: OpenAI Images API (`gpt-image-2`)
 """
+import base64
 import os
 import shutil
 import tempfile
-import time
-import base64
 import traceback
+from datetime import datetime
 from io import BytesIO
 from typing import Optional
-from datetime import datetime
 
 try:
     from google import genai
     from google.genai import types
     from PIL import Image
+
     GENAI_AVAILABLE = True
 except ImportError:
     GENAI_AVAILABLE = False
@@ -24,68 +26,255 @@ except ImportError:
     types = None
     Image = None
 
+try:
+    from openai import OpenAI
 
-# Глобальная переменная для хранения папки текущей сессии
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    OpenAI = None
+
+
+PROVIDER_NANOBANANA = "nanobanana"
+PROVIDER_CHATGPT = "chatgpt"
+DEFAULT_PROVIDER = PROVIDER_NANOBANANA
+SUPPORTED_PROVIDERS = {PROVIDER_NANOBANANA, PROVIDER_CHATGPT}
+
 _current_session_folder = None
 
 
+def normalize_provider(provider: str | None) -> str:
+    normalized = str(provider or DEFAULT_PROVIDER).strip().lower()
+    if normalized not in SUPPORTED_PROVIDERS:
+        return DEFAULT_PROVIDER
+    return normalized
+
+
+def get_provider_display_name(provider: str) -> str:
+    provider = normalize_provider(provider)
+    if provider == PROVIDER_CHATGPT:
+        return "chatgpt"
+    return "nanobanana"
+
+
 def get_session_output_folder() -> str:
-    """
-    Возвращает путь к папке для сохранения изображений текущей сессии.
-    Папка создается один раз при первом вызове и используется для всей сессии.
-    Формат: generated_images/YYYY-MM-DD_HH-MM-SS/
-    
-    Returns:
-        str: путь к папке сессии
-    """
     global _current_session_folder
-    
+
     if _current_session_folder is None:
-        # Создать папку с датой/временем для текущей сессии
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         _current_session_folder = os.path.join("generated_images", timestamp)
         os.makedirs(_current_session_folder, exist_ok=True)
-    
+
     return _current_session_folder
 
 
 def reset_session_folder():
-    """
-    Сбросить папку сессии (для тестирования или при необходимости создать новую папку).
-    Вызывается при старте новой сессии генерации.
-    """
     global _current_session_folder
     _current_session_folder = None
 
 
-def init_client(api_key: str):
-    """
-    Инициализация клиента Gemini API.
-    
-    Args:
-        api_key: API ключ Google AI Studio
-        
-    Returns:
-        genai.Client или None при ошибке
-        
-    Raises:
-        ImportError: если библиотека google-genai не установлена
-        ValueError: если api_key пустой
-    """
-    if not GENAI_AVAILABLE:
-        raise ImportError(
-            "Библиотека google-genai не установлена. "
-            "Выполните: pip install google-genai"
-        )
-    
+def get_api_provider(settings: dict, with_reference: bool = False) -> str:
+    key = "API_PROVIDER_WITH_REFS" if with_reference else "API_PROVIDER"
+    provider = normalize_provider(settings.get(key, DEFAULT_PROVIDER))
+    if with_reference and provider == PROVIDER_CHATGPT:
+        return PROVIDER_CHATGPT
+    return provider
+
+
+def get_api_key_field(provider: str) -> str:
+    provider = normalize_provider(provider)
+    if provider == PROVIDER_CHATGPT:
+        return "API_KEY_CHATGPT"
+    return "API_KEY_NANOBANANA"
+
+
+def get_api_key(settings: dict, provider: str) -> str:
+    provider = normalize_provider(provider)
+    key = str(settings.get(get_api_key_field(provider), "") or "").strip()
+    if key:
+        return key
+    if provider == PROVIDER_NANOBANANA:
+        return str(settings.get("API_KEY", "") or "").strip()
+    return ""
+
+
+def get_api_model(settings: dict, provider: str, with_reference: bool = False) -> str:
+    provider = normalize_provider(provider)
+    if provider == PROVIDER_CHATGPT:
+        return str(settings.get("API_MODEL_CHATGPT", "gpt-image-2") or "gpt-image-2").strip()
+    if with_reference:
+        return str(settings.get("API_MODEL_WITH_REFS", "gemini-2.5-flash-image") or "gemini-2.5-flash-image").strip()
+    return str(settings.get("API_MODEL", "imagen-4.0-generate-001") or "imagen-4.0-generate-001").strip()
+
+
+def get_api_quality(settings: dict, provider: str) -> str:
+    provider = normalize_provider(provider)
+    if provider == PROVIDER_CHATGPT:
+        return str(settings.get("API_CHATGPT_QUALITY", "low") or "low").strip().lower()
+    return ""
+
+
+def build_prompt(prompt: str, provider: str, aspect_ratio: str | None = None) -> str:
+    provider = normalize_provider(provider)
+    prompt = (prompt or "").strip()
+    if provider == PROVIDER_CHATGPT and aspect_ratio:
+        return f"ar - {aspect_ratio}. {prompt}"
+    return prompt
+
+
+def init_client(api_key: str, provider: str = DEFAULT_PROVIDER):
+    provider = normalize_provider(provider)
+
     if not api_key or not api_key.strip():
         raise ValueError("API ключ не может быть пустым")
-    
-    # Инициализация клиента (API ключ можно передать через переменную окружения или явно)
-    # Документация: https://ai.google.dev/gemini-api/docs/imagen
+
+    if provider == PROVIDER_CHATGPT:
+        if not OPENAI_AVAILABLE:
+            raise ImportError(
+                "Библиотека openai не установлена. Выполните: pip install openai"
+            )
+        return OpenAI(api_key=api_key)
+
+    if not GENAI_AVAILABLE:
+        raise ImportError(
+            "Библиотека google-genai не установлена. Выполните: pip install google-genai"
+        )
+
     os.environ["GOOGLE_API_KEY"] = api_key
-    client = genai.Client(api_key=api_key)
-    return client
+    return genai.Client(api_key=api_key)
+
+
+def _generate_image_nanobanana(
+    client,
+    prompt: str,
+    model: str,
+    aspect_ratio: str,
+    image_size: str,
+) -> tuple[Optional[bytes], Optional[str]]:
+    is_imagen4 = model.startswith("imagen-4")
+
+    if is_imagen4:
+        supported_ratios = ["1:1", "4:3", "3:4", "16:9", "9:16"]
+        if aspect_ratio not in supported_ratios:
+            return None, (
+                f"Aspect ratio {aspect_ratio} не поддерживается Imagen 4. "
+                f"Поддерживаются: {', '.join(supported_ratios)}"
+            )
+
+    if is_imagen4:
+        config = types.GenerateImagesConfig(
+            number_of_images=1,
+            aspect_ratio=aspect_ratio,
+            image_size=image_size,
+        )
+        response = client.models.generate_images(
+            model=model,
+            prompt=prompt,
+            config=config,
+        )
+        if not response:
+            return None, "API вернул пустой response объект"
+        if not getattr(response, "generated_images", None):
+            return None, f"API response не содержит generated_images. Response: {response}"
+
+        image_bytes = response.generated_images[0].image.image_bytes
+        if isinstance(image_bytes, bytes):
+            return image_bytes, None
+        if isinstance(image_bytes, str):
+            try:
+                return base64.b64decode(image_bytes), None
+            except Exception as e:
+                return None, f"Ошибка декодирования base64: {e}"
+        return None, f"Неожиданный тип image_bytes: {type(image_bytes)}"
+
+    config_params = {"response_modalities": ["IMAGE"]}
+    if "3-pro" in model or "pro-image" in model:
+        config_params["image_config"] = types.ImageConfig(
+            aspect_ratio=aspect_ratio,
+            image_size=image_size,
+        )
+    else:
+        config_params["image_config"] = types.ImageConfig(aspect_ratio=aspect_ratio)
+
+    response = client.models.generate_content(
+        model=model,
+        contents=[prompt],
+        config=types.GenerateContentConfig(**config_params),
+    )
+    if not response:
+        return None, "API вернул пустой response объект"
+    if not getattr(response, "parts", None):
+        error_msg = f"API response не содержит parts. Response: {response}"
+        if hasattr(response, "prompt_feedback"):
+            error_msg += f" | prompt_feedback: {response.prompt_feedback}"
+        if hasattr(response, "candidates"):
+            error_msg += f" | candidates: {response.candidates}"
+        return None, error_msg
+
+    for part in response.parts:
+        if part.inline_data is None:
+            continue
+        image_data = part.inline_data.data
+        if isinstance(image_data, bytes):
+            return image_data, None
+        if isinstance(image_data, str):
+            try:
+                return base64.b64decode(image_data), None
+            except Exception as e:
+                return None, f"Ошибка декодирования base64: {e}"
+        if hasattr(part, "as_image"):
+            try:
+                img_obj = part.as_image()
+                if Image and isinstance(img_obj, Image.Image):
+                    img_bytes = BytesIO()
+                    img_obj.save(img_bytes, format="PNG")
+                    return img_bytes.getvalue(), None
+            except Exception:
+                pass
+        if image_data:
+            return image_data, None
+
+    parts_info = [
+        f"part {i}: {type(part).__name__}, inline_data={part.inline_data is not None}"
+        for i, part in enumerate(response.parts)
+    ]
+    return None, f"Нет inline_data в response.parts. Parts: {', '.join(parts_info)}"
+
+
+def _generate_image_chatgpt(
+    client,
+    prompt: str,
+    model: str,
+    aspect_ratio: str,
+    quality: str,
+    timeout: float,
+) -> tuple[Optional[bytes], Optional[str]]:
+    request_client = client.with_options(timeout=timeout) if hasattr(client, "with_options") else client
+    response = request_client.images.generate(
+        model=model,
+        prompt=build_prompt(prompt, PROVIDER_CHATGPT, aspect_ratio),
+        n=1,
+        size="auto",
+        quality=quality or "low",
+    )
+
+    if not response:
+        return None, "API вернул пустой response объект"
+    data = getattr(response, "data", None)
+    if not data:
+        return None, f"API response не содержит data. Response: {response}"
+
+    image_item = data[0]
+    b64_json = getattr(image_item, "b64_json", None)
+    if b64_json is None and isinstance(image_item, dict):
+        b64_json = image_item.get("b64_json")
+    if not b64_json:
+        return None, f"API response не содержит b64_json. Response: {response}"
+
+    try:
+        return base64.b64decode(b64_json), None
+    except Exception as e:
+        return None, f"Ошибка декодирования b64_json: {e}"
 
 
 def generate_image(
@@ -95,183 +284,36 @@ def generate_image(
     aspect_ratio: str = "1:1",
     image_size: str = "1K",
     timeout: float = 60.0,
+    provider: str = DEFAULT_PROVIDER,
+    quality: str = "low",
 ) -> tuple[Optional[bytes], Optional[str]]:
-    """
-    Генерация одного изображения через Gemini API.
-    
-    Поддерживает два типа моделей:
-    - Imagen 4: imagen-4.0-fast-generate-001, imagen-4.0-generate-001, imagen-4.0-ultra-generate-001
-    - Старые: gemini-2.5-flash-image, gemini-3-pro-image-preview
-    
-    Args:
-        client: экземпляр genai.Client
-        prompt: текст промпта для генерации
-        model: название модели (по умолчанию imagen-4.0-generate-001)
-        aspect_ratio: соотношение сторон ("1:1", "4:3", "3:4", "16:9", "9:16", "2:3", "3:2", "4:5", "5:4", "21:9")
-        image_size: разрешение ("1K" или "2K" для Imagen 4; "1K", "2K", "4K" для Pro моделей)
-        timeout: таймаут запроса в секундах
-        
-    Returns:
-        (bytes изображения в формате PNG или None, строка с ошибкой или None)
-    """
-    if not GENAI_AVAILABLE:
-        return None, "Библиотека google-genai не доступна"
-    
     if not prompt or not prompt.strip():
         return None, "Пустой промпт"
-    
-    # Определяем тип модели для выбора API endpoint
-    is_imagen4 = model.startswith("imagen-4")
-    
-    # Валидация aspect_ratio для Imagen 4 (поддерживаются только 1:1, 4:3, 3:4, 16:9, 9:16)
-    if is_imagen4:
-        supported_ratios = ["1:1", "4:3", "3:4", "16:9", "9:16"]
-        if aspect_ratio not in supported_ratios:
-            return None, (
-                f"Aspect ratio {aspect_ratio} не поддерживается Imagen 4. "
-                f"Поддерживаются: {', '.join(supported_ratios)}"
-            )
-    
+
+    provider = normalize_provider(provider)
     try:
-        if is_imagen4:
-            # ========== Imagen 4: используем generate_images API ==========
-            # Документация: https://ai.google.dev/gemini-api/docs/imagen
-            config = types.GenerateImagesConfig(
-                number_of_images=1,
-                aspect_ratio=aspect_ratio,
-                image_size=image_size,  # "1K" или "2K"
-            )
-            
-            response = client.models.generate_images(
-                model=model,
+        if provider == PROVIDER_CHATGPT:
+            return _generate_image_chatgpt(
+                client=client,
                 prompt=prompt,
-                config=config,
-            )
-            
-            # Проверка наличия ответа
-            if not response:
-                return None, "API вернул пустой response объект"
-            
-            # Проверка наличия generated_images
-            if not hasattr(response, 'generated_images') or not response.generated_images:
-                error_msg = f"API response не содержит generated_images. Response: {response}"
-                return None, error_msg
-            
-            # Извлечение изображения из response.generated_images[0].image.image_bytes
-            generated_image = response.generated_images[0]
-            
-            if not hasattr(generated_image, 'image') or not generated_image.image:
-                return None, f"generated_image не содержит image. Object: {generated_image}"
-            
-            image_bytes = generated_image.image.image_bytes
-            
-            if not image_bytes:
-                return None, "image_bytes пустой в generated_image.image"
-            
-            # image_bytes может быть строкой base64 или bytes
-            if isinstance(image_bytes, bytes):
-                return image_bytes, None
-            elif isinstance(image_bytes, str):
-                try:
-                    return base64.b64decode(image_bytes), None
-                except Exception as e:
-                    return None, f"Ошибка декодирования base64 из image_bytes: {e}"
-            else:
-                return None, f"Неожиданный тип image_bytes: {type(image_bytes)}"
-        
-        else:
-            # ========== Старые модели: используем generate_content API ==========
-            config_params = {
-                "response_modalities": ["IMAGE"],
-            }
-            
-            # По документации: 2.5-flash-image — только aspect_ratio, 3-pro — aspect_ratio + image_size
-            if "3-pro" in model or "pro-image" in model:
-                config_params["image_config"] = types.ImageConfig(
-                    aspect_ratio=aspect_ratio,
-                    image_size=image_size,
-                )
-            else:
-                config_params["image_config"] = types.ImageConfig(aspect_ratio=aspect_ratio)
-            
-            config = types.GenerateContentConfig(**config_params)
-            
-            # Генерация изображения
-            # По документации: response.parts содержит inline_data с изображением
-            response = client.models.generate_content(
                 model=model,
-                contents=[prompt],
-                config=config,
+                aspect_ratio=aspect_ratio,
+                quality=quality,
+                timeout=timeout,
             )
-            
-            # Проверка наличия ответа
-            if not response:
-                return None, "API вернул пустой response объект"
-            
-            # Проверка наличия parts в ответе
-            if not hasattr(response, 'parts') or not response.parts:
-                error_msg = f"API response не содержит parts. Response: {response}"
-                # Проверка наличия prompt_feedback (блокировка контента)
-                if hasattr(response, 'prompt_feedback'):
-                    error_msg += f" | prompt_feedback: {response.prompt_feedback}"
-                # Проверка candidates (альтернативные результаты)
-                if hasattr(response, 'candidates'):
-                    error_msg += f" | candidates: {response.candidates}"
-                return None, error_msg
-            
-            # Извлечение изображения из ответа
-            # response.parts - список Part объектов
-            # Изображение находится в part.inline_data
-            for part in response.parts:
-                if part.inline_data is not None:
-                    # inline_data.data содержит изображение в виде bytes
-                    # Прямой доступ к данным - самый надёжный способ
-                    image_data = part.inline_data.data
-                    
-                    # Проверяем, что это bytes
-                    if isinstance(image_data, bytes):
-                        return image_data, None
-                    
-                    # Если это строка (base64), декодируем
-                    if isinstance(image_data, str):
-                        try:
-                            return base64.b64decode(image_data), None
-                        except Exception as e:
-                            return None, f"Ошибка декодирования base64: {e}"
-                    
-                    # Если есть метод as_image() - используем как fallback
-                    if hasattr(part, "as_image"):
-                        try:
-                            img_obj = part.as_image()
-                            # Если это PIL Image
-                            if Image and isinstance(img_obj, Image.Image):
-                                img_bytes = BytesIO()
-                                img_obj.save(img_bytes, format="PNG")
-                                return img_bytes.getvalue(), None
-                        except Exception as e:
-                            # Если не получилось с as_image - возвращаем прямые данные
-                            if image_data:
-                                return image_data, None
-                            return None, f"Ошибка конвертации as_image: {e}"
-                    
-                    # Если ничего не подошло, но данные есть - возвращаем как есть
-                    if image_data:
-                        return image_data, None
-            
-            # Если дошли сюда - нет inline_data ни в одном part
-            parts_info = [f"part {i}: {type(part).__name__}, inline_data={part.inline_data is not None}" 
-                          for i, part in enumerate(response.parts)]
-            return None, f"Нет inline_data в response.parts. Parts: {', '.join(parts_info)}'"
-        
+
+        if not GENAI_AVAILABLE:
+            return None, "Библиотека google-genai не доступна"
+
+        return _generate_image_nanobanana(
+            client=client,
+            prompt=prompt,
+            model=model,
+            aspect_ratio=aspect_ratio,
+            image_size=image_size,
+        )
     except Exception as e:
-        # Ошибки API: rate limits, invalid key, network issues
-        # Возвращаем детальную информацию об ошибке
-        error_type = type(e).__name__
-        error_msg = str(e)
-        error_trace = traceback.format_exc()
-        
-        detailed_error = f"{error_type}: {error_msg}\n{error_trace}"
-        return None, detailed_error
+        return None, f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
 
 
 def generate_image_with_reference(
@@ -282,44 +324,29 @@ def generate_image_with_reference(
     aspect_ratio: str = "1:1",
     image_size: str = "1K",
     timeout: float = 60.0,
+    provider: str = DEFAULT_PROVIDER,
+    quality: str = "low",
 ) -> tuple[Optional[bytes], Optional[str]]:
-    """
-    Генерация изображения через Gemini API с референсным изображением.
-    
-    Поддерживает только мультимодальные модели (Gemini):
-    - gemini-2.5-flash-image
-    - gemini-3-pro-image-preview
-    
-    Args:
-        client: экземпляр genai.Client
-        prompt: текст промпта для генерации
-        reference_image_path: путь к референсному изображению (локальный файл)
-        model: название модели (должна быть мультимодальная Gemini)
-        aspect_ratio: соотношение сторон ("1:1", "4:3", "3:4", "16:9", "9:16", "2:3", "3:2", "4:5", "5:4", "21:9")
-        image_size: разрешение ("1K", "2K", "4K" для Gemini моделей)
-        timeout: таймаут запроса в секундах
-        
-    Returns:
-        (bytes изображения в формате PNG или None, строка с ошибкой или None)
-    """
-    if not GENAI_AVAILABLE:
-        return None, "Библиотека google-genai не доступна"
-    
     if not prompt or not prompt.strip():
         return None, "Пустой промпт"
-    
-    # Проверка модели: Imagen 4 не поддерживает референсы
+
+    provider = normalize_provider(provider)
+    if provider == PROVIDER_CHATGPT:
+        return None, (
+            "ChatGPT API для генерации с референсами в этом режиме пока не поддержан. "
+            "Для задач с референсами используйте nanobanana."
+        )
+
+    if not GENAI_AVAILABLE:
+        return None, "Библиотека google-genai не доступна"
+
     if model.startswith("imagen-4"):
-        return None, "Модель Imagen 4 не поддерживает референсные изображения. Используйте gemini-2.5-flash-image"
-    
-    # Проверка наличия референсного файла
+        return None, "Модель Imagen 4 не поддерживает референсные изображения. Используйте Gemini."
+
     if not reference_image_path or not os.path.exists(reference_image_path):
         return None, f"Референсное изображение не найдено: {reference_image_path}"
-    
+
     try:
-        # Загрузка референсного изображения через File API.
-        # Пути с кириллицей (например data/images/лицо/70_лицо.jpg) вызывают ASCII encoding ошибку,
-        # поэтому копируем файл во временный с ASCII-именем и загружаем его.
         tmp_path = None
         try:
             abs_path = os.path.abspath(reference_image_path)
@@ -330,21 +357,14 @@ def generate_image_with_reference(
                 tmp_path = tmp.name
             shutil.copy2(abs_path, tmp_path)
             uploaded_file = client.files.upload(file=tmp_path)
-        except Exception as e:
-            return None, f"Ошибка загрузки референсного изображения: {e}"
         finally:
             if tmp_path is not None and os.path.exists(tmp_path):
                 try:
                     os.unlink(tmp_path)
                 except OSError:
                     pass
-        
-        # Конфигурация для генерации с изображением
-        config_params = {
-            "response_modalities": ["IMAGE"],
-        }
-        
-        # По документации: 2.5-flash-image — только aspect_ratio, 3-pro — aspect_ratio + image_size
+
+        config_params = {"response_modalities": ["IMAGE"]}
         if "3-pro" in model or "pro-image" in model:
             config_params["image_config"] = types.ImageConfig(
                 aspect_ratio=aspect_ratio,
@@ -352,148 +372,90 @@ def generate_image_with_reference(
             )
         else:
             config_params["image_config"] = types.ImageConfig(aspect_ratio=aspect_ratio)
-        
-        config = types.GenerateContentConfig(**config_params)
-        
-        # Генерация с референсом: contents = [промпт, загруженный_файл]
-        # Порядок важен: сначала текст, потом изображение
+
         response = client.models.generate_content(
             model=model,
             contents=[prompt, uploaded_file],
-            config=config,
+            config=types.GenerateContentConfig(**config_params),
         )
-        
-        # Проверка наличия ответа
         if not response:
             return None, "API вернул пустой response объект"
-        
-        # Проверка наличия parts в ответе
-        if not hasattr(response, 'parts') or not response.parts:
+        if not getattr(response, "parts", None):
             error_msg = f"API response не содержит parts. Response: {response}"
-            # Проверка наличия prompt_feedback (блокировка контента)
-            if hasattr(response, 'prompt_feedback'):
+            if hasattr(response, "prompt_feedback"):
                 error_msg += f" | prompt_feedback: {response.prompt_feedback}"
-            # Проверка candidates (альтернативные результаты)
-            if hasattr(response, 'candidates'):
+            if hasattr(response, "candidates"):
                 error_msg += f" | candidates: {response.candidates}"
             return None, error_msg
-        
-        # Извлечение изображения из ответа (аналогично generate_image для Gemini моделей)
+
         for part in response.parts:
-            if part.inline_data is not None:
-                # inline_data.data содержит изображение в виде bytes
-                image_data = part.inline_data.data
-                
-                # Проверяем, что это bytes
-                if isinstance(image_data, bytes):
-                    return image_data, None
-                
-                # Если это строка (base64), декодируем
-                if isinstance(image_data, str):
-                    try:
-                        return base64.b64decode(image_data), None
-                    except Exception as e:
-                        return None, f"Ошибка декодирования base64: {e}"
-                
-                # Если есть метод as_image() - используем как fallback
-                if hasattr(part, "as_image"):
-                    try:
-                        img_obj = part.as_image()
-                        # Если это PIL Image
-                        if Image and isinstance(img_obj, Image.Image):
-                            img_bytes = BytesIO()
-                            img_obj.save(img_bytes, format="PNG")
-                            return img_bytes.getvalue(), None
-                    except Exception as e:
-                        # Если не получилось с as_image - возвращаем прямые данные
-                        if image_data:
-                            return image_data, None
-                        return None, f"Ошибка конвертации as_image: {e}"
-                
-                # Если ничего не подошло, но данные есть - возвращаем как есть
-                if image_data:
-                    return image_data, None
-        
-        # Если дошли сюда - нет inline_data ни в одном part
-        parts_info = [f"part {i}: {type(part).__name__}, inline_data={part.inline_data is not None}" 
-                      for i, part in enumerate(response.parts)]
-        return None, f"Нет inline_data в response.parts. Parts: {', '.join(parts_info)}'"
-        
+            if part.inline_data is None:
+                continue
+            image_data = part.inline_data.data
+            if isinstance(image_data, bytes):
+                return image_data, None
+            if isinstance(image_data, str):
+                try:
+                    return base64.b64decode(image_data), None
+                except Exception as e:
+                    return None, f"Ошибка декодирования base64: {e}"
+            if hasattr(part, "as_image"):
+                try:
+                    img_obj = part.as_image()
+                    if Image and isinstance(img_obj, Image.Image):
+                        img_bytes = BytesIO()
+                        img_obj.save(img_bytes, format="PNG")
+                        return img_bytes.getvalue(), None
+                except Exception:
+                    pass
+            if image_data:
+                return image_data, None
+
+        parts_info = [
+            f"part {i}: {type(part).__name__}, inline_data={part.inline_data is not None}"
+            for i, part in enumerate(response.parts)
+        ]
+        return None, f"Нет inline_data в response.parts. Parts: {', '.join(parts_info)}"
     except Exception as e:
-        # Ошибки API: rate limits, invalid key, network issues
-        # Возвращаем детальную информацию об ошибке
-        error_type = type(e).__name__
-        error_msg = str(e)
-        error_trace = traceback.format_exc()
-        
-        detailed_error = f"{error_type}: {error_msg}\n{error_trace}"
-        return None, detailed_error
+        return None, f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
 
 
 def save_image_bytes(image_bytes: bytes, file_path: str) -> bool:
-    """
-    Сохранение байтов изображения в файл PNG в папке текущей сессии.
-    
-    Args:
-        image_bytes: байты изображения
-        file_path: имя файла (или путь относительно папки сессии)
-        
-    Returns:
-        True при успешном сохранении, False при ошибке
-    """
     if not image_bytes:
         return False
-    
+
     try:
-        # Получить папку текущей сессии
         session_folder = get_session_output_folder()
-        
-        # Если передан относительный путь с папками, сохранить структуру
-        # Если передано только имя файла, сохранить в корень папки сессии
         full_path = os.path.join(session_folder, file_path)
-        
-        # Создание вложенных директорий если нужно
         directory = os.path.dirname(full_path)
         if directory and not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
-        
-        # Сохранение байтов как PNG через PIL (для проверки валидности)
-        if GENAI_AVAILABLE and Image:
+
+        if Image is not None:
             img = Image.open(BytesIO(image_bytes))
             img.save(full_path, format="PNG")
         else:
-            # Fallback: прямая запись байтов
             with open(full_path, "wb") as f:
                 f.write(image_bytes)
-        
         return True
-        
     except Exception:
         return False
 
 
-def check_api_key_format(api_key: str) -> tuple[bool, str]:
-    """
-    Проверка формата API ключа Google AI Studio.
-    
-    Args:
-        api_key: строка с API ключом
-        
-    Returns:
-        (valid, error_message) - True/пустая строка если ключ валиден,
-        False/сообщение об ошибке если невалиден
-    """
-    if not api_key or not api_key.strip():
+def check_api_key_format(api_key: str, provider: str = DEFAULT_PROVIDER) -> tuple[bool, str]:
+    provider = normalize_provider(provider)
+    api_key = str(api_key or "").strip()
+
+    if not api_key:
         return False, "API ключ не может быть пустым"
-    
-    # Google AI Studio API ключи обычно начинаются с "AIza"
-    # Длина примерно 39 символов
-    api_key = api_key.strip()
-    
+
+    if provider == PROVIDER_CHATGPT:
+        if len(api_key) < 20:
+            return False, "API ключ ChatGPT слишком короткий"
+        return True, ""
+
     if len(api_key) < 30:
         return False, "API ключ слишком короткий (должен быть ~39 символов)"
-    
     if not api_key.startswith("AIza"):
         return False, "API ключ должен начинаться с 'AIza'"
-    
     return True, ""
