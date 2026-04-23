@@ -55,12 +55,18 @@ def load_coordinates() -> tuple[dict, dict]:
             return (coords, moves)
         with open(COORDINATES_PATH, "r", encoding="utf-8") as f:
             data = json.load(f)
+        if not isinstance(data, dict):
+            return (dict(DEFAULT_COORDINATES), dict(DEFAULT_RELATIVE_MOVEMENTS))
         raw_coords = data.get("coordinates") or {}
         raw_moves = data.get("relative_movements") or {}
+        if not isinstance(raw_coords, dict):
+            raw_coords = {}
+        if not isinstance(raw_moves, dict):
+            raw_moves = {}
         coordinates = _merge_with_defaults(raw_coords, DEFAULT_COORDINATES)
         relative_movements = _merge_with_defaults(raw_moves, DEFAULT_RELATIVE_MOVEMENTS)
         return (coordinates, relative_movements)
-    except (OSError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
         return (dict(DEFAULT_COORDINATES), dict(DEFAULT_RELATIVE_MOVEMENTS))
 
 

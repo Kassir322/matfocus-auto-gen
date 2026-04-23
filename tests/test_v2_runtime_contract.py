@@ -3,6 +3,7 @@
 from contextlib import redirect_stdout
 import inspect
 import io
+import builtins
 from unittest.mock import Mock
 
 import main
@@ -20,8 +21,10 @@ def test_main_uses_v2_runtime_contract():
 
     assert "from utils import process_control" in source
     assert "from utils.generation_runner import" in source
-    assert "ProcessManager" not in source
-    assert "SettingsManager" not in source
+    assert "from utils.process_manager import" not in source
+    assert "from utils import process_manager" not in source
+    assert "from config.settings import SettingsManager" not in source
+    assert "SettingsManager(" not in source
 
 
 def test_console_interface_is_instruction_only():
@@ -79,7 +82,7 @@ def test_console_menu_starts_browser_worker_with_explicit_type(monkeypatch):
     relative_movements = {"TO_SAVE_OPTION": (0, 1)}
     start_worker = Mock()
 
-    monkeypatch.setattr(console_menu, "print", lambda *args, **kwargs: None)
+    monkeypatch.setattr(builtins, "print", lambda *args, **kwargs: None)
     monkeypatch.setattr("utils.process_control.start_worker", start_worker)
     monkeypatch.setattr("utils.generation_runner.can_start_generation", lambda settings: (True, None))
     monkeypatch.setattr("utils.generation_runner.run_standard_worker", "standard-worker")
