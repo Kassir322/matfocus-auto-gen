@@ -1,6 +1,7 @@
 """
 Консольное меню v2: выбор сайта/режима/файла, показ плана генерации, запуск генерации (пункт 5).
 """
+import builtins
 import os
 
 # Директория с файлами промптов (сканируем только файлы)
@@ -197,7 +198,7 @@ def show_generation_plan(settings: dict) -> None:
             print(f"Генераций (промптов): {info['generations_count']}")
             print(f"Будет сгенерировано изображений: {info['images_planned']}")
             print("----------------------")
-    except Exception:
+    except (OSError, ImportError, ValueError):
         print("Ошибка при чтении файла или файл не найден.")
         return
 
@@ -277,6 +278,7 @@ def show_main_menu(
     relative_movements: dict,
 ) -> None:
     """Главный цикл меню: конфигурация, пункты 1–7 и 0 (выход). При выходе сохраняем настройки."""
+    from utils import process_control
     from utils import settings_store
     while True:
         print()
@@ -290,8 +292,12 @@ def show_main_menu(
         print("6 — Выбрать метод генерации (browser/api)")
         print("7 — Настроить API ключ")
         print("0 — Выход")
-        choice = input("Выбор: ").strip()
+        choice = builtins.input("Выбор: ").strip()
         if choice == "0":
+            current_worker = process_control.get_current_worker()
+            if current_worker is not None and current_worker.is_alive():
+                print("Перед выходом останавливаем активный воркер.")
+                process_control.stop_worker(current_worker)
             settings_store.save_settings(settings)
             print("Выход.")
             break
