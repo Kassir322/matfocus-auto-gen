@@ -62,7 +62,9 @@ def load_tasks_from_file(path: str) -> list[dict]:
                     prompt_num = int(match.group(2))
                     prompt_text = match.group(3).strip()
                     temp_data[card_num][prompt_num] = prompt_text
-                # невалидные строки пропускаем (логирование по LOGGING.md позже)
+                else:
+                    preview = line[:80]
+                    print(f"[WARN] Строка {line_num} не распознана: {preview}")
     except (FileNotFoundError, OSError, UnicodeDecodeError):
         return []
 
@@ -187,13 +189,18 @@ def _generate_single_image(
             else:
                 box_size = (100, 100)
             diff_threshold = float(settings.get("IMAGE_CHECK_THRESHOLD", 0.1))
-            helpers.wait_until_image_ready(
+            image_ready = helpers.wait_until_image_ready(
                 coordinates,
                 timeout_seconds=generation_wait,
                 check_interval=check_interval,
                 box_size=box_size,
                 diff_threshold=diff_threshold,
             )
+            if not image_ready:
+                write_log_line(
+                    log_file,
+                    f"[WARN] Таймаут ожидания изображения: карточка {card_number}, генерация {gen_num}",
+                )
         else:
             time.sleep(generation_wait)
 
@@ -256,6 +263,7 @@ def run_mode(
         print("Генерация запущена. Esc — остановка.")
         total_generations = len(tasks)
         done_generations = 0
+        attempted_generations = 0
         cards_seen = set()
         last_card = None
 
@@ -271,10 +279,11 @@ def run_mode(
                 time.sleep(BETWEEN_GENERATIONS)
 
             ok = _generate_single_image(task, coordinates, relative_movements, settings, log_file)
+            attempted_generations += 1
             if ok:
                 done_generations += 1
             # Прогресс в консоль (только основные шаги)
-            print(f"Генерация {done_generations} из {total_generations}")
+            print(f"Генерация {done_generations}/{attempted_generations} из {total_generations}")
             
             # Проверка: последний ли это промпт для текущей карточки
             is_last_prompt_for_card = (idx == len(tasks) - 1) or (tasks[idx + 1]["card_number"] != card_number)
