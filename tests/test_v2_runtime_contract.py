@@ -11,6 +11,7 @@ from ui import console_menu
 from ui.console import ConsoleInterface
 from ui.hotkeys import HotkeyManager
 import utils
+from utils import logger as legacy_logger
 from utils import process_control
 from utils import process_manager
 
@@ -62,6 +63,14 @@ def test_legacy_process_manager_is_marked_as_legacy():
 
     assert "legacy" in module_doc.lower()
     assert "legacy" in class_doc.lower()
+
+
+def test_legacy_console_logger_is_marked_as_legacy():
+    """The old console logger should not look like the active v2 logging layer."""
+    module_doc = legacy_logger.__doc__ or ""
+
+    assert "legacy" in module_doc.lower()
+    assert "not part of the active v2 logging contract" in module_doc.lower()
 
 
 def test_utils_package_exports_only_active_helpers():

@@ -1,5 +1,8 @@
 """
-Система логирования
+Legacy console logger kept only for backward compatibility.
+
+The active v2 runtime writes detailed logs through `utils.log_writer` into files
+under `logs/`. This module is not part of the active v2 logging contract.
 """
 import datetime
 
