@@ -98,4 +98,7 @@ def update_start_card(card_number: int) -> None:
     """
     settings = load_settings()
     settings["START_FROM_CARD"] = card_number
+    end_card = settings.get("END_CARD")
+    if isinstance(end_card, (int, float)) and int(end_card) < int(card_number):
+        settings["END_CARD"] = int(card_number)
     save_settings(settings)

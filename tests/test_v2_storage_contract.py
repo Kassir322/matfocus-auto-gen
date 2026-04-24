@@ -63,6 +63,26 @@ def test_apply_defaults_migrates_legacy_api_key_to_nanobanana_field():
     assert settings["API_KEY"] == settings["API_KEY_NANOBANANA"]
 
 
+def test_update_start_card_keeps_end_card_range_valid(tmp_path, monkeypatch):
+    """Auto-advance should also lift END_CARD when the range would invert."""
+    settings_path = tmp_path / "settings.json"
+    monkeypatch.setattr(settings_store, "SETTINGS_PATH", str(settings_path))
+
+    settings_store.save_settings(
+        {
+            "START_FROM_CARD": 1,
+            "END_CARD": 1,
+        }
+    )
+
+    settings_store.update_start_card(2)
+    loaded = settings_store.load_settings()
+
+    assert loaded["START_FROM_CARD"] == 2
+    assert loaded["END_CARD"] == 2
+    assert loaded["CARDS_TO_PROCESS"] == 1
+
+
 def test_load_coordinates_returns_two_separate_dicts_with_defaults(tmp_path, monkeypatch):
     """Coordinates storage should load `coordinates` and `relative_movements` separately."""
     coordinates_path = tmp_path / "coordinates.json"

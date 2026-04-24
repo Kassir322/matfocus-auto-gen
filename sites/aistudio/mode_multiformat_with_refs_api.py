@@ -233,6 +233,7 @@ def run_mode(
         write_log_line(log_file, f"[PLAN] Папка для сохранения изображений: {session_folder}")
 
         estimate_items = []
+        chatgpt_tasks_count = 0
         refs_found = 0
         refs_missing = 0
         for task in tasks:
@@ -246,6 +247,8 @@ def run_mode(
             model = api_client.get_api_model(settings, provider, with_reference=with_reference)
             quality = api_client.get_api_quality(settings, provider)
             aspect_ratio = face_ratio if task["side"] == "лицо" else back_ratio
+            if provider == api_client.PROVIDER_CHATGPT:
+                chatgpt_tasks_count += 1
             estimate_items.append(
                 {
                     "count": 1,
@@ -334,6 +337,20 @@ def run_mode(
             if stats.attempted < total_images:
                 time.sleep(API_REQUEST_DELAY)
 
+        if chatgpt_tasks_count > 0:
+            chatgpt_api_key = api_client.get_api_key(settings, api_client.PROVIDER_CHATGPT)
+            actual_cost, actual_error = api_client.fetch_openai_costs(
+                api_key=chatgpt_api_key,
+                start_time=stats.started_epoch_seconds(),
+                end_time=stats.finished_epoch_seconds(),
+            )
+            if actual_cost is not None:
+                stats.set_actual_cost(actual_cost, "Фактические расходы ChatGPT")
+                write_log_line(log_file, f"[SUMMARY] Фактические расходы ChatGPT: {actual_cost:.3f} USD")
+            else:
+                stats.set_actual_cost_error(actual_error or "billing API ещё не синхронизирован")
+                write_log_line(log_file, f"[SUMMARY] Фактические расходы ChatGPT недоступны: {actual_error}")
+
         write_log_line(
             log_file,
             f"[SUMMARY] Карточек: {len(cards_seen)}, пар: {len(pairs_seen)}, изображений: {stats.succeeded}/{total_images}",
@@ -348,4 +365,3 @@ def run_mode(
         print(f"Лог сохранён: {log_path}")
     finally:
         log_file.close()
-

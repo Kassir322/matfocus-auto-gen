@@ -6,10 +6,14 @@
 - chatgpt: OpenAI Images API (`gpt-image-2`)
 """
 import base64
+import json
 import os
 import shutil
 import tempfile
 import traceback
+import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import datetime
 from io import BytesIO
 from typing import Optional
@@ -314,6 +318,67 @@ def generate_image(
         )
     except Exception as e:
         return None, f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+
+
+def fetch_openai_costs(
+    api_key: str,
+    start_time: int,
+    end_time: int,
+    bucket_width: str = "1h",
+) -> tuple[Optional[float], Optional[str]]:
+    api_key = str(api_key or "").strip()
+    if not api_key:
+        return None, "пустой API ключ"
+    if end_time <= start_time:
+        return None, "некорректный интервал времени"
+
+    query = urllib.parse.urlencode(
+        {
+            "start_time": int(start_time),
+            "end_time": int(end_time),
+            "bucket_width": bucket_width,
+        }
+    )
+    url = f"https://api.openai.com/v1/organization/costs?{query}"
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="GET",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            body = e.read().decode("utf-8", errors="ignore")
+        except Exception:
+            body = ""
+        return None, f"HTTP {e.code}: {body or e.reason}"
+    except Exception as e:
+        return None, f"{type(e).__name__}: {e}"
+
+    total_cost = 0.0
+    found_amount = False
+    for bucket in payload.get("data", []) or []:
+        results = bucket.get("result") or bucket.get("results") or []
+        for item in results:
+            amount = item.get("amount") or {}
+            value = amount.get("value")
+            if value is None:
+                continue
+            try:
+                total_cost += float(value)
+                found_amount = True
+            except (TypeError, ValueError):
+                continue
+
+    if not found_amount:
+        return None, "в ответе Costs API нет данных по расходам"
+    return total_cost, None
 
 
 def generate_image_with_reference(

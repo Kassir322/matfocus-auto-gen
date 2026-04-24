@@ -57,6 +57,34 @@ def test_standard_api_run_mode_prints_extended_progress_and_summary(tmp_path, mo
     assert update_calls == [2]
 
 
+def test_standard_api_run_mode_prints_actual_chatgpt_cost_when_available(tmp_path, monkeypatch):
+    log_path = tmp_path / "standard_api_chatgpt.log"
+    update_calls = []
+    results = iter([True, True])
+
+    _patch_api_runtime(monkeypatch, mode_standard_api, log_path)
+    monkeypatch.setattr(mode_standard_api, "_generate_single_image_api", lambda *args, **kwargs: next(results))
+    monkeypatch.setattr(mode_standard_api.api_client, "fetch_openai_costs", lambda *args, **kwargs: (1.49, None))
+    monkeypatch.setattr("utils.settings_store.update_start_card", lambda card_number: update_calls.append(card_number))
+
+    settings = _base_settings()
+    settings["API_PROVIDER"] = "chatgpt"
+    settings["API_KEY_CHATGPT"] = "sk-test-12345678901234567890"
+    tasks = [
+        {"card_number": 1, "generation_number": 1, "prompt_text": "A"},
+        {"card_number": 1, "generation_number": 2, "prompt_text": "B"},
+    ]
+
+    output = io.StringIO()
+    with redirect_stdout(output):
+        mode_standard_api.run_mode(tasks, settings)
+
+    rendered = output.getvalue()
+    assert "Фактические расходы ChatGPT: $1.490" in rendered
+    assert "Оценка стоимости по попыткам:" in rendered
+    assert update_calls == [2]
+
+
 def test_multiformat_api_run_mode_prints_extended_progress_and_summary(tmp_path, monkeypatch):
     log_path = tmp_path / "multiformat_api.log"
     update_calls = []
@@ -114,4 +142,3 @@ def test_multiformat_with_refs_api_run_mode_prints_extended_progress_and_summary
     assert "Генерация 1/2 из 2 - " in rendered
     assert "Итоги генерации:" in rendered
     assert update_calls == [2]
-

@@ -52,7 +52,7 @@ def load_tasks_from_file(path: str) -> list[dict]:
     temp_data = defaultdict(dict)
 
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8-sig") as f:
             for line_num, line in enumerate(f, start=1):
                 line = line.strip()
                 if not line:

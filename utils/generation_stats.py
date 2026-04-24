@@ -23,6 +23,8 @@ from datetime import datetime, timedelta
 
 
 MOVING_AVERAGE_WINDOW = 5
+CHATGPT_API_BASELINE_SECONDS = 22.0
+GOOGLE_API_BASELINE_SECONDS = 10.0
 
 
 @dataclass
@@ -137,27 +139,9 @@ def estimate_baseline_seconds(
         return base
 
     if provider == "chatgpt":
-        # GPT-image-2 is listed as medium speed; help center notes image generation can
-        # take up to ~2 minutes depending on complexity. We use a conservative baseline.
-        base = 45.0
-        quality = str(settings.get("API_CHATGPT_QUALITY", "low") or "low").strip().lower()
-        if quality == "medium":
-            base = 55.0
-        elif quality == "high":
-            base = 75.0
-        return base
+        return CHATGPT_API_BASELINE_SECONDS
 
-    if "imagen-4.0-fast" in model:
-        return 20.0
-    if "imagen-4.0-ultra" in model:
-        return 45.0
-    if "imagen-4.0-generate" in model:
-        return 30.0
-    if "flash-image" in model:
-        return 35.0 if with_reference else 28.0
-    if "gemini" in model:
-        return 35.0 if with_reference else 30.0
-    return 30.0 if not with_reference else 40.0
+    return GOOGLE_API_BASELINE_SECONDS
 
 
 def estimate_api_totals(estimate_items: list[dict]) -> tuple[float | None, float | None]:
@@ -257,9 +241,18 @@ class GenerationRunStats:
         self.estimated_total_seconds = estimated_total_seconds
         self.estimated_cost_total = estimated_cost_total
         self.estimated_cost_per_image = estimated_cost_per_image
+        self.actual_cost_total: float | None = None
+        self.actual_cost_label = "Фактические расходы"
+        self.actual_cost_error: str | None = None
 
     def elapsed_seconds(self) -> float:
         return max(0.0, time.monotonic() - self.started_monotonic)
+
+    def started_epoch_seconds(self) -> int:
+        return int(self.started_wall.timestamp())
+
+    def finished_epoch_seconds(self) -> int:
+        return int(datetime.now().timestamp())
 
     def register_attempt(
         self,
@@ -318,6 +311,15 @@ class GenerationRunStats:
             f"failed={self.failed}; eta={self.eta_time()}{suffix}"
         )
 
+    def set_actual_cost(self, amount: float, label: str = "Фактические расходы") -> None:
+        self.actual_cost_total = max(0.0, float(amount))
+        self.actual_cost_label = label
+        self.actual_cost_error = None
+
+    def set_actual_cost_error(self, message: str) -> None:
+        self.actual_cost_total = None
+        self.actual_cost_error = str(message or "").strip() or "не удалось получить данные billing API"
+
     def start_summary_lines(self, context_lines: list[str] | None = None) -> list[str]:
         lines = ["Сводка перед стартом:"]
         lines.extend(context_lines or [])
@@ -351,6 +353,11 @@ class GenerationRunStats:
             f"Мин/макс: {format_duration(min_seconds)} / {format_duration(max_seconds)}",
         ]
         if self.generation_method == "api":
+            if self.actual_cost_total is not None:
+                lines.append(f"{self.actual_cost_label}: {format_money(self.actual_cost_total)}")
+            elif self.actual_cost_error:
+                lines.append(f"{self.actual_cost_label}: н/д ({self.actual_cost_error})")
+
             if self.estimated_cost_per_image is None:
                 lines.append("Оценка стоимости: н/д")
             else:
@@ -365,4 +372,3 @@ class GenerationRunStats:
         else:
             lines.append("Все запланированные изображения обработаны без неудачных генераций.")
         return lines
-
