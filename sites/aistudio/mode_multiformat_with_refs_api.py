@@ -6,7 +6,9 @@
 - с референсом: API_PROVIDER_WITH_REFS
 """
 import os
+import sys
 import time
+import traceback
 from datetime import datetime
 
 from utils import api_client
@@ -20,6 +22,29 @@ from utils.prompt_parsers import (
 
 
 API_REQUEST_DELAY = 1.0
+
+
+def _safe_print(message: str) -> None:
+    text = str(message)
+    try:
+        print(text)
+        return
+    except UnicodeEncodeError:
+        pass
+
+    stream = sys.stdout
+    encoding = getattr(stream, "encoding", None) or "utf-8"
+    buffer = getattr(stream, "buffer", None)
+    encoded = text.encode(encoding, errors="replace") + b"\n"
+
+    if buffer is not None:
+        buffer.write(encoded)
+        buffer.flush()
+        return
+
+    fallback_text = encoded.decode(encoding, errors="replace")
+    stream.write(fallback_text)
+    stream.flush()
 
 
 def safe_filename(name: str) -> str:
@@ -168,7 +193,7 @@ def run_mode(
     tasks = filter_tasks_by_range(tasks, start_card, end_card)
     actual_end = end_card if end_card is not None else (max(t["card_number"] for t in tasks) if tasks else start_card)
     if not tasks:
-        print("Нет задач в выбранном диапазоне карточек.")
+        _safe_print("Нет задач в выбранном диапазоне карточек.")
         return
 
     providers = {
@@ -181,21 +206,21 @@ def run_mode(
         provider_name = api_client.get_provider_display_name(provider)
         api_key = api_client.get_api_key(settings, provider)
         if not api_key:
-            print(f"Ошибка: не задан API ключ для провайдера {provider_name}.")
+            _safe_print(f"Ошибка: не задан API ключ для провайдера {provider_name}.")
             return
 
         key_valid, key_error = api_client.check_api_key_format(api_key, provider=provider)
         if not key_valid:
-            print(f"Ошибка: {provider_name}: {key_error}")
+            _safe_print(f"Ошибка: {provider_name}: {key_error}")
             return
 
         try:
             clients[provider] = api_client.init_client(api_key, provider=provider)
         except ImportError as e:
-            print(f"Ошибка: {e}")
+            _safe_print(f"Ошибка: {e}")
             return
         except Exception as e:
-            print(f"Ошибка инициализации API клиента {provider_name}: {e}")
+            _safe_print(f"Ошибка инициализации API клиента {provider_name}: {e}")
             return
 
     log_path = _get_log_filepath()
@@ -289,11 +314,11 @@ def run_mode(
             ]
         )
         for line in start_lines:
-            print(line)
             write_log_line(log_file, f"[PLAN] {line}")
+            _safe_print(line)
 
-        print(f"Изображения будут сохранены в: {session_folder}")
-        print("Генерация через API запущена. Esc — остановка.")
+        _safe_print(f"Изображения будут сохранены в: {session_folder}")
+        _safe_print("Генерация через API запущена. Esc — остановка.")
 
         total_images = len(tasks)
         cards_seen = set()
@@ -305,37 +330,50 @@ def run_mode(
             card_number = task["card_number"]
             pair_number = task["pair_number"]
             pair_key = (card_number, pair_number)
-
-            if card_number != last_card:
-                if last_card is not None:
-                    time.sleep(0.5)
-                write_log_line(log_file, f"[CARD] Карточка {card_number}")
-                cards_seen.add(card_number)
-                last_card = card_number
-
-            if pair_key != last_pair:
-                write_log_line(log_file, f"[PAIR] Пара {pair_number}")
-                pairs_seen.add(pair_key)
-                last_pair = pair_key
-
-            attempt_started = time.monotonic()
-            result = _generate_single_image_api(task, clients, settings, log_file)
-            duration_seconds = time.monotonic() - attempt_started
-            ok, reason = generation_stats.normalize_attempt_result(task, result)
             label = _make_task_label(task, bool(task.get("_with_reference", False)))
-            stats.register_attempt(label, ok, duration_seconds, reason)
 
-            print(stats.progress_line(duration_seconds))
-            write_log_line(log_file, stats.progress_log_line(label, duration_seconds, ok, reason))
+            try:
+                if card_number != last_card:
+                    if last_card is not None:
+                        time.sleep(0.5)
+                    write_log_line(log_file, f"[CARD] Карточка {card_number}")
+                    cards_seen.add(card_number)
+                    last_card = card_number
 
-            is_last_prompt_for_card = (idx == len(tasks) - 1) or (tasks[idx + 1]["card_number"] != card_number)
-            if is_last_prompt_for_card:
-                from utils.settings_store import update_start_card
+                if pair_key != last_pair:
+                    write_log_line(log_file, f"[PAIR] Пара {pair_number}")
+                    pairs_seen.add(pair_key)
+                    last_pair = pair_key
 
-                update_start_card(card_number + 1)
+                attempt_started = time.monotonic()
+                result = _generate_single_image_api(task, clients, settings, log_file)
+                duration_seconds = time.monotonic() - attempt_started
+                ok, reason = generation_stats.normalize_attempt_result(task, result)
+                label = _make_task_label(task, bool(task.get("_with_reference", False)))
+                stats.register_attempt(label, ok, duration_seconds, reason)
 
-            if stats.attempted < total_images:
-                time.sleep(API_REQUEST_DELAY)
+                _safe_print(stats.progress_line(duration_seconds))
+                write_log_line(log_file, stats.progress_log_line(label, duration_seconds, ok, reason))
+
+                is_last_prompt_for_card = (idx == len(tasks) - 1) or (tasks[idx + 1]["card_number"] != card_number)
+                if is_last_prompt_for_card:
+                    from utils.settings_store import update_start_card
+
+                    update_start_card(card_number + 1)
+
+                if stats.attempted < total_images:
+                    time.sleep(API_REQUEST_DELAY)
+            except Exception as e:
+                duration_seconds = 0.0
+                reason = f"unexpected runtime error: {e}"
+                stats.register_attempt(label, False, duration_seconds, reason)
+                write_log_line(log_file, f"[ERROR] Неожиданная ошибка runtime для {label}: {e}")
+                for line in traceback.format_exc().splitlines():
+                    if line.strip():
+                        write_log_line(log_file, f"[ERROR]   {line}")
+                _safe_print(stats.progress_line(duration_seconds))
+                write_log_line(log_file, stats.progress_log_line(label, duration_seconds, False, reason))
+                continue
 
         if chatgpt_tasks_count > 0:
             chatgpt_api_key = api_client.get_api_key(settings, api_client.PROVIDER_CHATGPT)
@@ -356,12 +394,18 @@ def run_mode(
             f"[SUMMARY] Карточек: {len(cards_seen)}, пар: {len(pairs_seen)}, изображений: {stats.succeeded}/{total_images}",
         )
         for line in stats.summary_lines():
-            print(line)
+            _safe_print(line)
             if line.startswith("- "):
                 write_log_line(log_file, f"[FAILED] {line[2:]}")
             else:
                 write_log_line(log_file, f"[SUMMARY] {line}")
-        print(f"Готово. Обработано карточек: {len(cards_seen)}, пар: {len(pairs_seen)}, изображений: {stats.succeeded}/{total_images}")
-        print(f"Лог сохранён: {log_path}")
+        _safe_print(f"Готово. Обработано карточек: {len(cards_seen)}, пар: {len(pairs_seen)}, изображений: {stats.succeeded}/{total_images}")
+        _safe_print(f"Лог сохранён: {log_path}")
+    except Exception as e:
+        write_log_line(log_file, f"[ERROR] Неожиданная ошибка верхнего уровня: {e}")
+        for line in traceback.format_exc().splitlines():
+            if line.strip():
+                write_log_line(log_file, f"[ERROR]   {line}")
+        _safe_print(f"Ошибка генерации: {e}")
     finally:
         log_file.close()

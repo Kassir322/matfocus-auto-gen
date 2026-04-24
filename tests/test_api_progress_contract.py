@@ -142,3 +142,90 @@ def test_multiformat_with_refs_api_run_mode_prints_extended_progress_and_summary
     assert "Генерация 1/2 из 2 - " in rendered
     assert "Итоги генерации:" in rendered
     assert update_calls == [2]
+
+
+def test_multiformat_with_refs_api_runtime_error_after_success_does_not_abort_loop(tmp_path, monkeypatch):
+    log_path = tmp_path / "multiformat_with_refs_runtime_error.log"
+    update_calls = []
+    results = iter([True, True])
+
+    _patch_api_runtime(monkeypatch, mode_multiformat_with_refs_api, log_path)
+    monkeypatch.setattr(
+        mode_multiformat_with_refs_api,
+        "_generate_single_image_api",
+        lambda *args, **kwargs: next(results),
+    )
+    monkeypatch.setattr(mode_multiformat_with_refs_api, "get_reference_path", lambda *args, **kwargs: None)
+    monkeypatch.setattr("utils.settings_store.update_start_card", lambda card_number: update_calls.append(card_number))
+
+    original_progress_line = mode_multiformat_with_refs_api.generation_stats.GenerationRunStats.progress_line
+    calls = {"count": 0}
+
+    def flaky_progress_line(self, duration_seconds):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise RuntimeError("boom after success")
+        return original_progress_line(self, duration_seconds)
+
+    monkeypatch.setattr(
+        mode_multiformat_with_refs_api.generation_stats.GenerationRunStats,
+        "progress_line",
+        flaky_progress_line,
+    )
+
+    tasks = [
+        {"card_number": 1, "card_name": "Нефть", "pair_number": 1, "side": "лицо", "prompt_text": "A"},
+        {"card_number": 1, "card_name": "Нефть", "pair_number": 1, "side": "оборот", "prompt_text": "B"},
+    ]
+
+    output = io.StringIO()
+    with redirect_stdout(output):
+        mode_multiformat_with_refs_api.run_mode(tasks, _base_settings())
+
+    rendered = output.getvalue()
+    assert "Генерация 1/2 из 2 - " in rendered or "Генерация 2/2 из 2 - " in rendered
+    assert "Итоги генерации:" in rendered
+    assert update_calls == [2]
+
+
+def test_multiformat_with_refs_api_start_summary_print_error_does_not_abort_run(tmp_path, monkeypatch):
+    log_path = tmp_path / "multiformat_with_refs_start_summary_error.log"
+    update_calls = []
+    results = iter([True, True])
+
+    _patch_api_runtime(monkeypatch, mode_multiformat_with_refs_api, log_path)
+    monkeypatch.setattr(
+        mode_multiformat_with_refs_api,
+        "_generate_single_image_api",
+        lambda *args, **kwargs: next(results),
+    )
+    monkeypatch.setattr(mode_multiformat_with_refs_api, "get_reference_path", lambda *args, **kwargs: None)
+    monkeypatch.setattr("utils.settings_store.update_start_card", lambda card_number: update_calls.append(card_number))
+
+    import builtins
+
+    original_print = builtins.print
+    calls = {"count": 0}
+
+    def flaky_print(*args, **kwargs):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise UnicodeEncodeError("cp1251", "Сводка", 0, 1, "boom")
+        return original_print(*args, **kwargs)
+
+    monkeypatch.setattr("builtins.print", flaky_print)
+
+    tasks = [
+        {"card_number": 1, "card_name": "Нефть", "pair_number": 1, "side": "лицо", "prompt_text": "A"},
+        {"card_number": 1, "card_name": "Нефть", "pair_number": 1, "side": "оборот", "prompt_text": "B"},
+    ]
+
+    output = io.StringIO()
+    with redirect_stdout(output):
+        mode_multiformat_with_refs_api.run_mode(tasks, _base_settings())
+
+    rendered = output.getvalue()
+    assert "Сводка перед стартом:" in rendered
+    assert "Генерация 1/1 из 2 - " in rendered
+    assert "Итоги генерации:" in rendered
+    assert update_calls == [2]
