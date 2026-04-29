@@ -8,6 +8,7 @@ def test_chatgpt_cost_estimate_changes_by_quality():
     medium = generation_stats.estimate_api_cost_per_image("chatgpt", "gpt-image-2", quality="medium", aspect_ratio="1:1")
     high = generation_stats.estimate_api_cost_per_image("chatgpt", "gpt-image-2", quality="high", aspect_ratio="1:1")
 
+    assert low == 0.0038
     assert low < medium < high
 
 
@@ -78,3 +79,21 @@ def test_generation_run_stats_summary_prefers_actual_cost_when_available():
     rendered = "\n".join(stats.summary_lines())
     assert "Фактические расходы ChatGPT: $0.149" in rendered
     assert "Оценка стоимости по попыткам: $0.200" in rendered
+
+
+def test_generation_run_stats_hides_actual_cost_error_from_summary():
+    stats = generation_stats.GenerationRunStats(
+        planned_total=2,
+        generation_method="api",
+        mode_name="standard",
+        estimated_total_seconds=60.0,
+        estimated_cost_total=0.0076,
+        estimated_cost_per_image=0.0038,
+    )
+    stats.register_attempt("card 1", True, 20.0)
+    stats.register_attempt("card 2", True, 25.0)
+    stats.set_actual_cost_error("HTTP 403: missing scope")
+
+    rendered = "\n".join(stats.summary_lines())
+    assert "Фактические расходы" not in rendered
+    assert "Оценка стоимости по попыткам: $0.0076" in rendered

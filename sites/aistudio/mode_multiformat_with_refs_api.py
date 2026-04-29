@@ -387,7 +387,6 @@ def run_mode(
                 write_log_line(log_file, f"[SUMMARY] Фактические расходы ChatGPT: {actual_cost:.3f} USD")
             else:
                 stats.set_actual_cost_error(actual_error or "billing API ещё не синхронизирован")
-                write_log_line(log_file, f"[SUMMARY] Фактические расходы ChatGPT недоступны: {actual_error}")
 
         write_log_line(
             log_file,

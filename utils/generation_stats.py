@@ -45,6 +45,8 @@ def format_duration(seconds: float) -> str:
 def format_money(amount: float | None) -> str:
     if amount is None:
         return "н/д"
+    if abs(float(amount)) < 0.01:
+        return f"${amount:.4f}"
     return f"${amount:.3f}"
 
 
@@ -85,11 +87,13 @@ def estimate_api_cost_per_image(
     quality = str(quality or "").strip().lower()
 
     if provider == "chatgpt":
+        # Runtime baseline calibrated from фактический расход в рабочем сценарии:
+        # 321 изображение ~= 1.23 USD, то есть около 0.0038 USD за low image.
+        # Для текущего продукта держим low как фиксированную среднюю стоимость
+        # независимо от aspect ratio. Более дорогие качества остаются отдельными.
         bucket = _aspect_bucket(aspect_ratio)
-        # Baseline from official OpenAI image model pricing pages, checked 2026-04-23.
-        # We treat these as estimate tables for gpt-image-2 class pricing in this runtime.
         cost_table = {
-            "low": {"square": 0.009, "landscape": 0.013, "portrait": 0.013},
+            "low": {"square": 0.0038, "landscape": 0.0038, "portrait": 0.0038},
             "medium": {"square": 0.034, "landscape": 0.050, "portrait": 0.050},
             "high": {"square": 0.133, "landscape": 0.200, "portrait": 0.200},
         }
@@ -355,8 +359,6 @@ class GenerationRunStats:
         if self.generation_method == "api":
             if self.actual_cost_total is not None:
                 lines.append(f"{self.actual_cost_label}: {format_money(self.actual_cost_total)}")
-            elif self.actual_cost_error:
-                lines.append(f"{self.actual_cost_label}: н/д ({self.actual_cost_error})")
 
             if self.estimated_cost_per_image is None:
                 lines.append("Оценка стоимости: н/д")
