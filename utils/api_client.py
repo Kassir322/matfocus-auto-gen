@@ -281,6 +281,45 @@ def _generate_image_chatgpt(
         return None, f"Ошибка декодирования b64_json: {e}"
 
 
+def _generate_image_chatgpt_with_reference(
+    client,
+    prompt: str,
+    reference_image_path: str,
+    model: str,
+    aspect_ratio: str,
+    quality: str,
+    timeout: float,
+) -> tuple[Optional[bytes], Optional[str]]:
+    request_client = client.with_options(timeout=timeout) if hasattr(client, "with_options") else client
+    with open(reference_image_path, "rb") as image_file:
+        response = request_client.images.edit(
+            model=model,
+            image=image_file,
+            prompt=build_prompt(prompt, PROVIDER_CHATGPT, aspect_ratio),
+            n=1,
+            size="auto",
+            quality=quality or "low",
+        )
+
+    if not response:
+        return None, "API вернул пустой response объект"
+    data = getattr(response, "data", None)
+    if not data:
+        return None, f"API response не содержит data. Response: {response}"
+
+    image_item = data[0]
+    b64_json = getattr(image_item, "b64_json", None)
+    if b64_json is None and isinstance(image_item, dict):
+        b64_json = image_item.get("b64_json")
+    if not b64_json:
+        return None, f"API response не содержит b64_json. Response: {response}"
+
+    try:
+        return base64.b64decode(b64_json), None
+    except Exception as e:
+        return None, f"Ошибка декодирования b64_json: {e}"
+
+
 def generate_image(
     client,
     prompt: str,
@@ -396,20 +435,29 @@ def generate_image_with_reference(
         return None, "Пустой промпт"
 
     provider = normalize_provider(provider)
+
+    if not reference_image_path or not os.path.exists(reference_image_path):
+        return None, f"Референсное изображение не найдено: {reference_image_path}"
+
     if provider == PROVIDER_CHATGPT:
-        return None, (
-            "ChatGPT API для генерации с референсами в этом режиме пока не поддержан. "
-            "Для задач с референсами используйте nanobanana."
-        )
+        try:
+            return _generate_image_chatgpt_with_reference(
+                client=client,
+                prompt=prompt,
+                reference_image_path=reference_image_path,
+                model=model,
+                aspect_ratio=aspect_ratio,
+                quality=quality,
+                timeout=timeout,
+            )
+        except Exception as e:
+            return None, f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
 
     if not GENAI_AVAILABLE:
         return None, "Библиотека google-genai не доступна"
 
     if model.startswith("imagen-4"):
         return None, "Модель Imagen 4 не поддерживает референсные изображения. Используйте Gemini."
-
-    if not reference_image_path or not os.path.exists(reference_image_path):
-        return None, f"Референсное изображение не найдено: {reference_image_path}"
 
     try:
         tmp_path = None

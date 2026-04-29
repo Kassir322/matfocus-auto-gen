@@ -118,3 +118,40 @@ def test_select_prompts_file_persists_choice_from_data_directory(monkeypatch):
 
     assert settings["PROMPTS_FILE"].endswith("data\\newer.txt")
     assert saved[-1]["PROMPTS_FILE"].endswith("data\\newer.txt")
+
+
+def test_start_generation_from_menu_uses_api_worker_and_waits(monkeypatch):
+    """When GENERATION_METHOD=api, --menu should not start the browser worker or keep reading stdin."""
+    settings = {
+        "CURRENT_SITE": "aistudio",
+        "CURRENT_MODE": "standard",
+        "GENERATION_METHOD": "api",
+        "PROMPTS_FILE": "data/prompts.txt",
+        "START_FROM_CARD": 1,
+        "END_CARD": 1,
+    }
+    started = []
+    waited = []
+    fake_process = object()
+
+    def fake_start_worker(worker, args, worker_type=None):
+        started.append((worker, args, worker_type))
+        return fake_process
+
+    monkeypatch.setattr("utils.generation_runner.can_start_generation_api", lambda current_settings: (True, None))
+    monkeypatch.setattr("utils.generation_runner.run_standard_worker_api", "api-worker")
+    monkeypatch.setattr("utils.process_control.start_worker", fake_start_worker)
+    monkeypatch.setattr("utils.process_control.wait_worker", lambda process: waited.append(process))
+    monkeypatch.setattr(
+        "sites.aistudio.mode_standard.load_tasks_from_file",
+        lambda path: [{"card_number": 1, "generation_number": 1, "prompt_text": "A"}],
+    )
+    monkeypatch.setattr(
+        "sites.aistudio.mode_standard.get_plan_info",
+        lambda tasks: {"cards_count": 1, "generations_count": 1, "images_planned": 1},
+    )
+
+    console_menu.start_generation_with_process(settings, {}, {})
+
+    assert started == [("api-worker", (settings,), "api")]
+    assert waited == [fake_process]

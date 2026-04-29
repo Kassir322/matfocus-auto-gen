@@ -610,3 +610,10 @@
 - В `utils/api_client.py` добавлена маршрутизация по провайдерам и поддержка `gpt-image-2` через OpenAI Images API.
 - Для `chatgpt` aspect ratio в API-режиме формируется автоматически как префикс `ar - X:Y. ` в начале prompt.
 - В `multiformat_with_refs` задачи с референсом продолжают идти через `nanobanana`, а без референса могут идти через выбранный провайдер.
+
+## Update 2026-04-25
+
+- В `utils/api_client.py` добавлена поддержка ChatGPT API для задач с референсами через OpenAI Images Edit API (`images.edit`).
+- В `multiformat_with_refs` задачи с найденным референсом теперь могут идти через `API_PROVIDER_WITH_REFS=chatgpt`, а задачи без референса продолжают использовать `API_PROVIDER`.
+- Удалено устаревшее предупреждение CLI-меню о неподдержанном ChatGPT runtime для референсов.
+- CLI-меню при `GENERATION_METHOD=api` теперь запускает API-воркер, ждёт завершения воркера и не читает stdin параллельно с генерацией; на Windows при старте отключается QuickEdit mode, чтобы случайное выделение консоли не замораживало вывод до Enter.

@@ -63,6 +63,23 @@ def stop_worker(process=None):
         _current_worker_type = None
 
 
+def wait_worker(process=None):
+    """
+    Дождаться завершения воркера и очистить текущий tracked process.
+    Используется CLI-меню, чтобы не читать stdin параллельно с генерацией.
+    """
+    global _current_worker, _current_worker_type
+
+    proc = process if process is not None else _current_worker
+    if proc is None:
+        return
+
+    proc.join()
+    if _current_worker is proc:
+        _current_worker = None
+        _current_worker_type = None
+
+
 def get_current_worker():
     """Возвращает текущий воркер-процесс или None."""
     return _current_worker

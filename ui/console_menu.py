@@ -6,6 +6,7 @@ import builtins
 import os
 
 from utils import api_client
+from utils.console_control import disable_quick_edit_mode
 
 
 DATA_DIR = "data"
@@ -260,8 +261,6 @@ def configure_api_provider(settings: dict, with_refs: bool = False) -> None:
         return
     settings[key] = selected
     _save(settings)
-    if with_refs and selected == api_client.PROVIDER_CHATGPT:
-        print("Внимание: генерация с референсами через chatgpt сейчас не поддержана runtime-слоем.")
     print(f"{key} сохранён: {selected}")
 
 
@@ -509,14 +508,26 @@ def start_generation_with_process(
         return
 
     from utils import process_control
-    from utils.generation_runner import (
-        can_start_generation,
-        run_multiformat_with_refs_worker,
-        run_multiformat_worker,
-        run_standard_worker,
-    )
 
-    ok, err = can_start_generation(settings)
+    generation_method = settings.get("GENERATION_METHOD", "browser")
+    if generation_method == "api":
+        from utils.generation_runner import (
+            can_start_generation_api,
+            run_multiformat_with_refs_worker_api,
+            run_multiformat_worker_api,
+            run_standard_worker_api,
+        )
+
+        ok, err = can_start_generation_api(settings)
+    else:
+        from utils.generation_runner import (
+            can_start_generation,
+            run_multiformat_with_refs_worker,
+            run_multiformat_worker,
+            run_standard_worker,
+        )
+
+        ok, err = can_start_generation(settings)
     if not ok:
         print(err)
         return
@@ -540,7 +551,7 @@ def start_generation_with_process(
             f"промптов: {info['generations_count']}, "
             f"изображений: {info['images_planned']}"
         )
-        worker = run_standard_worker
+        worker = run_standard_worker_api if generation_method == "api" else run_standard_worker
     elif mode == "multiformat":
         from sites.aistudio import mode_multiformat as mode_module
 
@@ -554,7 +565,7 @@ def start_generation_with_process(
             f"пар: {info['pairs_count']}, "
             f"изображений: {info['images_planned']}"
         )
-        worker = run_multiformat_worker
+        worker = run_multiformat_worker_api if generation_method == "api" else run_multiformat_worker
     else:
         from sites.aistudio import mode_multiformat_with_refs as mode_module
 
@@ -568,17 +579,23 @@ def start_generation_with_process(
             f"пар: {info['pairs_count']}, "
             f"изображений: {info['images_planned']}"
         )
-        worker = run_multiformat_with_refs_worker
+        worker = run_multiformat_with_refs_worker_api if generation_method == "api" else run_multiformat_with_refs_worker
 
-    process_control.start_worker(
-        worker,
-        (settings, coordinates, relative_movements),
-        worker_type="browser",
-    )
-    print(
-        "Генерация запущена в подпроцессе. Для остановки по Esc запускайте "
-        "программу без --menu."
-    )
+    if generation_method == "api":
+        worker_args = (settings,)
+        worker_type = "api"
+    else:
+        worker_args = (settings, coordinates, relative_movements)
+        worker_type = "browser"
+
+    process = process_control.start_worker(worker, worker_args, worker_type=worker_type)
+    if process is None:
+        return
+
+    print("Генерация запущена. Меню продолжит работу после завершения воркера.")
+    print("Для остановки по Esc запускайте программу без --menu.")
+    process_control.wait_worker(process)
+    print("Воркер завершён.")
 
 
 def show_generation_menu(settings: dict, coordinates: dict, relative_movements: dict) -> None:
@@ -726,6 +743,8 @@ def show_main_menu(
 ) -> None:
     from utils import process_control
     from utils import settings_store
+
+    disable_quick_edit_mode()
 
     while True:
         _show_section_header("CLI-меню настроек v2")

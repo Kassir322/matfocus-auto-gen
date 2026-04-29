@@ -228,3 +228,18 @@ def test_process_control_stop_clears_current_worker_and_type(monkeypatch):
     assert worker.terminate_called is True
     assert process_control.get_current_worker() is None
     assert process_control.get_current_worker_type() is None
+
+
+def test_process_control_wait_clears_current_worker_and_type(monkeypatch):
+    """wait_worker should join a completed menu worker and clear tracked state."""
+    monkeypatch.setattr(process_control, "Process", _FakeProcess)
+    monkeypatch.setattr(process_control, "_current_worker", None)
+    monkeypatch.setattr(process_control, "_current_worker_type", None)
+
+    worker = process_control.start_worker(lambda: None, worker_type="api")
+
+    process_control.wait_worker(worker)
+
+    assert worker.join_calls == [None]
+    assert process_control.get_current_worker() is None
+    assert process_control.get_current_worker_type() is None
