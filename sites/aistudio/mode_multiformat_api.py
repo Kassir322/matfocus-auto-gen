@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 
 from utils import api_client
+from utils import chatgpt_parallel
 from utils import generation_stats
 from utils.log_writer import write_log_line
 from utils.prompt_parsers import (
@@ -16,6 +17,25 @@ from utils.prompt_parsers import (
 
 
 API_REQUEST_DELAY = 1.0
+
+
+def _make_card_completion_tracker(tasks: list[dict]):
+    from utils.settings_store import update_start_card
+
+    remaining_by_card = {}
+    for task in tasks:
+        card_number = int(task["card_number"])
+        remaining_by_card[card_number] = remaining_by_card.get(card_number, 0) + 1
+
+    def mark_task_done(task: dict) -> None:
+        card_number = int(task["card_number"])
+        if card_number not in remaining_by_card:
+            return
+        remaining_by_card[card_number] -= 1
+        if remaining_by_card[card_number] == 0:
+            update_start_card(card_number + 1)
+
+    return mark_task_done
 
 
 def load_tasks_from_file(path: str) -> list[dict]:
@@ -193,6 +213,23 @@ def run_mode(
                 f"Aspect ratio: лицо={face_ratio}, оборот={back_ratio}",
                 f"Диапазон карточек: {start_card}–{actual_end}",
                 f"Файл промптов: {prompts_file or 'не указан'}",
+                (
+                    f"Параллельных воркеров: {chatgpt_parallel.get_parallel_config(settings)['max_workers']}"
+                    if chatgpt_parallel.is_parallel_enabled(settings, provider)
+                    else "Параллельных воркеров: 1"
+                ),
+                (
+                    "Лимит запусков: "
+                    f"{chatgpt_parallel.get_parallel_config(settings)['rate_limit_ipm']} за "
+                    f"{chatgpt_parallel.get_parallel_config(settings)['window_seconds']} сек"
+                    if chatgpt_parallel.is_parallel_enabled(settings, provider)
+                    else "Лимит запусков: последовательный режим"
+                ),
+                (
+                    "Алгоритм: скользящее окно"
+                    if chatgpt_parallel.is_parallel_enabled(settings, provider)
+                    else "Алгоритм: последовательный запуск"
+                ),
             ]
         )
         for line in start_lines:
@@ -203,46 +240,53 @@ def run_mode(
         print("Генерация через API запущена. Esc — остановка.")
 
         total_images = len(tasks)
-        cards_seen = set()
-        pairs_seen = set()
-        last_card = None
-        last_pair = None
+        cards_seen = {task["card_number"] for task in tasks}
+        pairs_seen = {(task["card_number"], task["pair_number"]) for task in tasks}
+        card_tracker = _make_card_completion_tracker(tasks)
 
-        for idx, task in enumerate(tasks):
-            card_number = task["card_number"]
-            pair_number = task["pair_number"]
-            pair_key = (card_number, pair_number)
+        if chatgpt_parallel.is_parallel_enabled(settings, provider):
+            chatgpt_parallel.run_parallel_chatgpt_tasks(
+                tasks=tasks,
+                settings=settings,
+                stats=stats,
+                log_file=log_file,
+                execute_task=lambda task, worker_id: _generate_single_image_api(task, client, settings, log_file),
+                normalize_result=generation_stats.normalize_attempt_result,
+                label_for_task=_make_task_label,
+                on_task_completed=lambda task, ok, reason: card_tracker(task),
+                print_fn=print,
+            )
+        else:
+            last_card = None
+            last_pair = None
+            for task in tasks:
+                card_number = task["card_number"]
+                pair_number = task["pair_number"]
+                pair_key = (card_number, pair_number)
 
-            if card_number != last_card:
-                if last_card is not None:
-                    time.sleep(0.5)
-                write_log_line(log_file, f"[CARD] Карточка {card_number}")
-                cards_seen.add(card_number)
-                last_card = card_number
+                if card_number != last_card:
+                    if last_card is not None:
+                        time.sleep(0.5)
+                    write_log_line(log_file, f"[CARD] Карточка {card_number}")
+                    last_card = card_number
 
-            if pair_key != last_pair:
-                write_log_line(log_file, f"[PAIR] Пара {pair_number}")
-                pairs_seen.add(pair_key)
-                last_pair = pair_key
+                if pair_key != last_pair:
+                    write_log_line(log_file, f"[PAIR] Пара {pair_number}")
+                    last_pair = pair_key
 
-            label = _make_task_label(task)
-            attempt_started = time.monotonic()
-            result = _generate_single_image_api(task, client, settings, log_file)
-            duration_seconds = time.monotonic() - attempt_started
-            ok, reason = generation_stats.normalize_attempt_result(task, result)
-            stats.register_attempt(label, ok, duration_seconds, reason)
+                label = _make_task_label(task)
+                attempt_started = time.monotonic()
+                result = _generate_single_image_api(task, client, settings, log_file)
+                duration_seconds = time.monotonic() - attempt_started
+                ok, reason = generation_stats.normalize_attempt_result(task, result)
+                stats.register_attempt(label, ok, duration_seconds, reason)
 
-            print(stats.progress_line(duration_seconds))
-            write_log_line(log_file, stats.progress_log_line(label, duration_seconds, ok, reason))
+                print(stats.progress_line(duration_seconds))
+                write_log_line(log_file, stats.progress_log_line(label, duration_seconds, ok, reason))
+                card_tracker(task)
 
-            is_last_prompt_for_card = (idx == len(tasks) - 1) or (tasks[idx + 1]["card_number"] != card_number)
-            if is_last_prompt_for_card:
-                from utils.settings_store import update_start_card
-
-                update_start_card(card_number + 1)
-
-            if stats.attempted < total_images:
-                time.sleep(API_REQUEST_DELAY)
+                if stats.attempted < total_images:
+                    time.sleep(API_REQUEST_DELAY)
 
         if provider == api_client.PROVIDER_CHATGPT:
             actual_cost, actual_error = api_client.fetch_openai_costs(

@@ -12,6 +12,7 @@ import traceback
 from datetime import datetime
 
 from utils import api_client
+from utils import chatgpt_parallel
 from utils import generation_stats
 from utils.log_writer import write_log_line
 from utils.prompt_parsers import (
@@ -52,6 +53,41 @@ def safe_filename(name: str) -> str:
     for char in [":", "*", "?", '"', "<", ">", "|"]:
         safe = safe.replace(char, "")
     return safe
+
+
+def _make_card_completion_tracker(tasks: list[dict]):
+    from utils.settings_store import update_start_card
+
+    remaining_by_card = {}
+    for task in tasks:
+        card_number = int(task["card_number"])
+        remaining_by_card[card_number] = remaining_by_card.get(card_number, 0) + 1
+
+    def mark_task_done(task: dict) -> None:
+        card_number = int(task["card_number"])
+        if card_number not in remaining_by_card:
+            return
+        remaining_by_card[card_number] -= 1
+        if remaining_by_card[card_number] == 0:
+            update_start_card(card_number + 1)
+
+    return mark_task_done
+
+
+def _prepare_task_provider_metadata(tasks: list[dict], settings: dict) -> tuple[list[dict], list[dict]]:
+    chatgpt_tasks = []
+    other_tasks = []
+    for task in tasks:
+        ref_path = get_reference_path(task["side"], task["card_number"], task["card_name"])
+        with_reference = ref_path is not None
+        task["_with_reference"] = with_reference
+        provider = api_client.get_api_provider(settings, with_reference=with_reference)
+        task["_planned_provider"] = provider
+        if provider == api_client.PROVIDER_CHATGPT:
+            chatgpt_tasks.append(task)
+        else:
+            other_tasks.append(task)
+    return chatgpt_tasks, other_tasks
 
 
 def get_reference_path(side: str, card_number: int, card_name: str):
@@ -108,7 +144,7 @@ def _generate_single_image_api(task: dict, clients: dict, settings: dict, log_fi
         return False
 
     ref_path = get_reference_path(side, card_number, card_name)
-    with_reference = ref_path is not None
+    with_reference = bool(task.get("_with_reference", ref_path is not None))
     task["_with_reference"] = with_reference
     provider = api_client.get_api_provider(settings, with_reference=with_reference)
     provider_name = api_client.get_provider_display_name(provider)
@@ -257,18 +293,18 @@ def run_mode(
         write_log_line(log_file, f"[PLAN] Aspect ratio: лицо={face_ratio}, оборот={back_ratio}")
         write_log_line(log_file, f"[PLAN] Папка для сохранения изображений: {session_folder}")
 
+        chatgpt_tasks, non_chatgpt_tasks = _prepare_task_provider_metadata(tasks, settings)
         estimate_items = []
         chatgpt_tasks_count = 0
         refs_found = 0
         refs_missing = 0
         for task in tasks:
-            ref_path = get_reference_path(task["side"], task["card_number"], task["card_name"])
-            with_reference = ref_path is not None
+            with_reference = bool(task.get("_with_reference", False))
             if with_reference:
                 refs_found += 1
             else:
                 refs_missing += 1
-            provider = api_client.get_api_provider(settings, with_reference=with_reference)
+            provider = task.get("_planned_provider") or api_client.get_api_provider(settings, with_reference=with_reference)
             model = api_client.get_api_model(settings, provider, with_reference=with_reference)
             quality = api_client.get_api_quality(settings, provider)
             aspect_ratio = face_ratio if task["side"] == "лицо" else back_ratio
@@ -311,6 +347,23 @@ def run_mode(
                 f"Диапазон карточек: {start_card}–{actual_end}",
                 f"Файл промптов: {prompts_file or 'не указан'}",
                 f"Референсы найдены: {refs_found}, без референсов: {refs_missing}",
+                (
+                    f"Параллельных воркеров: {chatgpt_parallel.get_parallel_config(settings)['max_workers']}"
+                    if chatgpt_tasks_count > 0 and bool(settings.get("API_CHATGPT_PARALLEL_ENABLED", True))
+                    else "Параллельных воркеров: 1"
+                ),
+                (
+                    "Лимит запусков: "
+                    f"{chatgpt_parallel.get_parallel_config(settings)['rate_limit_ipm']} за "
+                    f"{chatgpt_parallel.get_parallel_config(settings)['window_seconds']} сек"
+                    if chatgpt_tasks_count > 0 and bool(settings.get("API_CHATGPT_PARALLEL_ENABLED", True))
+                    else "Лимит запусков: последовательный режим"
+                ),
+                (
+                    "Алгоритм: скользящее окно"
+                    if chatgpt_tasks_count > 0 and bool(settings.get("API_CHATGPT_PARALLEL_ENABLED", True))
+                    else "Алгоритм: последовательный запуск"
+                ),
             ]
         )
         for line in start_lines:
@@ -321,59 +374,71 @@ def run_mode(
         _safe_print("Генерация через API запущена. Esc — остановка.")
 
         total_images = len(tasks)
-        cards_seen = set()
-        pairs_seen = set()
-        last_card = None
-        last_pair = None
+        cards_seen = {task["card_number"] for task in tasks}
+        pairs_seen = {(task["card_number"], task["pair_number"]) for task in tasks}
+        card_tracker = _make_card_completion_tracker(tasks)
 
-        for idx, task in enumerate(tasks):
-            card_number = task["card_number"]
-            pair_number = task["pair_number"]
-            pair_key = (card_number, pair_number)
-            label = _make_task_label(task, bool(task.get("_with_reference", False)))
-
-            try:
-                if card_number != last_card:
-                    if last_card is not None:
-                        time.sleep(0.5)
-                    write_log_line(log_file, f"[CARD] Карточка {card_number}")
-                    cards_seen.add(card_number)
-                    last_card = card_number
-
-                if pair_key != last_pair:
-                    write_log_line(log_file, f"[PAIR] Пара {pair_number}")
-                    pairs_seen.add(pair_key)
-                    last_pair = pair_key
-
-                attempt_started = time.monotonic()
-                result = _generate_single_image_api(task, clients, settings, log_file)
-                duration_seconds = time.monotonic() - attempt_started
-                ok, reason = generation_stats.normalize_attempt_result(task, result)
+        def run_sequential(task_list: list[dict]) -> None:
+            last_card = None
+            last_pair = None
+            for task in task_list:
+                card_number = task["card_number"]
+                pair_number = task["pair_number"]
+                pair_key = (card_number, pair_number)
                 label = _make_task_label(task, bool(task.get("_with_reference", False)))
-                stats.register_attempt(label, ok, duration_seconds, reason)
 
-                _safe_print(stats.progress_line(duration_seconds))
-                write_log_line(log_file, stats.progress_log_line(label, duration_seconds, ok, reason))
+                try:
+                    if card_number != last_card:
+                        if last_card is not None:
+                            time.sleep(0.5)
+                        write_log_line(log_file, f"[CARD] Карточка {card_number}")
+                        last_card = card_number
 
-                is_last_prompt_for_card = (idx == len(tasks) - 1) or (tasks[idx + 1]["card_number"] != card_number)
-                if is_last_prompt_for_card:
-                    from utils.settings_store import update_start_card
+                    if pair_key != last_pair:
+                        write_log_line(log_file, f"[PAIR] Пара {pair_number}")
+                        last_pair = pair_key
 
-                    update_start_card(card_number + 1)
+                    attempt_started = time.monotonic()
+                    result = _generate_single_image_api(task, clients, settings, log_file)
+                    duration_seconds = time.monotonic() - attempt_started
+                    ok, reason = generation_stats.normalize_attempt_result(task, result)
+                    stats.register_attempt(label, ok, duration_seconds, reason)
 
-                if stats.attempted < total_images:
-                    time.sleep(API_REQUEST_DELAY)
-            except Exception as e:
-                duration_seconds = 0.0
-                reason = f"unexpected runtime error: {e}"
-                stats.register_attempt(label, False, duration_seconds, reason)
-                write_log_line(log_file, f"[ERROR] Неожиданная ошибка runtime для {label}: {e}")
-                for line in traceback.format_exc().splitlines():
-                    if line.strip():
-                        write_log_line(log_file, f"[ERROR]   {line}")
-                _safe_print(stats.progress_line(duration_seconds))
-                write_log_line(log_file, stats.progress_log_line(label, duration_seconds, False, reason))
-                continue
+                    _safe_print(stats.progress_line(duration_seconds))
+                    write_log_line(log_file, stats.progress_log_line(label, duration_seconds, ok, reason))
+                    card_tracker(task)
+
+                    if stats.attempted < total_images:
+                        time.sleep(API_REQUEST_DELAY)
+                except Exception as e:
+                    duration_seconds = 0.0
+                    reason = f"unexpected runtime error: {e}"
+                    stats.register_attempt(label, False, duration_seconds, reason)
+                    write_log_line(log_file, f"[ERROR] Неожиданная ошибка runtime для {label}: {e}")
+                    for line in traceback.format_exc().splitlines():
+                        if line.strip():
+                            write_log_line(log_file, f"[ERROR]   {line}")
+                    _safe_print(stats.progress_line(duration_seconds))
+                    write_log_line(log_file, stats.progress_log_line(label, duration_seconds, False, reason))
+                    card_tracker(task)
+
+        parallel_enabled = bool(settings.get("API_CHATGPT_PARALLEL_ENABLED", True)) and chatgpt_tasks_count > 0
+        if non_chatgpt_tasks:
+            run_sequential(non_chatgpt_tasks)
+        if chatgpt_tasks and parallel_enabled:
+            chatgpt_parallel.run_parallel_chatgpt_tasks(
+                tasks=chatgpt_tasks,
+                settings=settings,
+                stats=stats,
+                log_file=log_file,
+                execute_task=lambda task, worker_id: _generate_single_image_api(task, clients, settings, log_file),
+                normalize_result=generation_stats.normalize_attempt_result,
+                label_for_task=lambda task: _make_task_label(task, bool(task.get("_with_reference", False))),
+                on_task_completed=lambda task, ok, reason: card_tracker(task),
+                print_fn=_safe_print,
+            )
+        elif chatgpt_tasks:
+            run_sequential(chatgpt_tasks)
 
         if chatgpt_tasks_count > 0:
             chatgpt_api_key = api_client.get_api_key(settings, api_client.PROVIDER_CHATGPT)

@@ -370,6 +370,59 @@ def configure_api_models(settings: dict) -> None:
             print("Ошибка: неверный номер.")
 
 
+def configure_chatgpt_parallel(settings: dict) -> None:
+    while True:
+        _show_section_header("Параллельный ChatGPT API")
+        print(
+            "1. Параллельный режим: "
+            f"{_show_bool(bool(settings.get('API_CHATGPT_PARALLEL_ENABLED', True)))}"
+        )
+        print(f"2. Количество воркеров: {settings.get('API_CHATGPT_MAX_WORKERS', 2)}")
+        print(f"3. Лимит запусков в минуту: {settings.get('API_CHATGPT_RATE_LIMIT_IPM', 5)}")
+        print(
+            "4. Окно лимитера (сек): "
+            f"{settings.get('API_CHATGPT_RATE_LIMIT_WINDOW_SECONDS', 60)}"
+        )
+        print("0. Назад")
+        choice = _read_choice()
+
+        if choice == "0":
+            return
+        if choice == "1":
+            current = bool(settings.get("API_CHATGPT_PARALLEL_ENABLED", True))
+            settings["API_CHATGPT_PARALLEL_ENABLED"] = not current
+            _save(settings)
+        elif choice == "2":
+            value = _prompt_int(
+                int(settings.get("API_CHATGPT_MAX_WORKERS", 2)),
+                "Количество воркеров",
+                minimum=1,
+            )
+            if value is not None:
+                settings["API_CHATGPT_MAX_WORKERS"] = value
+                _save(settings)
+        elif choice == "3":
+            value = _prompt_int(
+                int(settings.get("API_CHATGPT_RATE_LIMIT_IPM", 5)),
+                "Лимит запусков в минуту",
+                minimum=1,
+            )
+            if value is not None:
+                settings["API_CHATGPT_RATE_LIMIT_IPM"] = value
+                _save(settings)
+        elif choice == "4":
+            value = _prompt_int(
+                int(settings.get("API_CHATGPT_RATE_LIMIT_WINDOW_SECONDS", 60)),
+                "Окно лимитера (сек)",
+                minimum=1,
+            )
+            if value is not None:
+                settings["API_CHATGPT_RATE_LIMIT_WINDOW_SECONDS"] = value
+                _save(settings)
+        else:
+            print("Ошибка: неверный номер.")
+
+
 def configure_generation_wait(settings: dict) -> None:
     value = _prompt_float(
         float(settings.get("GENERATION_WAIT", 20.0)),
@@ -666,6 +719,7 @@ def show_api_menu(settings: dict) -> None:
             f"{'задан' if settings.get('API_KEY_CHATGPT') else 'не задан'}"
         )
         print("5. Модели, качество и timeout")
+        print("6. Параллельный ChatGPT API")
         print("0. Назад")
         choice = _read_choice()
 
@@ -681,6 +735,8 @@ def show_api_menu(settings: dict) -> None:
             configure_api_key(settings, api_client.PROVIDER_CHATGPT)
         elif choice == "5":
             configure_api_models(settings)
+        elif choice == "6":
+            configure_chatgpt_parallel(settings)
         else:
             print("Ошибка: неверный номер.")
 

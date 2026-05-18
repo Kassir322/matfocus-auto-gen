@@ -21,6 +21,8 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from utils import chatgpt_parallel
+
 
 MOVING_AVERAGE_WINDOW = 5
 CHATGPT_API_BASELINE_SECONDS = 22.0
@@ -181,6 +183,36 @@ def estimate_total_seconds(
 ) -> float:
     estimate_items = estimate_items or []
     if estimate_items:
+        if (
+            generation_method == "api"
+            and any(str(item.get("provider", "")).strip().lower() == "chatgpt" for item in estimate_items)
+            and bool(settings.get("API_CHATGPT_PARALLEL_ENABLED", True))
+        ):
+            chatgpt_count = 0
+            non_chatgpt_total = 0.0
+            for item in estimate_items:
+                count = int(item.get("count", 0) or 0)
+                if count <= 0:
+                    continue
+                provider = str(item.get("provider", "")).strip().lower()
+                if provider == "chatgpt":
+                    chatgpt_count += count
+                    continue
+                non_chatgpt_total += estimate_baseline_seconds(
+                    generation_method=generation_method,
+                    mode_name=mode_name,
+                    settings=settings,
+                    provider=item.get("provider"),
+                    model=item.get("model"),
+                    with_reference=bool(item.get("with_reference", False)),
+                ) * count
+
+            if chatgpt_count > 0:
+                return non_chatgpt_total + chatgpt_parallel.estimate_parallel_total_seconds(
+                    task_count=chatgpt_count,
+                    baseline_seconds=CHATGPT_API_BASELINE_SECONDS,
+                    settings=settings,
+                )
         return sum(
             estimate_baseline_seconds(
                 generation_method=generation_method,
@@ -248,6 +280,12 @@ class GenerationRunStats:
         self.actual_cost_total: float | None = None
         self.actual_cost_label = "Фактические расходы"
         self.actual_cost_error: str | None = None
+        self.parallel_status_enabled = False
+        self.active_workers = 0
+        self.rate_limit_used = 0
+        self.rate_limit_capacity = 0
+        self.rate_limit_wait_seconds = 0.0
+        self.queued_remaining = 0
 
     def elapsed_seconds(self) -> float:
         return max(0.0, time.monotonic() - self.started_monotonic)
@@ -299,11 +337,17 @@ class GenerationRunStats:
         return eta_dt.strftime("%H:%M")
 
     def progress_line(self, last_duration_seconds: float) -> str:
-        return (
+        line = (
             f"Генерация {self.succeeded}/{self.attempted} из {self.planned_total} - "
             f"{format_duration(last_duration_seconds)} - {format_duration(self.elapsed_seconds())} - "
             f"avg {format_duration(self.average_seconds())} - fail {self.failed} - ETA {self.eta_time()}"
         )
+        if self.parallel_status_enabled:
+            line += f" - в работе {self.active_workers}"
+            line += f" - лимит {self.rate_limit_used}/{self.rate_limit_capacity}"
+            if self.rate_limit_wait_seconds > 0:
+                line += f" - ожидание {max(1, int(round(self.rate_limit_wait_seconds)))}с"
+        return line
 
     def progress_log_line(self, label: str, last_duration_seconds: float, ok: bool, reason: str = "") -> str:
         status = "OK" if ok else "FAILED"
@@ -323,6 +367,29 @@ class GenerationRunStats:
     def set_actual_cost_error(self, message: str) -> None:
         self.actual_cost_total = None
         self.actual_cost_error = str(message or "").strip() or "не удалось получить данные billing API"
+
+    def update_parallel_status(
+        self,
+        active_workers: int,
+        rate_limit_used: int,
+        rate_limit_capacity: int,
+        rate_limit_wait_seconds: float,
+        queued_remaining: int,
+    ) -> None:
+        self.parallel_status_enabled = True
+        self.active_workers = max(0, int(active_workers))
+        self.rate_limit_used = max(0, int(rate_limit_used))
+        self.rate_limit_capacity = max(0, int(rate_limit_capacity))
+        self.rate_limit_wait_seconds = max(0.0, float(rate_limit_wait_seconds))
+        self.queued_remaining = max(0, int(queued_remaining))
+
+    def clear_parallel_status(self) -> None:
+        self.parallel_status_enabled = False
+        self.active_workers = 0
+        self.rate_limit_used = 0
+        self.rate_limit_capacity = 0
+        self.rate_limit_wait_seconds = 0.0
+        self.queued_remaining = 0
 
     def start_summary_lines(self, context_lines: list[str] | None = None) -> list[str]:
         lines = ["Сводка перед стартом:"]
