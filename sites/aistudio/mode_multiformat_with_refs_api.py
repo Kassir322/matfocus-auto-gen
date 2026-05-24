@@ -12,6 +12,7 @@ import traceback
 from datetime import datetime
 
 from utils import api_client
+from utils.agent_run_result import make_error_result, make_success_result
 from utils import chatgpt_parallel
 from utils import generation_stats
 from utils.log_writer import write_log_line
@@ -55,7 +56,7 @@ def safe_filename(name: str) -> str:
     return safe
 
 
-def _make_card_completion_tracker(tasks: list[dict]):
+def _make_card_completion_tracker(tasks: list[dict], save_progress: bool = True):
     from utils.settings_store import update_start_card
 
     remaining_by_card = {}
@@ -69,6 +70,8 @@ def _make_card_completion_tracker(tasks: list[dict]):
             return
         remaining_by_card[card_number] -= 1
         if remaining_by_card[card_number] == 0:
+            if not save_progress:
+                return
             update_start_card(card_number + 1)
 
     return mark_task_done
@@ -221,6 +224,7 @@ def run_mode(
     coordinates: dict = None,
     relative_movements: dict = None,
 ) -> None:
+    mode_name = "multiformat_with_refs"
     start_card = int(settings.get("START_FROM_CARD", 1))
     end_card = settings.get("END_CARD")
     if end_card is not None:
@@ -229,8 +233,9 @@ def run_mode(
     tasks = filter_tasks_by_range(tasks, start_card, end_card)
     actual_end = end_card if end_card is not None else (max(t["card_number"] for t in tasks) if tasks else start_card)
     if not tasks:
-        _safe_print("Нет задач в выбранном диапазоне карточек.")
-        return
+        message = "Нет задач в выбранном диапазоне карточек."
+        _safe_print(message)
+        return make_error_result(mode_name, message)
 
     providers = {
         api_client.get_api_provider(settings, with_reference=False),
@@ -242,23 +247,28 @@ def run_mode(
         provider_name = api_client.get_provider_display_name(provider)
         api_key = api_client.get_api_key(settings, provider)
         if not api_key:
-            _safe_print(f"Ошибка: не задан API ключ для провайдера {provider_name}.")
-            return
+            message = f"Ошибка: не задан API ключ для провайдера {provider_name}."
+            _safe_print(message)
+            return make_error_result(mode_name, message)
 
         key_valid, key_error = api_client.check_api_key_format(api_key, provider=provider)
         if not key_valid:
-            _safe_print(f"Ошибка: {provider_name}: {key_error}")
-            return
+            message = f"Ошибка: {provider_name}: {key_error}"
+            _safe_print(message)
+            return make_error_result(mode_name, message)
 
         try:
             clients[provider] = api_client.init_client(api_key, provider=provider)
         except ImportError as e:
-            _safe_print(f"Ошибка: {e}")
-            return
+            message = f"Ошибка: {e}"
+            _safe_print(message)
+            return make_error_result(mode_name, message)
         except Exception as e:
-            _safe_print(f"Ошибка инициализации API клиента {provider_name}: {e}")
-            return
+            message = f"Ошибка инициализации API клиента {provider_name}: {e}"
+            _safe_print(message)
+            return make_error_result(mode_name, message)
 
+    session_folder = None
     log_path = _get_log_filepath()
     log_file = open(log_path, "w", encoding="utf-8")
 
@@ -376,7 +386,10 @@ def run_mode(
         total_images = len(tasks)
         cards_seen = {task["card_number"] for task in tasks}
         pairs_seen = {(task["card_number"], task["pair_number"]) for task in tasks}
-        card_tracker = _make_card_completion_tracker(tasks)
+        card_tracker = _make_card_completion_tracker(
+            tasks,
+            save_progress=bool(settings.get("SAVE_PROGRESS_TO_SETTINGS", True)),
+        )
 
         def run_sequential(task_list: list[dict]) -> None:
             last_card = None
@@ -465,11 +478,20 @@ def run_mode(
                 write_log_line(log_file, f"[SUMMARY] {line}")
         _safe_print(f"Готово. Обработано карточек: {len(cards_seen)}, пар: {len(pairs_seen)}, изображений: {stats.succeeded}/{total_images}")
         _safe_print(f"Лог сохранён: {log_path}")
+        return make_success_result(
+            mode_name,
+            planned=total_images,
+            succeeded=stats.succeeded,
+            output_dir=session_folder,
+            log_file=log_path,
+        )
     except Exception as e:
         write_log_line(log_file, f"[ERROR] Неожиданная ошибка верхнего уровня: {e}")
         for line in traceback.format_exc().splitlines():
             if line.strip():
                 write_log_line(log_file, f"[ERROR]   {line}")
-        _safe_print(f"Ошибка генерации: {e}")
+        message = f"Ошибка генерации: {e}"
+        _safe_print(message)
+        return make_error_result(mode_name, message, output_dir=session_folder, log_file=log_path)
     finally:
         log_file.close()

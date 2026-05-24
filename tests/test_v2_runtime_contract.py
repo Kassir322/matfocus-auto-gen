@@ -49,8 +49,8 @@ def test_main_menu_flag_runs_cli_menu(monkeypatch):
 
     monkeypatch.setattr(main.sys, "argv", ["main.py", "--menu"])
     monkeypatch.setattr("ui.console_menu.show_main_menu", show_menu)
-    monkeypatch.setattr(main, "load_settings", lambda: {"CURRENT_SITE": "aistudio"})
-    monkeypatch.setattr(main, "load_coordinates", lambda: ({}, {}))
+    monkeypatch.setattr("utils.settings_store.load_settings", lambda: {"CURRENT_SITE": "aistudio"})
+    monkeypatch.setattr("utils.coordinates_store.load_coordinates", lambda: ({}, {}))
 
     main.main()
 

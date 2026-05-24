@@ -1,6 +1,7 @@
-"""Utility package exports for the active runtime."""
+"""Utility package exports for the active runtime.
 
-from .clipboard import ClipboardManager
-from .logger import Logger
+Keep this package root side-effect free. Legacy helpers such as clipboard/logger
+should be imported from their concrete modules when needed.
+"""
 
-__all__ = ["ClipboardManager", "Logger"]
+__all__ = []

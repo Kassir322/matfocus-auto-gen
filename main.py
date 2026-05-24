@@ -4,23 +4,28 @@
 import sys
 import time
 
-from ui.console import ConsoleInterface
-from ui.hotkeys import HotkeyManager
-from utils import process_control
-from utils.console_control import disable_quick_edit_mode
-from utils.coordinates_store import load_coordinates
-from utils.generation_runner import (
-    can_start_generation,
-    run_multiformat_with_refs_worker,
-    run_multiformat_worker,
-    run_standard_worker,
-)
-from utils.settings_store import load_settings
-from utils.window_manager import WindowManager
-
 
 def main():
     """Главная функция активного v2 runtime."""
+    from utils import agent_cli
+
+    if agent_cli.is_agent_command():
+        raise SystemExit(agent_cli.main())
+
+    from ui.console import ConsoleInterface
+    from ui.hotkeys import HotkeyManager
+    from utils import process_control
+    from utils.console_control import disable_quick_edit_mode
+    from utils.coordinates_store import load_coordinates
+    from utils.generation_runner import (
+        can_start_generation,
+        run_multiformat_with_refs_worker,
+        run_multiformat_worker,
+        run_standard_worker,
+    )
+    from utils.settings_store import load_settings
+    from utils.window_manager import WindowManager
+
     disable_quick_edit_mode()
     print("Запуск AI Studio Automation (v2)...")
 

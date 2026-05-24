@@ -617,3 +617,15 @@
 - В `multiformat_with_refs` задачи с найденным референсом теперь могут идти через `API_PROVIDER_WITH_REFS=chatgpt`, а задачи без референса продолжают использовать `API_PROVIDER`.
 - Удалено устаревшее предупреждение CLI-меню о неподдержанном ChatGPT runtime для референсов.
 - CLI-меню при `GENERATION_METHOD=api` теперь запускает API-воркер, ждёт завершения воркера и не читает stdin параллельно с генерацией; на Windows при старте отключается QuickEdit mode, чтобы случайное выделение консоли не замораживало вывод до Enter.
+
+## Update 2026-05-24
+
+- Добавлен агентский CLI-контракт для Codex/style-probe сценариев: `python main.py agent-plan ... --json` и `python main.py agent-run-api ... --json`.
+- Агентские запуски используют текущий `data/settings.json` как базу, но применяют overrides в памяти и не сохраняют изменения обратно в основной файл настроек.
+- Для агентского API-запуска добавлен флаг `SAVE_PROGRESS_TO_SETTINGS=False`, поэтому пробные генерации не сдвигают рабочий `START_FROM_CARD`.
+- API-режимы `standard`, `multiformat` и `multiformat_with_refs` теперь возвращают машинный результат с `ok`, `planned`, `succeeded`, `failed`, `output_dir`, `log_file`, `images` и `errors`, сохраняя прежний консольный прогресс.
+- Добавлены focused tests для agent CLI-контракта: план без API-вызова, синхронный mock-запуск и проверка изоляции прогресса от `settings.json`.
+- Исправлена защита тестового контура: legacy `tests/test_suite.py` теперь через `tests/conftest.py` использует временный файл настроек и не может перезаписать живой `data/settings.json`.
+- Убран побочный импорт legacy clipboard/logger из `utils/__init__.py`, чтобы agent CLI мог отдавать чистый JSON без строки загрузки координат перед результатом.
+- Добавлена явная документация Codex/agent CLI в `version2/reference/AGENT_CLI.md`; для Codex-driven style-probe сценариев закреплен предпочтительный режим `multiformat_with_refs` и prompt pattern по образцу `data/countries_clear_nanobanana_prompts.txt`.
+- Codex/agent CLI контракт уточнен: агентам разрешены только API-режимы; browser generation, hotkeys/menu driving и pyautogui/browser automation для агентского запуска запрещены. Добавлен focused test, что agent settings принудительно выставляют `GENERATION_METHOD=api` даже при browser-базе.
