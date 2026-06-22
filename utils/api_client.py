@@ -8,6 +8,7 @@
 import base64
 import json
 import os
+import re
 import shutil
 import tempfile
 import traceback
@@ -47,6 +48,17 @@ SUPPORTED_PROVIDERS = {PROVIDER_NANOBANANA, PROVIDER_CHATGPT}
 _current_session_folder = None
 
 
+def resolve_output_project_name(settings: dict | None = None) -> str:
+    raw_name = ""
+    if settings:
+        raw_name = str(settings.get("OUTPUT_PROJECT_NAME", "") or "")
+    safe_name = raw_name.strip()
+    safe_name = re.sub(r"\s+", "_", safe_name)
+    safe_name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", safe_name)
+    safe_name = re.sub(r"_+", "_", safe_name).strip("._ ")
+    return safe_name or "project"
+
+
 def normalize_provider(provider: str | None) -> str:
     normalized = str(provider or DEFAULT_PROVIDER).strip().lower()
     if normalized not in SUPPORTED_PROVIDERS:
@@ -61,12 +73,13 @@ def get_provider_display_name(provider: str) -> str:
     return "nanobanana"
 
 
-def get_session_output_folder() -> str:
+def get_session_output_folder(settings: dict | None = None) -> str:
     global _current_session_folder
 
     if _current_session_folder is None:
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        _current_session_folder = os.path.join("generated_images", timestamp)
+        project_name = resolve_output_project_name(settings)
+        _current_session_folder = os.path.join("generated_images", f"{timestamp}_{project_name}")
         os.makedirs(_current_session_folder, exist_ok=True)
 
     return _current_session_folder
@@ -116,6 +129,22 @@ def get_api_quality(settings: dict, provider: str) -> str:
     if provider == PROVIDER_CHATGPT:
         return str(settings.get("API_CHATGPT_QUALITY", "low") or "low").strip().lower()
     return ""
+
+
+def resolve_image_size(settings: dict, side: str | None = None) -> str:
+    if side in {"лицо", "Р»РёС†Рѕ"}:
+        return str(settings.get("API_FACE_IMAGE_SIZE") or settings.get("API_IMAGE_SIZE", "1K") or "1K").strip()
+    if side in {"оборот", "РѕР±РѕСЂРѕС‚"}:
+        return str(settings.get("API_BACK_IMAGE_SIZE") or settings.get("API_IMAGE_SIZE", "1K") or "1K").strip()
+    return str(settings.get("API_IMAGE_SIZE", "1K") or "1K").strip()
+
+
+def normalize_image_size_for_provider(provider: str, image_size: str | None) -> tuple[Optional[str], Optional[str]]:
+    provider = normalize_provider(provider)
+    value = str(image_size or "").strip()
+    if provider == PROVIDER_CHATGPT and not value:
+        return "auto", None
+    return value or "1K", None
 
 
 def build_prompt(prompt: str, provider: str, aspect_ratio: str | None = None) -> str:
@@ -250,15 +279,20 @@ def _generate_image_chatgpt(
     prompt: str,
     model: str,
     aspect_ratio: str,
+    image_size: str | None,
     quality: str,
     timeout: float,
 ) -> tuple[Optional[bytes], Optional[str]]:
+    request_size, size_error = normalize_image_size_for_provider(PROVIDER_CHATGPT, image_size)
+    if size_error:
+        return None, size_error
+
     request_client = client.with_options(timeout=timeout) if hasattr(client, "with_options") else client
     response = request_client.images.generate(
         model=model,
         prompt=build_prompt(prompt, PROVIDER_CHATGPT, aspect_ratio),
         n=1,
-        size="auto",
+        size=request_size,
         quality=quality or "low",
     )
 
@@ -287,9 +321,14 @@ def _generate_image_chatgpt_with_reference(
     reference_image_path: str,
     model: str,
     aspect_ratio: str,
+    image_size: str | None,
     quality: str,
     timeout: float,
 ) -> tuple[Optional[bytes], Optional[str]]:
+    request_size, size_error = normalize_image_size_for_provider(PROVIDER_CHATGPT, image_size)
+    if size_error:
+        return None, size_error
+
     request_client = client.with_options(timeout=timeout) if hasattr(client, "with_options") else client
     with open(reference_image_path, "rb") as image_file:
         response = request_client.images.edit(
@@ -297,7 +336,7 @@ def _generate_image_chatgpt_with_reference(
             image=image_file,
             prompt=build_prompt(prompt, PROVIDER_CHATGPT, aspect_ratio),
             n=1,
-            size="auto",
+            size=request_size,
             quality=quality or "low",
         )
 
@@ -325,7 +364,7 @@ def generate_image(
     prompt: str,
     model: str = "imagen-4.0-generate-001",
     aspect_ratio: str = "1:1",
-    image_size: str = "1K",
+    image_size: str | None = None,
     timeout: float = 60.0,
     provider: str = DEFAULT_PROVIDER,
     quality: str = "low",
@@ -341,6 +380,7 @@ def generate_image(
                 prompt=prompt,
                 model=model,
                 aspect_ratio=aspect_ratio,
+                image_size=image_size,
                 quality=quality,
                 timeout=timeout,
             )
@@ -353,7 +393,7 @@ def generate_image(
             prompt=prompt,
             model=model,
             aspect_ratio=aspect_ratio,
-            image_size=image_size,
+            image_size=image_size or "1K",
         )
     except Exception as e:
         return None, f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
@@ -426,7 +466,7 @@ def generate_image_with_reference(
     reference_image_path: str,
     model: str = "gemini-2.5-flash-image",
     aspect_ratio: str = "1:1",
-    image_size: str = "1K",
+    image_size: str | None = None,
     timeout: float = 60.0,
     provider: str = DEFAULT_PROVIDER,
     quality: str = "low",
@@ -447,6 +487,7 @@ def generate_image_with_reference(
                 reference_image_path=reference_image_path,
                 model=model,
                 aspect_ratio=aspect_ratio,
+                image_size=image_size,
                 quality=quality,
                 timeout=timeout,
             )
@@ -481,7 +522,7 @@ def generate_image_with_reference(
         if "3-pro" in model or "pro-image" in model:
             config_params["image_config"] = types.ImageConfig(
                 aspect_ratio=aspect_ratio,
-                image_size=image_size,
+                image_size=image_size or "1K",
             )
         else:
             config_params["image_config"] = types.ImageConfig(aspect_ratio=aspect_ratio)

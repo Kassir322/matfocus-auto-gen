@@ -41,6 +41,10 @@ def _build_parser() -> argparse.ArgumentParser:
         sub.add_argument("--prompts", required=True)
         sub.add_argument("--start", type=int, default=1)
         sub.add_argument("--end", type=int, default=None)
+        sub.add_argument("--image-size", default=None)
+        sub.add_argument("--face-image-size", default=None)
+        sub.add_argument("--back-image-size", default=None)
+        sub.add_argument("--project-name", default=None)
         sub.add_argument("--json", action="store_true")
 
     return parser
@@ -59,6 +63,14 @@ def _settings_from_args(args: argparse.Namespace) -> dict:
             "SAVE_PROGRESS_TO_SETTINGS": False,
         }
     )
+    if getattr(args, "image_size", None):
+        settings["API_IMAGE_SIZE"] = args.image_size
+    if getattr(args, "face_image_size", None):
+        settings["API_FACE_IMAGE_SIZE"] = args.face_image_size
+    if getattr(args, "back_image_size", None):
+        settings["API_BACK_IMAGE_SIZE"] = args.back_image_size
+    if getattr(args, "project_name", None):
+        settings["OUTPUT_PROJECT_NAME"] = args.project_name
     return settings
 
 
@@ -85,6 +97,12 @@ def _plan_result(args: argparse.Namespace, settings: dict) -> dict:
     provider = api_client.get_api_provider(settings, with_reference=False)
     model = api_client.get_api_model(settings, provider, with_reference=False)
     quality = api_client.get_api_quality(settings, provider)
+    image_size = api_client.resolve_image_size(settings)
+    face_image_size = api_client.resolve_image_size(settings, "лицо")
+    back_image_size = api_client.resolve_image_size(settings, "оборот")
+    image_size = api_client.normalize_image_size_for_provider(provider, image_size)[0] or image_size
+    face_image_size = api_client.normalize_image_size_for_provider(provider, face_image_size)[0] or face_image_size
+    back_image_size = api_client.normalize_image_size_for_provider(provider, back_image_size)[0] or back_image_size
     result = {
         "ok": True,
         "command": args.command,
@@ -99,7 +117,10 @@ def _plan_result(args: argparse.Namespace, settings: dict) -> dict:
         "provider": provider,
         "model": model,
         "quality": quality or None,
-        "image_size": settings.get("API_IMAGE_SIZE"),
+        "image_size": image_size,
+        "face_image_size": face_image_size,
+        "back_image_size": back_image_size,
+        "project_name": api_client.resolve_output_project_name(settings),
     }
     if args.mode == "multiformat_with_refs":
         provider_with_refs = api_client.get_api_provider(settings, with_reference=True)
@@ -118,7 +139,7 @@ def _run_result(args: argparse.Namespace, settings: dict) -> dict:
     api_client.reset_session_folder()
     result = module.run_mode(tasks, settings)
     if not isinstance(result, dict):
-        output_dir = api_client.get_session_output_folder()
+        output_dir = api_client.get_session_output_folder(settings)
         result = {
             "ok": False,
             "mode": args.mode,
@@ -131,6 +152,7 @@ def _run_result(args: argparse.Namespace, settings: dict) -> dict:
             "errors": ["API-режим не вернул машинный результат."],
         }
     result["command"] = args.command
+    result.setdefault("project_name", api_client.resolve_output_project_name(settings))
     return result
 
 

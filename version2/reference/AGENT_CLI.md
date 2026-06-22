@@ -14,6 +14,7 @@ Keep it updated together with any change to `utils/agent_cli.py`, API-mode retur
 - `utils/agent_cli.py` must force `GENERATION_METHOD=api` and route only to `sites/aistudio/*_api.py` modules.
 - Run `agent-plan --json` before generation unless the user explicitly asks to skip planning.
 - Agent runs must stay isolated from `data/settings.json`: command-line overrides are applied in memory and must not advance `START_FROM_CARD`.
+- Output folders are named `generated_images/<timestamp>_<project>`. The project name comes from `OUTPUT_PROJECT_NAME` in `data/settings.json`, or from the agent's `--project-name` override.
 
 ## Commands
 
@@ -28,6 +29,29 @@ Run a batch synchronously through API:
 ```powershell
 python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --json
 ```
+
+Optional API request size overrides:
+
+```powershell
+python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --face-image-size 1024x1024 --back-image-size 1536x1024 --json
+```
+
+- `--image-size VALUE` applies one API request size to the whole run.
+- `--face-image-size VALUE` applies only to `лицо` tasks.
+- `--back-image-size VALUE` applies only to `оборот` tasks.
+- For `multiformat` and `multiformat_with_refs`, side-specific values take priority over `--image-size`, which takes priority over `API_IMAGE_SIZE`.
+- The program does not whitelist ChatGPT size values; any non-empty value is passed to the provider API as the request `size`.
+- These flags control only the size parameter sent to the provider API. They must not trigger local resize, crop, padding, blur-fill, canvas expansion, or any other post-processing of the returned image file.
+
+Optional project-name override:
+
+```powershell
+python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --project-name countries --json
+```
+
+- `--project-name VALUE` overrides `OUTPUT_PROJECT_NAME` in memory for the current agent command only.
+- The effective project name is sanitized for Windows folder names and used in `generated_images/YYYY-MM-DD_HH-MM-SS_<project>`.
+- Codex agents should determine `VALUE` from the user's project context, not from the prompts `.txt` filename. If the source project path ends with a generic work folder such as `Рабочие файлы`, use its parent folder name; for example `O:\Yandex.Disk\0РГАНИЗОВАННЫЕ\история древнего мира\Рабочие файлы` should use `история древнего мира`.
 
 Supported modes:
 
@@ -52,6 +76,10 @@ multiformat_with_refs
 - `tasks_count`
 - `plan`
 - provider/model fields
+- `image_size`
+- `face_image_size`
+- `back_image_size`
+- `project_name`
 - `errors` when `ok=false`
 
 `agent-run-api --json` returns a single JSON object with:
@@ -63,6 +91,7 @@ multiformat_with_refs
 - `succeeded`
 - `failed`
 - `output_dir`
+- `project_name`
 - `log_file`
 - `images`
 - `errors`

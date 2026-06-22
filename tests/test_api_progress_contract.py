@@ -25,7 +25,7 @@ def _patch_api_runtime(monkeypatch, module, log_path):
     monkeypatch.setattr(module.time, "sleep", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(module.api_client, "check_api_key_format", lambda api_key, provider="nanobanana": (True, None))
     monkeypatch.setattr(module.api_client, "init_client", lambda api_key, provider="nanobanana": object())
-    monkeypatch.setattr(module.api_client, "get_session_output_folder", lambda: "generated_images/session")
+    monkeypatch.setattr(module.api_client, "get_session_output_folder", lambda *_args, **_kwargs: "generated_images/session")
 
 
 def test_standard_api_run_mode_prints_extended_progress_and_summary(tmp_path, monkeypatch):

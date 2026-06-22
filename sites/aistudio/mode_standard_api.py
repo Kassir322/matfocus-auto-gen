@@ -78,7 +78,10 @@ def _generate_single_image_api(task: dict, client, settings: dict, log_file) -> 
     provider_name = api_client.get_provider_display_name(provider)
     model = api_client.get_api_model(settings, provider, with_reference=False)
     quality = api_client.get_api_quality(settings, provider)
-    image_size = settings.get("API_IMAGE_SIZE", "1K")
+    raw_image_size = api_client.resolve_image_size(settings)
+    image_size, size_error = api_client.normalize_image_size_for_provider(provider, raw_image_size)
+    if size_error:
+        image_size = raw_image_size
     timeout = float(settings.get("API_TIMEOUT", 60.0))
     aspect_ratio = "1:1"
     file_name = _make_filename(card_number, gen_num)
@@ -175,7 +178,10 @@ def run_mode(
         prompts_file = settings.get("PROMPTS_FILE", "")
         model = api_client.get_api_model(settings, provider)
         quality = api_client.get_api_quality(settings, provider)
-        session_folder = api_client.get_session_output_folder()
+        raw_image_size = api_client.resolve_image_size(settings)
+        image_size, _ = api_client.normalize_image_size_for_provider(provider, raw_image_size)
+        image_size = image_size or raw_image_size
+        session_folder = api_client.get_session_output_folder(settings)
 
         write_log_line(
             log_file,
@@ -186,6 +192,7 @@ def run_mode(
             write_log_line(log_file, f"[PLAN] Файл промптов: {prompts_file}")
         write_log_line(log_file, f"[PLAN] Провайдер: {provider_name}")
         write_log_line(log_file, f"[PLAN] API модель: {model}")
+        write_log_line(log_file, f"[PLAN] Image size: {image_size}")
         write_log_line(log_file, f"[PLAN] Папка для сохранения изображений: {session_folder}")
 
         estimate_items = [
@@ -218,6 +225,7 @@ def run_mode(
                 f"Провайдер: {provider_name}",
                 f"Модель: {model}",
                 f"Quality: {quality or 'n/a'}",
+                f"Image size: {image_size}",
                 f"Диапазон карточек: {start_card}–{actual_end}",
                 f"Файл промптов: {prompts_file or 'не указан'}",
                 (

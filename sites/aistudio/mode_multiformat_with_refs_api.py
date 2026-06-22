@@ -153,7 +153,10 @@ def _generate_single_image_api(task: dict, clients: dict, settings: dict, log_fi
     provider_name = api_client.get_provider_display_name(provider)
     model = api_client.get_api_model(settings, provider, with_reference=with_reference)
     quality = api_client.get_api_quality(settings, provider)
-    image_size = settings.get("API_IMAGE_SIZE", "1K")
+    raw_image_size = api_client.resolve_image_size(settings, side)
+    image_size, size_error = api_client.normalize_image_size_for_provider(provider, raw_image_size)
+    if size_error:
+        image_size = raw_image_size
     timeout = float(settings.get("API_TIMEOUT", 60.0))
     aspect_ratio = settings.get("FACE_ASPECT_RATIO", "4:3") if side == "лицо" else settings.get("BACK_ASPECT_RATIO", "16:9")
     client = clients[provider]
@@ -283,7 +286,17 @@ def run_mode(
         quality_with_ref = api_client.get_api_quality(settings, provider_with_ref)
         face_ratio = settings.get("FACE_ASPECT_RATIO", "4:3")
         back_ratio = settings.get("BACK_ASPECT_RATIO", "16:9")
-        session_folder = api_client.get_session_output_folder()
+        raw_face_image_size = api_client.resolve_image_size(settings, "лицо")
+        raw_back_image_size = api_client.resolve_image_size(settings, "оборот")
+        face_image_size_no_ref, _ = api_client.normalize_image_size_for_provider(provider_no_ref, raw_face_image_size)
+        back_image_size_no_ref, _ = api_client.normalize_image_size_for_provider(provider_no_ref, raw_back_image_size)
+        face_image_size_with_ref, _ = api_client.normalize_image_size_for_provider(provider_with_ref, raw_face_image_size)
+        back_image_size_with_ref, _ = api_client.normalize_image_size_for_provider(provider_with_ref, raw_back_image_size)
+        face_image_size_no_ref = face_image_size_no_ref or raw_face_image_size
+        back_image_size_no_ref = back_image_size_no_ref or raw_back_image_size
+        face_image_size_with_ref = face_image_size_with_ref or raw_face_image_size
+        back_image_size_with_ref = back_image_size_with_ref or raw_back_image_size
+        session_folder = api_client.get_session_output_folder(settings)
 
         write_log_line(
             log_file,
@@ -301,6 +314,8 @@ def run_mode(
             f"[PLAN] С референсами: provider={api_client.get_provider_display_name(provider_with_ref)}, model={model_with_ref}",
         )
         write_log_line(log_file, f"[PLAN] Aspect ratio: лицо={face_ratio}, оборот={back_ratio}")
+        write_log_line(log_file, f"[PLAN] Image size без refs: лицо={face_image_size_no_ref}, оборот={back_image_size_no_ref}")
+        write_log_line(log_file, f"[PLAN] Image size с refs: лицо={face_image_size_with_ref}, оборот={back_image_size_with_ref}")
         write_log_line(log_file, f"[PLAN] Папка для сохранения изображений: {session_folder}")
 
         chatgpt_tasks, non_chatgpt_tasks = _prepare_task_provider_metadata(tasks, settings)
@@ -354,6 +369,8 @@ def run_mode(
                 f"Quality без refs: {quality_no_ref or 'n/a'}",
                 f"Quality с refs: {quality_with_ref or 'n/a'}",
                 f"Aspect ratio: лицо={face_ratio}, оборот={back_ratio}",
+                f"Image size без refs: лицо={face_image_size_no_ref}, оборот={back_image_size_no_ref}",
+                f"Image size с refs: лицо={face_image_size_with_ref}, оборот={back_image_size_with_ref}",
                 f"Диапазон карточек: {start_card}–{actual_end}",
                 f"Файл промптов: {prompts_file or 'не указан'}",
                 f"Референсы найдены: {refs_found}, без референсов: {refs_missing}",

@@ -629,3 +629,14 @@
 - Убран побочный импорт legacy clipboard/logger из `utils/__init__.py`, чтобы agent CLI мог отдавать чистый JSON без строки загрузки координат перед результатом.
 - Добавлена явная документация Codex/agent CLI в `version2/reference/AGENT_CLI.md`; для Codex-driven style-probe сценариев закреплен предпочтительный режим `multiformat_with_refs` и prompt pattern по образцу `data/countries_clear_nanobanana_prompts.txt`.
 - Codex/agent CLI контракт уточнен: агентам разрешены только API-режимы; browser generation, hotkeys/menu driving и pyautogui/browser automation для агентского запуска запрещены. Добавлен focused test, что agent settings принудительно выставляют `GENERATION_METHOD=api` даже при browser-базе.
+
+## Update 2026-05-31
+
+- В agent CLI добавлены in-memory overrides для API request size: `--image-size`, `--face-image-size`, `--back-image-size`.
+- Для `multiformat` и `multiformat_with_refs` side-specific size имеет приоритет над общим `--image-size`, затем используется `API_IMAGE_SIZE` из настроек.
+- ChatGPT API теперь получает фактический `size` из настроек запуска; локальный whitelist размеров снят, любое непустое значение передается провайдеру как API request size.
+- Постпроцесс изображений по-прежнему запрещен: CLI size управляет только параметром API-запроса, сохраненный файл не ресайзится, не кропится и не расширяется локально.
+## Update 2026-06-14
+
+- API output folders now include a Windows-safe project suffix from `OUTPUT_PROJECT_NAME`: `generated_images/YYYY-MM-DD_HH-MM-SS_<project>`.
+- Agent CLI accepts `--project-name` as an in-memory override and reports `project_name` in JSON results without writing back to `data/settings.json`.

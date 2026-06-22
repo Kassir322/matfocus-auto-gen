@@ -79,7 +79,10 @@ def _generate_single_image_api(task: dict, client, settings: dict, log_file) -> 
     provider_name = api_client.get_provider_display_name(provider)
     model = api_client.get_api_model(settings, provider, with_reference=False)
     quality = api_client.get_api_quality(settings, provider)
-    image_size = settings.get("API_IMAGE_SIZE", "1K")
+    raw_image_size = api_client.resolve_image_size(settings, side)
+    image_size, size_error = api_client.normalize_image_size_for_provider(provider, raw_image_size)
+    if size_error:
+        image_size = raw_image_size
     timeout = float(settings.get("API_TIMEOUT", 60.0))
     aspect_ratio = settings.get("FACE_ASPECT_RATIO", "4:3") if side == "лицо" else settings.get("BACK_ASPECT_RATIO", "16:9")
     file_name = _make_filename(card_number, side, pair_num)
@@ -176,9 +179,15 @@ def run_mode(
         prompts_file = settings.get("PROMPTS_FILE", "")
         model = api_client.get_api_model(settings, provider)
         quality = api_client.get_api_quality(settings, provider)
-        session_folder = api_client.get_session_output_folder()
+        session_folder = api_client.get_session_output_folder(settings)
         face_ratio = settings.get("FACE_ASPECT_RATIO", "4:3")
         back_ratio = settings.get("BACK_ASPECT_RATIO", "16:9")
+        raw_face_image_size = api_client.resolve_image_size(settings, "лицо")
+        raw_back_image_size = api_client.resolve_image_size(settings, "оборот")
+        face_image_size, _ = api_client.normalize_image_size_for_provider(provider, raw_face_image_size)
+        back_image_size, _ = api_client.normalize_image_size_for_provider(provider, raw_back_image_size)
+        face_image_size = face_image_size or raw_face_image_size
+        back_image_size = back_image_size or raw_back_image_size
 
         write_log_line(
             log_file,
@@ -190,6 +199,7 @@ def run_mode(
         write_log_line(log_file, f"[PLAN] Провайдер: {provider_name}")
         write_log_line(log_file, f"[PLAN] API модель: {model}")
         write_log_line(log_file, f"[PLAN] Aspect ratio: лицо={face_ratio}, оборот={back_ratio}")
+        write_log_line(log_file, f"[PLAN] Image size: лицо={face_image_size}, оборот={back_image_size}")
         write_log_line(log_file, f"[PLAN] Папка для сохранения изображений: {session_folder}")
 
         face_count = sum(1 for task in tasks if task["side"] == "лицо")
@@ -220,6 +230,7 @@ def run_mode(
                 f"Модель: {model}",
                 f"Quality: {quality or 'n/a'}",
                 f"Aspect ratio: лицо={face_ratio}, оборот={back_ratio}",
+                f"Image size: лицо={face_image_size}, оборот={back_image_size}",
                 f"Диапазон карточек: {start_card}–{actual_end}",
                 f"Файл промптов: {prompts_file or 'не указан'}",
                 (
