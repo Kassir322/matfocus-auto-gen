@@ -14,7 +14,9 @@ Keep it updated together with any change to `utils/agent_cli.py`, API-mode retur
 - `utils/agent_cli.py` must force `GENERATION_METHOD=api` and route only to `sites/aistudio/*_api.py` modules.
 - Run `agent-plan --json` before generation unless the user explicitly asks to skip planning.
 - Agent runs must stay isolated from `data/settings.json`: command-line overrides are applied in memory and must not advance `START_FROM_CARD`.
-- Output folders are named `generated_images/<timestamp>_<project>`. The project name comes from `OUTPUT_PROJECT_NAME` in `data/settings.json`, or from the agent's `--project-name` override.
+- Non-agent output defaults to `generated_images/<timestamp>_<project>`.
+- Agent commands must pass `--output-base-dir VALUE`. The output folder is then named `<VALUE>/<timestamp>_<project>`. For project work, Codex agents should pass the ready base folder `...\Рабочие файлы\сгенерированные изображения`.
+- The project name comes from `OUTPUT_PROJECT_NAME` in `data/settings.json`, or from the agent's `--project-name` override.
 - `multiformat_with_refs` can use one global style reference in addition to per-card content references.
 - API prompt logging is enabled by default and writes the exact provider prompt to the run log, not to the JSON result.
 
@@ -23,19 +25,19 @@ Keep it updated together with any change to `utils/agent_cli.py`, API-mode retur
 Plan a batch without API calls:
 
 ```powershell
-python main.py agent-plan --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --json
+python main.py agent-plan --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --json
 ```
 
 Run a batch synchronously through API:
 
 ```powershell
-python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --json
+python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --json
 ```
 
 Optional API request size overrides:
 
 ```powershell
-python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --face-image-size 1024x1024 --back-image-size 1536x1024 --json
+python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --face-image-size 1024x1024 --back-image-size 1536x1024 --json
 ```
 
 - `--image-size VALUE` applies one API request size to the whole run.
@@ -48,17 +50,28 @@ python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_p
 Optional project-name override:
 
 ```powershell
-python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --project-name countries --json
+python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --project-name countries --json
 ```
 
 - `--project-name VALUE` overrides `OUTPUT_PROJECT_NAME` in memory for the current agent command only.
-- The effective project name is sanitized for Windows folder names and used in `generated_images/YYYY-MM-DD_HH-MM-SS_<project>`.
+- The effective project name is sanitized for Windows folder names and used in `<output-base-dir>/YYYY-MM-DD_HH-MM-SS_<project>`.
 - Codex agents should determine `VALUE` from the user's project context, not from the prompts `.txt` filename. If the source project path ends with a generic work folder such as `Рабочие файлы`, use its parent folder name; for example `O:\Yandex.Disk\0РГАНИЗОВАННЫЕ\история древнего мира\Рабочие файлы` should use `история древнего мира`.
+
+Required agent output base directory:
+
+```powershell
+python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --json
+```
+
+- `--output-base-dir VALUE` overrides `OUTPUT_BASE_DIR` in memory for the current agent command only.
+- `VALUE` is the ready base output directory. The runtime creates a timestamped wave folder inside it.
+- `agent-plan` and `agent-run-api` both return a machine error when `--output-base-dir` is omitted.
+- `OUTPUT_BASE_DIR` defaults to `generated_images` for non-agent/runtime settings.
 
 Optional global style reference override:
 
 ```powershell
-python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --style-ref data\style_refs\default.png --json
+python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --style-ref data\style_refs\default.png --json
 ```
 
 - `--style-ref PATH` overrides `API_STYLE_REFERENCE_IMAGE` in memory for the current agent command only.
@@ -70,7 +83,7 @@ python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_p
 Optional prompt logging override:
 
 ```powershell
-python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --no-log-prompts --json
+python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --no-log-prompts --json
 ```
 
 - By default, `API_LOG_PROMPTS=true` logs raw prompts and exact provider prompts to the run log.
@@ -103,6 +116,8 @@ multiformat_with_refs
 - `image_size`
 - `face_image_size`
 - `back_image_size`
+- `output_base_dir`
+- `output_dir`
 - `project_name`
 - for `multiformat_with_refs`: `references_summary`
 - for `multiformat_with_refs`: top-level reference summary fields (`style_reference_path`, `style_reference_enabled`, `prompt_logging_enabled`, `content_refs_found`, `content_refs_missing`, `tasks_with_style_ref`, `tasks_with_content_ref`, `tasks_with_both_refs`)
@@ -117,6 +132,7 @@ multiformat_with_refs
 - `succeeded`
 - `failed`
 - `output_dir`
+- `output_base_dir`
 - `project_name`
 - `log_file`
 - `images`

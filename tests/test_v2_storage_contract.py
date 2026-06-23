@@ -25,6 +25,7 @@ def test_apply_defaults_fills_missing_fields_and_recomputes_cards_to_process():
     assert settings["API_MODEL_CHATGPT"] == "gpt-image-2"
     assert settings["API_STYLE_REFERENCE_IMAGE"] == ""
     assert settings["API_LOG_PROMPTS"] is True
+    assert settings["OUTPUT_BASE_DIR"] == "generated_images"
     assert settings["BACK_ASPECT_RATIO"] == "16:9"
     assert settings["CARDS_TO_PROCESS"] == 6
 
@@ -50,6 +51,7 @@ def test_save_and_load_settings_use_json_store_with_defaults(tmp_path, monkeypat
     assert loaded["CARDS_TO_PROCESS"] == 3
     assert loaded["API_MODEL_WITH_REFS"] == "gemini-2.5-flash-image"
     assert loaded["API_PROVIDER"] == "nanobanana"
+    assert loaded["OUTPUT_BASE_DIR"] == "generated_images"
     assert loaded["GENERATION_METHOD"] == "browser"
 
 

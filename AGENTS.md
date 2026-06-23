@@ -66,8 +66,10 @@ Some docs in `README.md` and `version2/` are historically useful but partially o
 - Browser automation depends on `keyboard`, `pyautogui`, `pygetwindow`.
 - Some local environments may not have test/runtime dependencies installed.
 - A real prompts file is often configured via `data/settings.json`.
+- `OUTPUT_BASE_DIR` controls the base image output directory and defaults to `generated_images`; timestamped run folders are created inside it.
 - In `multiformat_with_refs`, generation without a reference image is currently valid behavior.
 - For Codex style-probe workflows, prefer `python main.py agent-plan ... --json` and `python main.py agent-run-api ... --json` over hotkeys/menu automation.
+- Codex agent CLI commands must pass `--output-base-dir`; for project work use the ready folder `...\Рабочие файлы\сгенерированные изображения`, with timestamped wave folders created inside it.
 - Codex agents must not start browser generation. Agent-facing commands must force `GENERATION_METHOD=api` and use API-mode modules only.
 - Codex-created probe prompts should normally use `multiformat_with_refs` and the `Карточка N лицо/оборот ... - Промпт M:` format shown in `data/countries_clear_nanobanana_prompts.txt`.
 

@@ -44,6 +44,7 @@ def _build_parser() -> argparse.ArgumentParser:
         sub.add_argument("--image-size", default=None)
         sub.add_argument("--face-image-size", default=None)
         sub.add_argument("--back-image-size", default=None)
+        sub.add_argument("--output-base-dir", default=None)
         sub.add_argument("--project-name", default=None)
         style_group = sub.add_mutually_exclusive_group()
         style_group.add_argument("--style-ref", default=None)
@@ -73,6 +74,8 @@ def _settings_from_args(args: argparse.Namespace) -> dict:
         settings["API_FACE_IMAGE_SIZE"] = args.face_image_size
     if getattr(args, "back_image_size", None):
         settings["API_BACK_IMAGE_SIZE"] = args.back_image_size
+    if getattr(args, "output_base_dir", None):
+        settings["OUTPUT_BASE_DIR"] = args.output_base_dir
     if getattr(args, "project_name", None):
         settings["OUTPUT_PROJECT_NAME"] = args.project_name
     if getattr(args, "style_ref", None):
@@ -85,6 +88,9 @@ def _settings_from_args(args: argparse.Namespace) -> dict:
 
 
 def _validate_args(args: argparse.Namespace, settings: dict) -> str | None:
+    if args.command in {"agent-plan", "agent-run-api"} and not str(getattr(args, "output_base_dir", "") or "").strip():
+        return "Для agent CLI требуется --output-base-dir."
+
     style_ref = str(settings.get("API_STYLE_REFERENCE_IMAGE", "") or "").strip()
     style_flag_used = bool(getattr(args, "style_ref", None) or getattr(args, "no_style_ref", False))
     if style_flag_used and args.mode != "multiformat_with_refs":
@@ -148,6 +154,8 @@ def _plan_result(args: argparse.Namespace, settings: dict) -> dict:
         "image_size": image_size,
         "face_image_size": face_image_size,
         "back_image_size": back_image_size,
+        "output_base_dir": api_client.resolve_output_base_dir(settings),
+        "output_dir": api_client.build_session_output_folder(settings),
         "project_name": api_client.resolve_output_project_name(settings),
     }
     if args.mode == "multiformat_with_refs":
@@ -188,6 +196,7 @@ def _run_result(args: argparse.Namespace, settings: dict) -> dict:
             "errors": ["API-режим не вернул машинный результат."],
         }
     result["command"] = args.command
+    result.setdefault("output_base_dir", api_client.resolve_output_base_dir(settings))
     result.setdefault("project_name", api_client.resolve_output_project_name(settings))
     return result
 

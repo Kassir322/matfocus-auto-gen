@@ -311,6 +311,37 @@ def test_session_output_folder_uses_project_fallback(tmp_path, monkeypatch):
     assert output_dir == "generated_images\\2026-06-14_18-30-00_project"
 
 
+def test_session_output_folder_uses_relative_output_base_dir(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(api_client, "datetime", type("FakeDateTime", (), {"now": staticmethod(lambda: _FakeNow())}))
+
+    api_client.reset_session_folder()
+    output_dir = api_client.get_session_output_folder(
+        {
+            "OUTPUT_BASE_DIR": "custom_images",
+            "OUTPUT_PROJECT_NAME": "countries",
+        }
+    )
+
+    assert output_dir == "custom_images\\2026-06-14_18-30-00_countries"
+
+
+def test_session_output_folder_uses_absolute_output_base_dir(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(api_client, "datetime", type("FakeDateTime", (), {"now": staticmethod(lambda: _FakeNow())}))
+    output_base_dir = tmp_path / "Рабочие файлы" / "сгенерированные изображения"
+
+    api_client.reset_session_folder()
+    output_dir = api_client.get_session_output_folder(
+        {
+            "OUTPUT_BASE_DIR": str(output_base_dir),
+            "OUTPUT_PROJECT_NAME": "Обществознание 4х4",
+        }
+    )
+
+    assert output_dir == str(output_base_dir / "2026-06-14_18-30-00_Обществознание_4х4")
+
+
 class _FakeNow:
     def strftime(self, _format):
         return "2026-06-14_18-30-00"

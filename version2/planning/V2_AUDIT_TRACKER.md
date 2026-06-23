@@ -648,3 +648,9 @@
 - Agent CLI style-reference overrides are in-memory only and can be disabled per command with `--no-style-ref`; full prompt logging can be disabled per command with `--no-log-prompts`.
 - API logs now include `reference_mode=none|style|content|style+content`, prompt lengths, and, by default, `[PROMPT_RAW_*]` / `[PROMPT_SENT_*]` blocks with the exact provider prompt sent after aspect-ratio and reference-role additions.
 - Focused regression coverage was added for ChatGPT multi-image reference ordering, style/content routing, agent CLI JSON fields, prompt logging, defaults, and existing content-only reference behavior.
+
+## Update 2026-06-23
+
+- Added `OUTPUT_BASE_DIR` with default `generated_images`; API wave folders are now created under `<OUTPUT_BASE_DIR>/<timestamp>_<project>`.
+- Agent CLI now requires `--output-base-dir` for both `agent-plan` and `agent-run-api`, applies it in memory only, and reports `output_base_dir` plus `output_dir` in JSON.
+- Codex project workflows should pass the ready output base folder `...\Рабочие файлы\сгенерированные изображения`, so each generation wave is saved as a timestamped subfolder there.

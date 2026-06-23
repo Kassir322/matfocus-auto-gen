@@ -19,7 +19,7 @@ The repo documentation for this workflow is `O:\Yandex.Disk\auto-gen\version2\re
 - Run only API generation modes. Browser generation is forbidden for this skill, even if `data/settings.json` uses `GENERATION_METHOD=browser` or the user mentions browser automation.
 - Never use pyautogui, hotkeys, or the console menu as a workaround for agent generation.
 - For long or full `agent-run-api` generation runs, start the process in a separate visible PowerShell window instead of the Codex tool terminal, so the user can close that window to stop generation if needed. Keep using normal synchronous tool calls for `agent-plan` and for very small quick probes when the user clearly expects immediate completion inside the chat.
-- Use `multiformat_with_refs` as the default mode for product/style-probe work unless the user explicitly asks for another mode. This remains the default even when no reference images are being used; missing references are valid and the runtime will continue without them.
+- Always use `multiformat_with_refs` for generation runs through this skill. Do not switch to `standard` or `multiformat`, even for quick tests, independent samples, or when the user does not provide reference images. Missing references are valid and the runtime will continue without them.
 - For consistent style across a batch, use one global style reference with `--style-ref <path>` or `API_STYLE_REFERENCE_IMAGE`. Prefer `O:\Yandex.Disk\auto-gen\data\style_refs\default.png` when creating a durable local style sample.
 - Treat the global style reference as style-only: it should transfer palette, line quality, rendering finish, texture, and detail level, not subject, object layout, or composition.
 - Style references are supported only in API `multiformat_with_refs` and require `API_PROVIDER_WITH_REFS=chatgpt`; `agent-plan`/`agent-run-api` should fail before generation if this is not true.
@@ -35,6 +35,7 @@ The repo documentation for this workflow is `O:\Yandex.Disk\auto-gen\version2\re
 - Do not print full prompts from logs into the chat unless the user explicitly asks for prompt debugging. Never expose API keys, Authorization headers, base64, image bytes, or file handles.
 - Agent runs are isolated by design: `agent-run-api` applies overrides in memory and should not change `data/settings.json` or advance `START_FROM_CARD`.
 - Agent runs may override API request size with `--image-size`, `--face-image-size`, and `--back-image-size`. Pass the requested size through to the provider API; do not enforce a local whitelist for ChatGPT sizes. These flags control only provider API request size; do not perform local resize, crop, padding, blur-fill, canvas expansion, or other post-processing on returned image files.
+- Agent runs must always pass `--output-base-dir`. Use the ready project output folder `...\Рабочие файлы\сгенерированные изображения`; the runtime creates timestamped wave folders inside it. This override is in-memory only and does not edit `data/settings.json`.
 - Agent runs should set the output project folder suffix with `--project-name` whenever the user's project context is known; this applies in memory only and does not edit `data/settings.json`. Determine the project name from the chat context or source project directory, not from the prompts `.txt` filename. If a source path ends with a generic folder like `Рабочие файлы`, use the parent folder name; for example `O:\Yandex.Disk\0РГАНИЗОВАННЫЕ\история древнего мира\Рабочие файлы` means project name `история древнего мира`. Without the flag, the runtime uses `OUTPUT_PROJECT_NAME` from settings and writes to `generated_images/YYYY-MM-DD_HH-MM-SS_<project>`.
 - Save any prompts file as UTF-8.
 - After a run, parse the final JSON and report `output_dir`, `log_file`, `images`, `succeeded`, `failed`, and `errors`.
@@ -44,15 +45,12 @@ The repo documentation for this workflow is `O:\Yandex.Disk\auto-gen\version2\re
 
 ## Workflow
 
-1. Confirm or infer the desired mode:
-   - `multiformat_with_refs` is the default for product work and style probes, even when no reference images are provided.
-   - `standard` only for independent square style samples.
-   - `multiformat` only when the user explicitly asks to use `multiformat` instead of the default.
+1. Use `multiformat_with_refs` as the mode for every generation run through this skill, even when no reference images are provided. If a user asks for `standard` or `multiformat`, explain that this workflow is locked to `multiformat_with_refs` and continue in `multiformat_with_refs` unless they ask to stop.
 2. Create or choose a prompts `.txt` file that matches the existing project format.
 3. If the task needs reference images, look for downloadable non-Wikipedia/non-Wikimedia sources first; do not spend attempts on Wikimedia direct image URLs.
 4. For reference-based face/back card generation, copy every selected reference into `data\images\лицо` or `data\images\оборот` according to the side being generated, then update the queue/manifest `reference_paths` to those destination files.
 5. Run `agent-plan --json` first unless the user explicitly wants an immediate run.
-6. If the plan is valid and the batch is small, run `agent-run-api --json`. Do not run browser generation.
+6. If the plan is valid and the batch is small, run `agent-run-api --json` with `--output-base-dir`. Do not run browser generation.
 7. Parse the JSON result. If `ok=false`, summarize `errors` and point to `console_output` or `log_file` if present.
 8. Do not inspect generated images by default. Without an explicit user request for analysis, only report run metadata and list/show generated image paths. If the user explicitly asks to analyze, compare, rank, or choose a style, then inspect only the necessary generated images. If the task involves finding/adding reference images and generating from those references, inspect the reference and generated output, compare them, and report an independent success/failure assessment focused on the reference-dependent features.
 9. If the user approves a style direction, write the style notes/prompt pattern where the current task expects them. Do not invent a permanent location unless the user asks.
@@ -70,52 +68,52 @@ The repo documentation for this workflow is `O:\Yandex.Disk\auto-gen\version2\re
 Plan without API calls:
 
 ```powershell
-python main.py agent-plan --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --json
+python main.py agent-plan --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --json
 ```
 
 Plan with a global style reference:
 
 ```powershell
-python main.py agent-plan --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --style-ref data\style_refs\default.png --json
+python main.py agent-plan --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --style-ref data\style_refs\default.png --json
 ```
 
 Run synchronously through API:
 
 ```powershell
-python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --json
+python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --json
 ```
 
 Run with a global style reference:
 
 ```powershell
-python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --style-ref data\style_refs\default.png --json
+python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --style-ref data\style_refs\default.png --json
 ```
 
 Run with full prompt bodies suppressed in the log:
 
 ```powershell
-python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --style-ref data\style_refs\default.png --no-log-prompts --json
+python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --style-ref data\style_refs\default.png --no-log-prompts --json
 ```
 
 Run a long generation in a user-closeable PowerShell window:
 
 ```powershell
-Start-Process powershell -ArgumentList '-NoExit', '-Command', 'Set-Location "O:\Yandex.Disk\auto-gen"; python main.py agent-run-api --mode multiformat_with_refs --prompts "data\style_probe.txt" --start 1 --end 77 --project-name "project_name" --json'
+Start-Process powershell -ArgumentList '-NoExit', '-Command', 'Set-Location "O:\Yandex.Disk\auto-gen"; python main.py agent-run-api --mode multiformat_with_refs --prompts "data\style_probe.txt" --start 1 --end 77 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --project-name "project_name" --json'
 ```
 
 Run with explicit API request sizes:
 
 ```powershell
-python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --face-image-size 1024x1024 --back-image-size 1536x1024 --json
+python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --face-image-size 1024x1024 --back-image-size 1536x1024 --json
 ```
 
 Run with an explicit output project folder suffix:
 
 ```powershell
-python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --project-name countries --json
+python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --project-name countries --json
 ```
 
-Supported modes:
+CLI-supported modes. This skill must still run only `multiformat_with_refs`:
 
 ```text
 standard
@@ -134,6 +132,7 @@ Expected JSON fields:
   "succeeded": 3,
   "failed": 0,
   "project_name": "countries",
+  "output_base_dir": "C:/path/to/Рабочие файлы/сгенерированные изображения",
   "references_summary": {
     "style_reference_path": "data/style_refs/default.png",
     "style_reference_enabled": true,
@@ -144,7 +143,7 @@ Expected JSON fields:
     "tasks_with_content_ref": 1,
     "tasks_with_both_refs": 1
   },
-  "output_dir": "generated_images/2026-06-14_18-30-00_countries",
+  "output_dir": "C:/path/to/Рабочие файлы/сгенерированные изображения/2026-06-14_18-30-00_countries",
   "log_file": "logs/auto-gen_....log",
   "images": ["generated_images/2026-06-14_18-30-00_countries/image.png"],
   "errors": []
@@ -155,7 +154,7 @@ Expected JSON fields:
 
 Use existing parser formats exactly.
 
-Standard:
+Standard format exists in the parser but must not be used by this skill:
 
 ```text
 Карточка 1 - Промпт 1: concise visual prompt variant A
@@ -174,6 +173,7 @@ For style probes, make prompt variants intentionally different along one or two 
 ## Failure Handling
 
 - If `agent-plan` returns no tasks, fix the prompt file format before running generation.
+- If `agent-plan` or `agent-run-api` reports missing `--output-base-dir`, rerun with the ready project output base folder `...\Рабочие файлы\сгенерированные изображения`.
 - If `agent-run-api` reports missing API key or invalid key format, stop and tell the user which provider is missing; do not expose existing key values.
 - If some images fail, report `succeeded/failed`, show successful outputs, and suggest a smaller retry only for failed variants.
 - If output paths are relative, resolve them against the repo root before showing image Markdown.

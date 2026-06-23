@@ -85,6 +85,19 @@ def resolve_output_project_name(settings: dict | None = None) -> str:
     return safe_name or "project"
 
 
+def resolve_output_base_dir(settings: dict | None = None) -> str:
+    raw_path = ""
+    if settings:
+        raw_path = str(settings.get("OUTPUT_BASE_DIR", "") or "")
+    return raw_path.strip() or "generated_images"
+
+
+def build_session_output_folder(settings: dict | None = None, timestamp: str | None = None) -> str:
+    timestamp = timestamp or datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    project_name = resolve_output_project_name(settings)
+    return os.path.join(resolve_output_base_dir(settings), f"{timestamp}_{project_name}")
+
+
 def normalize_provider(provider: str | None) -> str:
     normalized = str(provider or DEFAULT_PROVIDER).strip().lower()
     if normalized not in SUPPORTED_PROVIDERS:
@@ -103,9 +116,7 @@ def get_session_output_folder(settings: dict | None = None) -> str:
     global _current_session_folder
 
     if _current_session_folder is None:
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        project_name = resolve_output_project_name(settings)
-        _current_session_folder = os.path.join("generated_images", f"{timestamp}_{project_name}")
+        _current_session_folder = build_session_output_folder(settings)
         os.makedirs(_current_session_folder, exist_ok=True)
 
     return _current_session_folder

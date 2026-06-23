@@ -20,6 +20,7 @@ DEFAULT_SETTINGS = {
     "CHECK_IMAGE_GENERATED": True,
     "FACE_ASPECT_RATIO": "4:3",
     "BACK_ASPECT_RATIO": "16:9",
+    "OUTPUT_BASE_DIR": "generated_images",
     "OUTPUT_PROJECT_NAME": "project",
     "GENERATION_METHOD": "browser",
     "API_PROVIDER": "nanobanana",
