@@ -15,6 +15,8 @@ Keep it updated together with any change to `utils/agent_cli.py`, API-mode retur
 - Run `agent-plan --json` before generation unless the user explicitly asks to skip planning.
 - Agent runs must stay isolated from `data/settings.json`: command-line overrides are applied in memory and must not advance `START_FROM_CARD`.
 - Output folders are named `generated_images/<timestamp>_<project>`. The project name comes from `OUTPUT_PROJECT_NAME` in `data/settings.json`, or from the agent's `--project-name` override.
+- `multiformat_with_refs` can use one global style reference in addition to per-card content references.
+- API prompt logging is enabled by default and writes the exact provider prompt to the run log, not to the JSON result.
 
 ## Commands
 
@@ -53,6 +55,28 @@ python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_p
 - The effective project name is sanitized for Windows folder names and used in `generated_images/YYYY-MM-DD_HH-MM-SS_<project>`.
 - Codex agents should determine `VALUE` from the user's project context, not from the prompts `.txt` filename. If the source project path ends with a generic work folder such as `Рабочие файлы`, use its parent folder name; for example `O:\Yandex.Disk\0РГАНИЗОВАННЫЕ\история древнего мира\Рабочие файлы` should use `история древнего мира`.
 
+Optional global style reference override:
+
+```powershell
+python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --style-ref data\style_refs\default.png --json
+```
+
+- `--style-ref PATH` overrides `API_STYLE_REFERENCE_IMAGE` in memory for the current agent command only.
+- If `--style-ref` is omitted, `multiformat_with_refs` uses `API_STYLE_REFERENCE_IMAGE` from settings.
+- `--no-style-ref` disables any configured style reference for the current command only.
+- `--style-ref` and `--no-style-ref` are valid only with `multiformat_with_refs`.
+- Style references require `API_PROVIDER_WITH_REFS=chatgpt`; invalid settings fail before API calls.
+
+Optional prompt logging override:
+
+```powershell
+python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_probe.txt --start 1 --end 1 --no-log-prompts --json
+```
+
+- By default, `API_LOG_PROMPTS=true` logs raw prompts and exact provider prompts to the run log.
+- `--no-log-prompts` disables full prompt text logging for the current command and logs prompt lengths only.
+- Prompt text is written only to the log file, not to the JSON result.
+
 Supported modes:
 
 ```text
@@ -80,6 +104,8 @@ multiformat_with_refs
 - `face_image_size`
 - `back_image_size`
 - `project_name`
+- for `multiformat_with_refs`: `references_summary`
+- for `multiformat_with_refs`: top-level reference summary fields (`style_reference_path`, `style_reference_enabled`, `prompt_logging_enabled`, `content_refs_found`, `content_refs_missing`, `tasks_with_style_ref`, `tasks_with_content_ref`, `tasks_with_both_refs`)
 - `errors` when `ok=false`
 
 `agent-run-api --json` returns a single JSON object with:
@@ -95,6 +121,7 @@ multiformat_with_refs
 - `log_file`
 - `images`
 - `errors`
+- for `multiformat_with_refs`: `references_summary`
 - optional `console_output`
 
 If the process exits nonzero but prints JSON, parse the JSON first and report `errors`.
@@ -138,13 +165,33 @@ For style probes, create a small number of variants that change only one or two 
 
 ## Reference Images
 
-`multiformat_with_refs` looks for reference images under:
+`multiformat_with_refs` has two reference roles in API mode:
+
+- **Style reference**: one global image for visual language only. It controls palette, line quality, detail level, shading, texture, contrast, and overall finish. It must not be treated as subject/layout/content.
+- **Content reference**: per-card/per-side images used to preserve a face, object, shape, structure, landmark, or other recognizable subject detail.
+
+The global style reference is configured with `--style-ref PATH` or `API_STYLE_REFERENCE_IMAGE`.
+
+Content references still use the existing lookup folders:
 
 ```text
 data/images/<side>/
 ```
 
-Missing references are valid. The mode should continue and generate without a reference when no matching image is found.
+Missing content references are valid. The mode should continue and generate without a content reference when no matching image is found.
+
+When both style and content references are available for a ChatGPT task, the OpenAI edit request receives image 1 as the style reference and image 2 as the content reference. The generated provider prompt includes explicit role instructions for those images.
+
+Prompt logs use this block shape when full prompt logging is enabled:
+
+```text
+[PROMPT_RAW_BEGIN] card=1 side=лицо pair=1
+...
+[PROMPT_RAW_END]
+[PROMPT_SENT_BEGIN] card=1 side=лицо pair=1 provider=chatgpt model=gpt-image-2 reference_mode=style+content
+...
+[PROMPT_SENT_END]
+```
 
 ## Documentation Maintenance
 

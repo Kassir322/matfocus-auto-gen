@@ -74,6 +74,11 @@ logs/auto-gen_2026-04-23_15-10-05.log
 - `[WARN]`
 - `[ERROR]`
 - `[REF]`
+- `[STYLE_REF]`
+- `[CONTENT_REF]`
+- `[PROMPT_RAW_BEGIN]` / `[PROMPT_RAW_END]`
+- `[PROMPT_SENT_BEGIN]` / `[PROMPT_SENT_END]`
+- `[PROMPT_LENGTHS]`
 - `[CHECK]`
 - `[SUMMARY]`
 
@@ -105,6 +110,22 @@ Browser-режимы уже пишут:
 - итоговую сводку.
 
 API-режимы ведут отдельные свои логи по тому же общему принципу.
+
+API runs also log prompt text when `API_LOG_PROMPTS=true`:
+
+```text
+[PROMPT_RAW_BEGIN] card=1 side=лицо pair=1
+...
+[PROMPT_RAW_END]
+[PROMPT_SENT_BEGIN] card=1 side=лицо pair=1 provider=chatgpt model=gpt-image-2 reference_mode=style+content
+...
+[PROMPT_SENT_END]
+```
+
+- `PROMPT_RAW` is the prompt text parsed from the prompts file.
+- `PROMPT_SENT` is the exact provider prompt after aspect-ratio prefix and style/content reference role instructions.
+- When prompt logging is disabled with `API_LOG_PROMPTS=false` or `--no-log-prompts`, the log writes `[PROMPT_LENGTHS]` only.
+- Logs must never include API keys, Authorization headers, file handles, base64 data, or image bytes.
 
 ---
 

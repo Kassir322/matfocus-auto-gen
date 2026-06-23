@@ -4,6 +4,18 @@
 
 ---
 
+## Current API status
+
+- Active API providers: `nanobanana` and `chatgpt`.
+- API mode supports `standard`, `multiformat`, and `multiformat_with_refs`.
+- Agent/Codex workflows must use API commands only; browser automation is not part of the agent contract.
+- `multiformat_with_refs` supports content references from `data/images/<side>/`.
+- `multiformat_with_refs` also supports one global style reference through `API_STYLE_REFERENCE_IMAGE` or agent CLI `--style-ref`.
+- Global style references require `API_PROVIDER_WITH_REFS=chatgpt`; when style and content references are both present, ChatGPT receives the style image first and content image second.
+- `API_LOG_PROMPTS=true` logs raw prompts and exact provider prompts to `logs/auto-gen_*.log`; `--no-log-prompts` disables full prompt text logging for one agent command.
+
+---
+
 ## Обзор
 
 Начиная с версии v2, программа поддерживает **два метода генерации**:
@@ -80,7 +92,7 @@ python main.py
 | ----------------------- | ------------- | ----------------- |
 | `standard`              | ✅ Да         | ✅ Да             |
 | `multiformat`           | ✅ Да         | ✅ Да             |
-| `multiformat_with_refs` | ❌ Нет        | ✅ Да             |
+| `multiformat_with_refs` | ✅ Да         | ✅ Да             |
 
 ### Модели для генерации изображений
 
@@ -293,7 +305,7 @@ pip install google-genai
 
 ### Режим с референсами не работает через API
 
-**Причина:** `multiformat_with_refs` пока не поддерживается в API режиме.
+**Причина:** content/style reference workflow требует корректной настройки provider и файлов референсов.
 
 **Решение:**
 
@@ -345,7 +357,7 @@ A: В текущей версии программа использует оди
 
 Планируемые улучшения API-режима:
 
-- [ ] Поддержка режима `multiformat_with_refs` (отправка референсов в API)
+- [x] Поддержка режима `multiformat_with_refs` (content refs и global style ref в API)
 - [ ] Автоматический retry при ошибках 429 с exponential backoff
 - [ ] Ротация нескольких API ключей для увеличения квоты
 - [ ] Пакетная генерация (до 4 изображений за запрос)

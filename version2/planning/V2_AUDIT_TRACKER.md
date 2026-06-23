@@ -640,3 +640,11 @@
 
 - API output folders now include a Windows-safe project suffix from `OUTPUT_PROJECT_NAME`: `generated_images/YYYY-MM-DD_HH-MM-SS_<project>`.
 - Agent CLI accepts `--project-name` as an in-memory override and reports `project_name` in JSON results without writing back to `data/settings.json`.
+
+## Update 2026-06-22
+
+- API `multiformat_with_refs` now supports one global style reference per agent/API run through `API_STYLE_REFERENCE_IMAGE` or `agent-plan` / `agent-run-api --style-ref PATH`.
+- Existing files under `data/images/<side>/` are now treated as content references, while the global style reference controls visual language. ChatGPT `images.edit` receives style first and content second when both are present.
+- Agent CLI style-reference overrides are in-memory only and can be disabled per command with `--no-style-ref`; full prompt logging can be disabled per command with `--no-log-prompts`.
+- API logs now include `reference_mode=none|style|content|style+content`, prompt lengths, and, by default, `[PROMPT_RAW_*]` / `[PROMPT_SENT_*]` blocks with the exact provider prompt sent after aspect-ratio and reference-role additions.
+- Focused regression coverage was added for ChatGPT multi-image reference ordering, style/content routing, agent CLI JSON fields, prompt logging, defaults, and existing content-only reference behavior.

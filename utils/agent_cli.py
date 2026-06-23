@@ -45,6 +45,10 @@ def _build_parser() -> argparse.ArgumentParser:
         sub.add_argument("--face-image-size", default=None)
         sub.add_argument("--back-image-size", default=None)
         sub.add_argument("--project-name", default=None)
+        style_group = sub.add_mutually_exclusive_group()
+        style_group.add_argument("--style-ref", default=None)
+        style_group.add_argument("--no-style-ref", action="store_true")
+        sub.add_argument("--no-log-prompts", action="store_true")
         sub.add_argument("--json", action="store_true")
 
     return parser
@@ -71,7 +75,27 @@ def _settings_from_args(args: argparse.Namespace) -> dict:
         settings["API_BACK_IMAGE_SIZE"] = args.back_image_size
     if getattr(args, "project_name", None):
         settings["OUTPUT_PROJECT_NAME"] = args.project_name
+    if getattr(args, "style_ref", None):
+        settings["API_STYLE_REFERENCE_IMAGE"] = args.style_ref
+    if getattr(args, "no_style_ref", False):
+        settings["API_STYLE_REFERENCE_IMAGE"] = ""
+    if getattr(args, "no_log_prompts", False):
+        settings["API_LOG_PROMPTS"] = False
     return settings
+
+
+def _validate_args(args: argparse.Namespace, settings: dict) -> str | None:
+    style_ref = str(settings.get("API_STYLE_REFERENCE_IMAGE", "") or "").strip()
+    style_flag_used = bool(getattr(args, "style_ref", None) or getattr(args, "no_style_ref", False))
+    if style_flag_used and args.mode != "multiformat_with_refs":
+        return "--style-ref/--no-style-ref поддерживаются только для mode=multiformat_with_refs."
+    if style_ref and args.mode != "multiformat_with_refs":
+        return "API_STYLE_REFERENCE_IMAGE поддерживается только для mode=multiformat_with_refs."
+    if args.mode == "multiformat_with_refs":
+        module = _mode_module(args.mode)
+        if hasattr(module, "validate_style_reference_settings"):
+            return module.validate_style_reference_settings(settings)
+    return None
 
 
 def _base_error(command: str, message: str) -> dict:
@@ -83,6 +107,10 @@ def _base_error(command: str, message: str) -> dict:
 
 
 def _plan_result(args: argparse.Namespace, settings: dict) -> dict:
+    validation_error = _validate_args(args, settings)
+    if validation_error:
+        return _base_error(args.command, validation_error)
+
     module = _mode_module(args.mode)
     path = settings.get("PROMPTS_FILE") or ""
     if not path or not os.path.isfile(path):
@@ -126,10 +154,18 @@ def _plan_result(args: argparse.Namespace, settings: dict) -> dict:
         provider_with_refs = api_client.get_api_provider(settings, with_reference=True)
         result["provider_with_refs"] = provider_with_refs
         result["model_with_refs"] = api_client.get_api_model(settings, provider_with_refs, with_reference=True)
+        if hasattr(module, "get_references_summary"):
+            references_summary = module.get_references_summary(tasks, settings)
+            result["references_summary"] = references_summary
+            result.update(references_summary)
     return result
 
 
 def _run_result(args: argparse.Namespace, settings: dict) -> dict:
+    validation_error = _validate_args(args, settings)
+    if validation_error:
+        return _base_error(args.command, validation_error)
+
     ok, err = can_start_generation_api(settings)
     if not ok:
         return _base_error(args.command, err or "Запуск API-генерации невозможен.")

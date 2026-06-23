@@ -45,6 +45,32 @@ PROVIDER_CHATGPT = "chatgpt"
 DEFAULT_PROVIDER = PROVIDER_NANOBANANA
 SUPPORTED_PROVIDERS = {PROVIDER_NANOBANANA, PROVIDER_CHATGPT}
 
+REFERENCE_MODE_NONE = "none"
+REFERENCE_MODE_CONTENT = "content"
+REFERENCE_MODE_STYLE = "style"
+REFERENCE_MODE_STYLE_AND_CONTENT = "style+content"
+SUPPORTED_REFERENCE_MODES = {
+    REFERENCE_MODE_NONE,
+    REFERENCE_MODE_CONTENT,
+    REFERENCE_MODE_STYLE,
+    REFERENCE_MODE_STYLE_AND_CONTENT,
+}
+
+STYLE_REFERENCE_PROMPT = (
+    "Reference image 1 is the STYLE REFERENCE only. Use its visual language: "
+    "palette, line quality, level of detail, shading, texture, contrast, and "
+    "overall illustration finish. Do not copy its subject, objects, layout, or composition."
+)
+
+STYLE_AND_CONTENT_REFERENCE_PROMPT = (
+    "Reference image 1 is the STYLE REFERENCE only. Use its visual language: "
+    "palette, line quality, level of detail, shading, texture, contrast, and overall illustration finish. "
+    "Do not copy its subject, objects, layout, or composition.\n"
+    "Reference image 2 is the CONTENT REFERENCE only. Preserve the recognizable "
+    "object, person, shape, structure, or landmark details from it, but render them "
+    "in the style of Reference image 1."
+)
+
 _current_session_folder = None
 
 
@@ -153,6 +179,32 @@ def build_prompt(prompt: str, provider: str, aspect_ratio: str | None = None) ->
     if provider == PROVIDER_CHATGPT and aspect_ratio:
         return f"ar - {aspect_ratio}. {prompt}"
     return prompt
+
+
+def normalize_reference_mode(reference_mode: str | None) -> str:
+    value = str(reference_mode or REFERENCE_MODE_NONE).strip().lower()
+    if value not in SUPPORTED_REFERENCE_MODES:
+        return REFERENCE_MODE_NONE
+    return value
+
+
+def build_provider_prompt(
+    prompt: str,
+    provider: str,
+    aspect_ratio: str | None = None,
+    reference_mode: str | None = REFERENCE_MODE_NONE,
+) -> str:
+    provider = normalize_provider(provider)
+    reference_mode = normalize_reference_mode(reference_mode)
+    prompt = (prompt or "").strip()
+
+    if provider == PROVIDER_CHATGPT:
+        if reference_mode == REFERENCE_MODE_STYLE:
+            prompt = f"{STYLE_REFERENCE_PROMPT}\n\n{prompt}"
+        elif reference_mode == REFERENCE_MODE_STYLE_AND_CONTENT:
+            prompt = f"{STYLE_AND_CONTENT_REFERENCE_PROMPT}\n\n{prompt}"
+
+    return build_prompt(prompt, provider, aspect_ratio)
 
 
 def init_client(api_key: str, provider: str = DEFAULT_PROVIDER):
@@ -282,6 +334,7 @@ def _generate_image_chatgpt(
     image_size: str | None,
     quality: str,
     timeout: float,
+    sent_prompt: str | None = None,
 ) -> tuple[Optional[bytes], Optional[str]]:
     request_size, size_error = normalize_image_size_for_provider(PROVIDER_CHATGPT, image_size)
     if size_error:
@@ -290,7 +343,7 @@ def _generate_image_chatgpt(
     request_client = client.with_options(timeout=timeout) if hasattr(client, "with_options") else client
     response = request_client.images.generate(
         model=model,
-        prompt=build_prompt(prompt, PROVIDER_CHATGPT, aspect_ratio),
+        prompt=sent_prompt or build_provider_prompt(prompt, PROVIDER_CHATGPT, aspect_ratio),
         n=1,
         size=request_size,
         quality=quality or "low",
@@ -324,6 +377,7 @@ def _generate_image_chatgpt_with_reference(
     image_size: str | None,
     quality: str,
     timeout: float,
+    sent_prompt: str | None = None,
 ) -> tuple[Optional[bytes], Optional[str]]:
     request_size, size_error = normalize_image_size_for_provider(PROVIDER_CHATGPT, image_size)
     if size_error:
@@ -334,11 +388,72 @@ def _generate_image_chatgpt_with_reference(
         response = request_client.images.edit(
             model=model,
             image=image_file,
-            prompt=build_prompt(prompt, PROVIDER_CHATGPT, aspect_ratio),
+            prompt=sent_prompt
+            or build_provider_prompt(prompt, PROVIDER_CHATGPT, aspect_ratio, REFERENCE_MODE_CONTENT),
             n=1,
             size=request_size,
             quality=quality or "low",
         )
+
+    if not response:
+        return None, "API вернул пустой response объект"
+    data = getattr(response, "data", None)
+    if not data:
+        return None, f"API response не содержит data. Response: {response}"
+
+    image_item = data[0]
+    b64_json = getattr(image_item, "b64_json", None)
+    if b64_json is None and isinstance(image_item, dict):
+        b64_json = image_item.get("b64_json")
+    if not b64_json:
+        return None, f"API response не содержит b64_json. Response: {response}"
+
+    try:
+        return base64.b64decode(b64_json), None
+    except Exception as e:
+        return None, f"Ошибка декодирования b64_json: {e}"
+
+
+def _generate_image_chatgpt_with_references(
+    client,
+    prompt: str,
+    reference_image_paths: list[str],
+    reference_mode: str,
+    model: str,
+    aspect_ratio: str,
+    image_size: str | None,
+    quality: str,
+    timeout: float,
+    sent_prompt: str | None = None,
+) -> tuple[Optional[bytes], Optional[str]]:
+    request_size, size_error = normalize_image_size_for_provider(PROVIDER_CHATGPT, image_size)
+    if size_error:
+        return None, size_error
+
+    if not reference_image_paths:
+        return None, "Не указаны референсные изображения"
+
+    request_client = client.with_options(timeout=timeout) if hasattr(client, "with_options") else client
+    image_files = []
+    try:
+        for path in reference_image_paths:
+            image_files.append(open(path, "rb"))
+        image_argument = image_files[0] if len(image_files) == 1 else image_files
+        response = request_client.images.edit(
+            model=model,
+            image=image_argument,
+            prompt=sent_prompt
+            or build_provider_prompt(prompt, PROVIDER_CHATGPT, aspect_ratio, reference_mode),
+            n=1,
+            size=request_size,
+            quality=quality or "low",
+        )
+    finally:
+        for image_file in image_files:
+            try:
+                image_file.close()
+            except OSError:
+                pass
 
     if not response:
         return None, "API вернул пустой response объект"
@@ -368,6 +483,7 @@ def generate_image(
     timeout: float = 60.0,
     provider: str = DEFAULT_PROVIDER,
     quality: str = "low",
+    sent_prompt: str | None = None,
 ) -> tuple[Optional[bytes], Optional[str]]:
     if not prompt or not prompt.strip():
         return None, "Пустой промпт"
@@ -383,6 +499,7 @@ def generate_image(
                 image_size=image_size,
                 quality=quality,
                 timeout=timeout,
+                sent_prompt=sent_prompt,
             )
 
         if not GENAI_AVAILABLE:
@@ -390,7 +507,7 @@ def generate_image(
 
         return _generate_image_nanobanana(
             client=client,
-            prompt=prompt,
+            prompt=sent_prompt or prompt,
             model=model,
             aspect_ratio=aspect_ratio,
             image_size=image_size or "1K",
@@ -460,6 +577,80 @@ def fetch_openai_costs(
     return total_cost, None
 
 
+def generate_image_with_references(
+    client,
+    prompt: str,
+    style_reference_image_path: str | None = None,
+    content_reference_image_path: str | None = None,
+    model: str = "gpt-image-2",
+    aspect_ratio: str = "1:1",
+    image_size: str | None = None,
+    timeout: float = 60.0,
+    provider: str = DEFAULT_PROVIDER,
+    quality: str = "low",
+    sent_prompt: str | None = None,
+) -> tuple[Optional[bytes], Optional[str]]:
+    if not prompt or not prompt.strip():
+        return None, "Пустой промпт"
+
+    provider = normalize_provider(provider)
+    style_reference_image_path = str(style_reference_image_path or "").strip()
+    content_reference_image_path = str(content_reference_image_path or "").strip()
+
+    if style_reference_image_path and not os.path.exists(style_reference_image_path):
+        return None, f"Стилевое референсное изображение не найдено: {style_reference_image_path}"
+    if content_reference_image_path and not os.path.exists(content_reference_image_path):
+        return None, f"Контентное референсное изображение не найдено: {content_reference_image_path}"
+    if not style_reference_image_path and not content_reference_image_path:
+        return None, "Не указаны референсные изображения"
+
+    if style_reference_image_path and provider != PROVIDER_CHATGPT:
+        return None, "Стилевые референсы поддерживаются только для provider=chatgpt"
+
+    if provider != PROVIDER_CHATGPT:
+        return generate_image_with_reference(
+            client=client,
+            prompt=prompt,
+            reference_image_path=content_reference_image_path,
+            model=model,
+            aspect_ratio=aspect_ratio,
+            image_size=image_size,
+            timeout=timeout,
+            provider=provider,
+            quality=quality,
+            sent_prompt=sent_prompt,
+        )
+
+    reference_paths = []
+    if style_reference_image_path:
+        reference_paths.append(style_reference_image_path)
+    if content_reference_image_path:
+        reference_paths.append(content_reference_image_path)
+
+    if style_reference_image_path and content_reference_image_path:
+        reference_mode = REFERENCE_MODE_STYLE_AND_CONTENT
+    elif style_reference_image_path:
+        reference_mode = REFERENCE_MODE_STYLE
+    else:
+        reference_mode = REFERENCE_MODE_CONTENT
+
+    try:
+        return _generate_image_chatgpt_with_references(
+            client=client,
+            prompt=prompt,
+            reference_image_paths=reference_paths,
+            reference_mode=reference_mode,
+            model=model,
+            aspect_ratio=aspect_ratio,
+            image_size=image_size,
+            quality=quality,
+            timeout=timeout,
+            sent_prompt=sent_prompt,
+        )
+    except Exception as e:
+        return None, f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+
+
 def generate_image_with_reference(
     client,
     prompt: str,
@@ -470,6 +661,7 @@ def generate_image_with_reference(
     timeout: float = 60.0,
     provider: str = DEFAULT_PROVIDER,
     quality: str = "low",
+    sent_prompt: str | None = None,
 ) -> tuple[Optional[bytes], Optional[str]]:
     if not prompt or not prompt.strip():
         return None, "Пустой промпт"
@@ -490,6 +682,7 @@ def generate_image_with_reference(
                 image_size=image_size,
                 quality=quality,
                 timeout=timeout,
+                sent_prompt=sent_prompt,
             )
         except Exception as e:
             return None, f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
@@ -529,7 +722,7 @@ def generate_image_with_reference(
 
         response = client.models.generate_content(
             model=model,
-            contents=[prompt, uploaded_file],
+            contents=[sent_prompt or prompt, uploaded_file],
             config=types.GenerateContentConfig(**config_params),
         )
         if not response:

@@ -23,6 +23,8 @@ def test_apply_defaults_fills_missing_fields_and_recomputes_cards_to_process():
     assert settings["API_PROVIDER"] == "nanobanana"
     assert settings["API_PROVIDER_WITH_REFS"] == "nanobanana"
     assert settings["API_MODEL_CHATGPT"] == "gpt-image-2"
+    assert settings["API_STYLE_REFERENCE_IMAGE"] == ""
+    assert settings["API_LOG_PROMPTS"] is True
     assert settings["BACK_ASPECT_RATIO"] == "16:9"
     assert settings["CARDS_TO_PROCESS"] == 6
 

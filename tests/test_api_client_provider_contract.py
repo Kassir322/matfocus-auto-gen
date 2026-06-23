@@ -10,6 +10,34 @@ def test_chatgpt_prompt_prepends_aspect_ratio():
     assert prompt == "ar - 4:3. draw a lighthouse"
 
 
+def test_build_provider_prompt_adds_chatgpt_style_reference_instruction():
+    prompt = api_client.build_provider_prompt(
+        "draw a lighthouse",
+        api_client.PROVIDER_CHATGPT,
+        "4:3",
+        api_client.REFERENCE_MODE_STYLE,
+    )
+
+    assert prompt.startswith("ar - 4:3. Reference image 1 is the STYLE REFERENCE only.")
+    assert "Reference image 2 is the CONTENT REFERENCE only." not in prompt
+    assert prompt.endswith("draw a lighthouse")
+
+
+def test_build_provider_prompt_adds_chatgpt_style_and_content_instruction():
+    prompt = api_client.build_provider_prompt(
+        "draw a lighthouse",
+        api_client.PROVIDER_CHATGPT,
+        "4:3",
+        api_client.REFERENCE_MODE_STYLE_AND_CONTENT,
+    )
+
+    style_index = prompt.index("Reference image 1 is the STYLE REFERENCE only.")
+    content_index = prompt.index("Reference image 2 is the CONTENT REFERENCE only.")
+    assert style_index < content_index
+    assert prompt.count("ar - 4:3.") == 1
+    assert prompt.endswith("draw a lighthouse")
+
+
 def test_get_api_key_prefers_provider_specific_field_over_legacy():
     settings = {
         "API_KEY": "AIzaSyLEGACY_KEY_12345678901234567890",
@@ -45,7 +73,11 @@ class _FakeImages:
 
     def edit(self, **kwargs):
         self.calls.append(kwargs)
-        assert kwargs["image"].read() == b"reference"
+        image_arg = kwargs["image"]
+        if isinstance(image_arg, list):
+            kwargs["_image_bytes"] = [image_file.read() for image_file in image_arg]
+        else:
+            kwargs["_image_bytes"] = [image_arg.read()]
         return _FakeImageResponse()
 
 
@@ -75,8 +107,117 @@ def test_chatgpt_reference_generation_uses_image_edit(tmp_path):
     call = client.images.calls[0]
     assert call["model"] == "gpt-image-2"
     assert call["prompt"] == "ar - 4:3. draw a lighthouse"
+    assert call["_image_bytes"] == [b"reference"]
     assert call["size"] == "auto"
     assert call["quality"] == "medium"
+
+
+def test_chatgpt_style_and_content_references_use_ordered_image_edit(tmp_path):
+    style_path = tmp_path / "style.png"
+    content_path = tmp_path / "content.png"
+    style_path.write_bytes(b"style")
+    content_path.write_bytes(b"content")
+    client = _FakeOpenAIClient()
+
+    image_bytes, error = api_client.generate_image_with_references(
+        client=client,
+        prompt="draw a lighthouse",
+        style_reference_image_path=str(style_path),
+        content_reference_image_path=str(content_path),
+        model="gpt-image-2",
+        aspect_ratio="4:3",
+        provider=api_client.PROVIDER_CHATGPT,
+        quality="low",
+    )
+
+    assert error is None
+    assert image_bytes == b"fake-png"
+    call = client.images.calls[0]
+    assert call["_image_bytes"] == [b"style", b"content"]
+    assert "Reference image 1 is the STYLE REFERENCE only." in call["prompt"]
+    assert "Reference image 2 is the CONTENT REFERENCE only." in call["prompt"]
+    assert call["prompt"].endswith("draw a lighthouse")
+
+
+def test_chatgpt_style_only_reference_uses_single_image_edit(tmp_path):
+    style_path = tmp_path / "style.png"
+    style_path.write_bytes(b"style")
+    client = _FakeOpenAIClient()
+
+    image_bytes, error = api_client.generate_image_with_references(
+        client=client,
+        prompt="draw a lighthouse",
+        style_reference_image_path=str(style_path),
+        model="gpt-image-2",
+        aspect_ratio="4:3",
+        provider=api_client.PROVIDER_CHATGPT,
+        quality="low",
+    )
+
+    assert error is None
+    assert image_bytes == b"fake-png"
+    call = client.images.calls[0]
+    assert call["_image_bytes"] == [b"style"]
+    assert "Reference image 1 is the STYLE REFERENCE only." in call["prompt"]
+    assert "Reference image 2 is the CONTENT REFERENCE only." not in call["prompt"]
+
+
+def test_chatgpt_content_only_references_keep_old_prompt_shape(tmp_path):
+    content_path = tmp_path / "content.png"
+    content_path.write_bytes(b"content")
+    client = _FakeOpenAIClient()
+
+    image_bytes, error = api_client.generate_image_with_references(
+        client=client,
+        prompt="draw a lighthouse",
+        content_reference_image_path=str(content_path),
+        model="gpt-image-2",
+        aspect_ratio="4:3",
+        provider=api_client.PROVIDER_CHATGPT,
+        quality="low",
+    )
+
+    assert error is None
+    assert image_bytes == b"fake-png"
+    call = client.images.calls[0]
+    assert call["_image_bytes"] == [b"content"]
+    assert call["prompt"] == "ar - 4:3. draw a lighthouse"
+
+
+def test_missing_style_reference_returns_error_before_api_call(tmp_path):
+    client = _FakeOpenAIClient()
+
+    image_bytes, error = api_client.generate_image_with_references(
+        client=client,
+        prompt="draw a lighthouse",
+        style_reference_image_path=str(tmp_path / "missing.png"),
+        model="gpt-image-2",
+        aspect_ratio="4:3",
+        provider=api_client.PROVIDER_CHATGPT,
+        quality="low",
+    )
+
+    assert image_bytes is None
+    assert "не найдено" in error
+    assert client.images.calls == []
+
+
+def test_chatgpt_generation_uses_sent_prompt_exactly():
+    client = _FakeOpenAIClient()
+
+    image_bytes, error = api_client.generate_image(
+        client=client,
+        prompt="draw a lighthouse",
+        model="gpt-image-2",
+        aspect_ratio="4:3",
+        provider=api_client.PROVIDER_CHATGPT,
+        quality="low",
+        sent_prompt="already final prompt",
+    )
+
+    assert error is None
+    assert image_bytes == b"fake-png"
+    assert client.images.calls[0]["prompt"] == "already final prompt"
 
 
 def test_chatgpt_generation_uses_explicit_supported_image_size():

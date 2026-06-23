@@ -4,6 +4,25 @@
 
 ---
 
+## API roles: style reference vs content references
+
+In the API/agent `multiformat_with_refs` workflow references now have two different roles.
+
+- `style reference` is one global image for the whole run. Configure it with
+  `API_STYLE_REFERENCE_IMAGE` or pass `--style-ref PATH` to `agent-plan` /
+  `agent-run-api`. Recommended location: `data/style_refs/default.png`.
+- `content reference` is the existing per-card/per-side image in
+  `data/images/<side>/`. It is used for recognizable faces, objects, shapes,
+  vehicles, landmarks, and other concrete subject details.
+- Style references are API-only in the first implementation and require
+  `API_PROVIDER_WITH_REFS=chatgpt`.
+- When ChatGPT receives both images, the order is stable:
+  `Image 1 = STYLE REFERENCE`, `Image 2 = CONTENT REFERENCE`.
+- A task with a style reference but no content reference is still a reference
+  task and is sent as `reference_mode=style`.
+- Browser/UI generation keeps the older single-reference behavior described
+  below.
+
 ## 1. Общее описание
 
 Референсные изображения — это локальные файлы (PNG или JPG), которые вставляются в чат **перед промптом** для того, чтобы нейросеть учитывала их при генерации.

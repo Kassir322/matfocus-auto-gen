@@ -129,11 +129,13 @@
 | `API_MODEL`         | str   | Название модели для генерации изображений. Доступные: `"imagen-4.0-fast-generate-001"` (быстрая), `"imagen-4.0-generate-001"` (стандартная, рекомендуется), `"imagen-4.0-ultra-generate-001"` (ультра качество), `"gemini-2.5-flash-image"` (устаревшая) | Горячая клавиша Ctrl+7 → выбор API метода → выбор модели (список из 4 вариантов)   |
 | `API_IMAGE_SIZE`    | str   | Разрешение изображения: `"1K"` (1024x1024) или `"2K"` (2048x2048) для Imagen 4. Для старых моделей доступны также `"4K"`. По умолчанию `"2K"` для Imagen 4                                                                                               | Горячая клавиша Ctrl+7 → выбор API метода → выбор разрешения (только для Imagen 4) |
 | `API_TIMEOUT`       | float | Таймаут API запросов в секундах (по умолчанию 60.0)                                                                                                                                                                                                      | Автоматически                                                                      |
+| `API_STYLE_REFERENCE_IMAGE` | str | Optional global style reference image path for API `multiformat_with_refs`; works with `API_PROVIDER_WITH_REFS=chatgpt`. | `data/settings.json` or agent CLI `--style-ref` / `--no-style-ref` |
+| `API_LOG_PROMPTS` | bool | Whether API runs write raw prompts and exact provider prompts to the run log. Default: `true`. | `data/settings.json`; agent CLI can disable with `--no-log-prompts` |
 
 **Примечания:**
 
 - При `GENERATION_METHOD = "api"` не требуется настройка координат (Ctrl+0, Ctrl+Shift+P) и окна браузера (Ctrl+Shift+V).
-- API режим поддерживает режимы `standard` и `multiformat`, но пока не поддерживает `multiformat_with_refs`.
+- API режим поддерживает `standard`, `multiformat` и `multiformat_with_refs`. В `multiformat_with_refs` content references берутся из `data/images/<side>/`, а global style reference задаётся через `API_STYLE_REFERENCE_IMAGE` или agent CLI `--style-ref`.
 - Для API режима используются те же настройки `FACE_ASPECT_RATIO` и `BACK_ASPECT_RATIO` (для мультиформата).
 - API ключ проверяется на валидность (должен начинаться с `"AIza"` и иметь ~39 символов).
 - **Рекомендуется модель** `imagen-4.0-generate-001` с разрешением `2K` для оптимального баланса качества и скорости.
@@ -160,5 +162,7 @@
 | `API_MODEL`             | Название модели API (для метода `"api"`)                                   |
 | `API_IMAGE_SIZE`        | Разрешение изображения (для метода `"api"` с Pro моделью)                  |
 | `API_TIMEOUT`           | Таймаут API запросов (сек, для метода `"api"`)                             |
+| `API_STYLE_REFERENCE_IMAGE` | Global style reference path for API `multiformat_with_refs`            |
+| `API_LOG_PROMPTS`       | Включает запись raw/sent prompts в API log                                 |
 
 Координаты и относительные движения — отдельное хранилище (например, `coordinates.json`). Настройка координат — меню по горячей клавише + фиксация позиции по Ctrl+Shift+P. Настройка окна — одна горячая клавиша «Настроить рабочее окно». **Координаты не требуются при `GENERATION_METHOD = "api"`.**

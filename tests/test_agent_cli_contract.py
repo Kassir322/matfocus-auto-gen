@@ -27,6 +27,8 @@ def _base_settings(prompts_path):
         "API_KEY": "AIzaSyDUMMY_KEY_FOR_TESTS_123456789012345",
         "API_KEY_NANOBANANA": "AIzaSyDUMMY_KEY_FOR_TESTS_123456789012345",
         "API_IMAGE_SIZE": "1K",
+        "API_STYLE_REFERENCE_IMAGE": "",
+        "API_LOG_PROMPTS": True,
         "OUTPUT_PROJECT_NAME": "base-project",
         "API_TIMEOUT": 60.0,
         "SAVE_PROGRESS_TO_SETTINGS": True,
@@ -142,6 +144,49 @@ def test_agent_plan_accepts_side_specific_image_size_overrides(tmp_path, monkeyp
     assert result["back_image_size"] == "1536x1024"
 
 
+def test_agent_plan_reports_style_reference_summary_without_api_calls(tmp_path, monkeypatch):
+    prompts_path = tmp_path / "prompts.txt"
+    style_path = tmp_path / "style.png"
+    prompts_path.write_text(
+        "Карточка 1 лицо Test - Промпт 1: face prompt\n",
+        encoding="utf-8",
+    )
+    style_path.write_bytes(b"style")
+    base_settings = _base_settings(prompts_path)
+    base_settings["API_PROVIDER_WITH_REFS"] = "chatgpt"
+
+    monkeypatch.setattr(agent_cli, "load_settings", lambda: base_settings)
+    monkeypatch.setattr(agent_cli.api_client, "init_client", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("API called")))
+
+    args = type(
+        "Args",
+        (),
+        {
+            "command": "agent-plan",
+            "mode": "multiformat_with_refs",
+            "prompts": str(prompts_path),
+            "start": 1,
+            "end": 1,
+            "image_size": None,
+            "face_image_size": None,
+            "back_image_size": None,
+            "project_name": None,
+            "style_ref": str(style_path),
+            "no_style_ref": False,
+            "no_log_prompts": False,
+        },
+    )()
+    result = agent_cli._plan_result(args, agent_cli._settings_from_args(args))
+
+    assert result["ok"] is True
+    assert result["style_reference_enabled"] is True
+    assert result["style_reference_path"] == str(style_path)
+    assert result["prompt_logging_enabled"] is True
+    assert result["content_refs_found"] == 0
+    assert result["tasks_with_style_ref"] == 1
+    assert result["references_summary"]["tasks_with_both_refs"] == 0
+
+
 def test_agent_settings_force_api_even_when_base_settings_are_browser(tmp_path, monkeypatch):
     prompts_path = tmp_path / "prompts.txt"
     _write_standard_prompts(prompts_path)
@@ -173,6 +218,77 @@ def test_agent_settings_force_api_even_when_base_settings_are_browser(tmp_path, 
     assert settings["OUTPUT_PROJECT_NAME"] == "Agent Project"
     assert "API_FACE_IMAGE_SIZE" not in base_settings
     assert base_settings["OUTPUT_PROJECT_NAME"] == "base-project"
+
+
+def test_agent_settings_accept_style_reference_and_prompt_logging_overrides_without_persisting(tmp_path, monkeypatch):
+    prompts_path = tmp_path / "prompts.txt"
+    style_path = tmp_path / "style.png"
+    _write_standard_prompts(prompts_path)
+    style_path.write_bytes(b"style")
+    base_settings = _base_settings(prompts_path)
+    base_settings["API_PROVIDER_WITH_REFS"] = "chatgpt"
+
+    monkeypatch.setattr(agent_cli, "load_settings", lambda: base_settings)
+
+    settings = agent_cli._settings_from_args(
+        type(
+            "Args",
+            (),
+            {
+                "mode": "multiformat_with_refs",
+                "prompts": str(prompts_path),
+                "start": 1,
+                "end": 1,
+                "image_size": None,
+                "face_image_size": None,
+                "back_image_size": None,
+                "project_name": None,
+                "style_ref": str(style_path),
+                "no_style_ref": False,
+                "no_log_prompts": True,
+            },
+        )()
+    )
+
+    assert settings["GENERATION_METHOD"] == "api"
+    assert settings["API_STYLE_REFERENCE_IMAGE"] == str(style_path)
+    assert settings["API_LOG_PROMPTS"] is False
+    assert base_settings["API_STYLE_REFERENCE_IMAGE"] == ""
+    assert base_settings["API_LOG_PROMPTS"] is True
+
+
+def test_agent_plan_rejects_style_reference_for_non_reference_mode(tmp_path, monkeypatch):
+    prompts_path = tmp_path / "prompts.txt"
+    style_path = tmp_path / "style.png"
+    _write_standard_prompts(prompts_path)
+    style_path.write_bytes(b"style")
+    base_settings = _base_settings(prompts_path)
+    base_settings["API_PROVIDER_WITH_REFS"] = "chatgpt"
+
+    monkeypatch.setattr(agent_cli, "load_settings", lambda: base_settings)
+    args = type(
+        "Args",
+        (),
+        {
+            "command": "agent-plan",
+            "mode": "standard",
+            "prompts": str(prompts_path),
+            "start": 1,
+            "end": 1,
+            "image_size": None,
+            "face_image_size": None,
+            "back_image_size": None,
+            "project_name": None,
+            "style_ref": str(style_path),
+            "no_style_ref": False,
+            "no_log_prompts": False,
+        },
+    )()
+
+    result = agent_cli._plan_result(args, agent_cli._settings_from_args(args))
+
+    assert result["ok"] is False
+    assert "--style-ref" in result["errors"][0]
 
 
 def test_agent_plan_reports_project_name_override(tmp_path, monkeypatch):

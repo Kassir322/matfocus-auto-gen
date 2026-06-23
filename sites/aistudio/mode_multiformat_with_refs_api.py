@@ -81,10 +81,8 @@ def _prepare_task_provider_metadata(tasks: list[dict], settings: dict) -> tuple[
     chatgpt_tasks = []
     other_tasks = []
     for task in tasks:
-        ref_path = get_reference_path(task["side"], task["card_number"], task["card_name"])
-        with_reference = ref_path is not None
-        task["_with_reference"] = with_reference
-        provider = api_client.get_api_provider(settings, with_reference=with_reference)
+        metadata = _apply_task_reference_metadata(task, settings)
+        provider = metadata["provider"]
         task["_planned_provider"] = provider
         if provider == api_client.PROVIDER_CHATGPT:
             chatgpt_tasks.append(task)
@@ -108,6 +106,107 @@ def get_reference_path(side: str, card_number: int, card_name: str):
     return None
 
 
+def get_style_reference_path(settings: dict) -> str | None:
+    path = str(settings.get("API_STYLE_REFERENCE_IMAGE", "") or "").strip()
+    return path or None
+
+
+def _get_reference_mode(style_ref_path: str | None, content_ref_path: str | None) -> str:
+    if style_ref_path and content_ref_path:
+        return api_client.REFERENCE_MODE_STYLE_AND_CONTENT
+    if style_ref_path:
+        return api_client.REFERENCE_MODE_STYLE
+    if content_ref_path:
+        return api_client.REFERENCE_MODE_CONTENT
+    return api_client.REFERENCE_MODE_NONE
+
+
+def validate_style_reference_settings(settings: dict) -> str | None:
+    style_ref_path = get_style_reference_path(settings)
+    if not style_ref_path:
+        return None
+    if not os.path.exists(style_ref_path):
+        return f"Стилевое референсное изображение не найдено: {style_ref_path}"
+    provider_with_refs = api_client.get_api_provider(settings, with_reference=True)
+    if provider_with_refs != api_client.PROVIDER_CHATGPT:
+        provider_name = api_client.get_provider_display_name(provider_with_refs)
+        return f"Стилевые референсы поддерживаются только для provider=chatgpt, сейчас provider_with_refs={provider_name}"
+    return None
+
+
+def _apply_task_reference_metadata(task: dict, settings: dict) -> dict:
+    content_ref_path = get_reference_path(task["side"], task["card_number"], task["card_name"])
+    style_ref_path = get_style_reference_path(settings)
+    with_reference = bool(style_ref_path or content_ref_path)
+    reference_mode = _get_reference_mode(style_ref_path, content_ref_path)
+    provider = api_client.get_api_provider(settings, with_reference=with_reference)
+
+    task["_content_reference_path"] = content_ref_path
+    task["_style_reference_path"] = style_ref_path
+    task["_with_reference"] = with_reference
+    task["_reference_mode"] = reference_mode
+    return {
+        "content_reference_path": content_ref_path,
+        "style_reference_path": style_ref_path,
+        "with_reference": with_reference,
+        "reference_mode": reference_mode,
+        "provider": provider,
+    }
+
+
+def get_references_summary(tasks: list[dict], settings: dict) -> dict:
+    style_ref_path = get_style_reference_path(settings)
+    style_enabled = bool(style_ref_path)
+    content_refs_found = 0
+    for task in tasks:
+        if get_reference_path(task["side"], task["card_number"], task["card_name"]):
+            content_refs_found += 1
+    content_refs_missing = max(0, len(tasks) - content_refs_found)
+    return {
+        "style_reference_path": style_ref_path,
+        "style_reference_enabled": style_enabled,
+        "prompt_logging_enabled": bool(settings.get("API_LOG_PROMPTS", True)),
+        "content_refs_found": content_refs_found,
+        "content_refs_missing": content_refs_missing,
+        "tasks_with_style_ref": len(tasks) if style_enabled else 0,
+        "tasks_with_content_ref": content_refs_found,
+        "tasks_with_both_refs": content_refs_found if style_enabled else 0,
+    }
+
+
+def _log_prompt_details(
+    log_file,
+    task: dict,
+    provider_name: str,
+    model: str,
+    reference_mode: str,
+    raw_prompt: str,
+    sent_prompt: str,
+    log_prompts: bool,
+) -> None:
+    card_number = task["card_number"]
+    side = task["side"]
+    pair_num = task["pair_number"]
+    if not log_prompts:
+        write_log_line(
+            log_file,
+            f"[PROMPT_LENGTHS] card={card_number} side={side} pair={pair_num} raw_prompt_length={len(raw_prompt)} sent_prompt_length={len(sent_prompt)}",
+        )
+        return
+
+    write_log_line(log_file, f"[PROMPT_RAW_BEGIN] card={card_number} side={side} pair={pair_num}")
+    for line in (raw_prompt.splitlines() or [""]):
+        write_log_line(log_file, line)
+    write_log_line(log_file, "[PROMPT_RAW_END]")
+    write_log_line(
+        log_file,
+        f"[PROMPT_SENT_BEGIN] card={card_number} side={side} pair={pair_num} provider={provider_name} model={model} reference_mode={reference_mode}",
+    )
+    for line in (sent_prompt.splitlines() or [""]):
+        write_log_line(log_file, line)
+    write_log_line(log_file, "[PROMPT_SENT_END]")
+
+
 def load_tasks_from_file(path: str) -> list[dict]:
     return parse_multiformat_prompts(path)
 
@@ -129,7 +228,8 @@ def _make_filename(card_number: int, card_name: str, side: str, pair_num: int, p
 
 
 def _make_task_label(task: dict, with_reference: bool) -> str:
-    ref_mark = " with_ref" if with_reference else ""
+    reference_mode = task.get("_reference_mode")
+    ref_mark = f" {reference_mode}_ref" if with_reference and reference_mode else (" with_ref" if with_reference else "")
     return f"карточка {task['card_number']} {task['side']} пара {task['pair_number']}{ref_mark}"
 
 
@@ -146,8 +246,11 @@ def _generate_single_image_api(task: dict, clients: dict, settings: dict, log_fi
         write_log_line(log_file, f"[WARN] Пропуск: пустой промпт карточка {card_number} пара {pair_num} {side}")
         return False
 
-    ref_path = get_reference_path(side, card_number, card_name)
-    with_reference = bool(task.get("_with_reference", ref_path is not None))
+    metadata = _apply_task_reference_metadata(task, settings)
+    content_ref_path = metadata["content_reference_path"]
+    style_ref_path = metadata["style_reference_path"]
+    with_reference = bool(metadata["with_reference"])
+    reference_mode = metadata["reference_mode"]
     task["_with_reference"] = with_reference
     provider = api_client.get_api_provider(settings, with_reference=with_reference)
     provider_name = api_client.get_provider_display_name(provider)
@@ -160,31 +263,54 @@ def _generate_single_image_api(task: dict, clients: dict, settings: dict, log_fi
     timeout = float(settings.get("API_TIMEOUT", 60.0))
     aspect_ratio = settings.get("FACE_ASPECT_RATIO", "4:3") if side == "лицо" else settings.get("BACK_ASPECT_RATIO", "16:9")
     client = clients[provider]
+    sent_prompt = api_client.build_provider_prompt(
+        prompt_text,
+        provider=provider,
+        aspect_ratio=aspect_ratio,
+        reference_mode=reference_mode,
+    )
+    log_prompts = bool(settings.get("API_LOG_PROMPTS", True))
 
-    if ref_path:
-        write_log_line(log_file, f"[REF] Найден референс: {ref_path}")
+    if style_ref_path:
+        write_log_line(log_file, f"[STYLE_REF] Найден стилевой референс: {style_ref_path}")
+    if content_ref_path:
+        write_log_line(log_file, f"[CONTENT_REF] Найден контентный референс: {content_ref_path}")
+    if with_reference:
+        write_log_line(log_file, f"[REF] reference_mode={reference_mode}")
     else:
-        write_log_line(log_file, "[INFO] Референс не найден, генерация без референса")
+        write_log_line(log_file, "[INFO] Референсы не найдены, генерация без референсов")
 
     write_log_line(log_file, f"[MODEL] Провайдер: {provider_name}, модель: {model}")
     file_name = _make_filename(card_number, card_name, side, pair_num, provider, model)
     write_log_line(log_file, f"[GEN] Генерация: {file_name}")
     write_log_line(
         log_file,
-        f"[API_REQUEST] provider={provider_name}, model={model}, size={image_size}, aspect={aspect_ratio}, prompt_length={len(prompt_text)}, with_ref={with_reference}",
+        f"[API_REQUEST] provider={provider_name}, model={model}, size={image_size}, aspect={aspect_ratio}, reference_mode={reference_mode}, prompt_length={len(prompt_text)}, sent_prompt_length={len(sent_prompt)}, with_ref={with_reference}",
+    )
+    _log_prompt_details(
+        log_file=log_file,
+        task=task,
+        provider_name=provider_name,
+        model=model,
+        reference_mode=reference_mode,
+        raw_prompt=prompt_text,
+        sent_prompt=sent_prompt,
+        log_prompts=log_prompts,
     )
 
-    if ref_path:
-        image_bytes, error_msg = api_client.generate_image_with_reference(
+    if with_reference:
+        image_bytes, error_msg = api_client.generate_image_with_references(
             client=client,
             prompt=prompt_text,
-            reference_image_path=ref_path,
+            style_reference_image_path=style_ref_path,
+            content_reference_image_path=content_ref_path,
             model=model,
             aspect_ratio=aspect_ratio,
             image_size=image_size,
             timeout=timeout,
             provider=provider,
             quality=quality,
+            sent_prompt=sent_prompt,
         )
     else:
         image_bytes, error_msg = api_client.generate_image(
@@ -196,6 +322,7 @@ def _generate_single_image_api(task: dict, clients: dict, settings: dict, log_fi
             timeout=timeout,
             provider=provider,
             quality=quality,
+            sent_prompt=sent_prompt,
         )
 
     if not image_bytes:
@@ -239,6 +366,11 @@ def run_mode(
         message = "Нет задач в выбранном диапазоне карточек."
         _safe_print(message)
         return make_error_result(mode_name, message)
+
+    style_reference_error = validate_style_reference_settings(settings)
+    if style_reference_error:
+        _safe_print(style_reference_error)
+        return make_error_result(mode_name, style_reference_error)
 
     providers = {
         api_client.get_api_provider(settings, with_reference=False),
@@ -297,6 +429,7 @@ def run_mode(
         face_image_size_with_ref = face_image_size_with_ref or raw_face_image_size
         back_image_size_with_ref = back_image_size_with_ref or raw_back_image_size
         session_folder = api_client.get_session_output_folder(settings)
+        references_summary = get_references_summary(tasks, settings)
 
         write_log_line(
             log_file,
@@ -316,19 +449,17 @@ def run_mode(
         write_log_line(log_file, f"[PLAN] Aspect ratio: лицо={face_ratio}, оборот={back_ratio}")
         write_log_line(log_file, f"[PLAN] Image size без refs: лицо={face_image_size_no_ref}, оборот={back_image_size_no_ref}")
         write_log_line(log_file, f"[PLAN] Image size с refs: лицо={face_image_size_with_ref}, оборот={back_image_size_with_ref}")
+        write_log_line(log_file, f"[PLAN] Style reference: {references_summary['style_reference_path'] or 'disabled'}")
+        write_log_line(log_file, f"[PLAN] Prompt logging: {references_summary['prompt_logging_enabled']}")
         write_log_line(log_file, f"[PLAN] Папка для сохранения изображений: {session_folder}")
 
         chatgpt_tasks, non_chatgpt_tasks = _prepare_task_provider_metadata(tasks, settings)
         estimate_items = []
         chatgpt_tasks_count = 0
-        refs_found = 0
-        refs_missing = 0
+        refs_found = references_summary["content_refs_found"]
+        refs_missing = references_summary["content_refs_missing"]
         for task in tasks:
             with_reference = bool(task.get("_with_reference", False))
-            if with_reference:
-                refs_found += 1
-            else:
-                refs_missing += 1
             provider = task.get("_planned_provider") or api_client.get_api_provider(settings, with_reference=with_reference)
             model = api_client.get_api_model(settings, provider, with_reference=with_reference)
             quality = api_client.get_api_quality(settings, provider)
@@ -373,6 +504,8 @@ def run_mode(
                 f"Image size с refs: лицо={face_image_size_with_ref}, оборот={back_image_size_with_ref}",
                 f"Диапазон карточек: {start_card}–{actual_end}",
                 f"Файл промптов: {prompts_file or 'не указан'}",
+                f"Style reference: {references_summary['style_reference_path'] or 'disabled'}",
+                f"Prompt logging: {references_summary['prompt_logging_enabled']}",
                 f"Референсы найдены: {refs_found}, без референсов: {refs_missing}",
                 (
                     f"Параллельных воркеров: {chatgpt_parallel.get_parallel_config(settings)['max_workers']}"
@@ -495,13 +628,15 @@ def run_mode(
                 write_log_line(log_file, f"[SUMMARY] {line}")
         _safe_print(f"Готово. Обработано карточек: {len(cards_seen)}, пар: {len(pairs_seen)}, изображений: {stats.succeeded}/{total_images}")
         _safe_print(f"Лог сохранён: {log_path}")
-        return make_success_result(
+        result = make_success_result(
             mode_name,
             planned=total_images,
             succeeded=stats.succeeded,
             output_dir=session_folder,
             log_file=log_path,
         )
+        result["references_summary"] = references_summary
+        return result
     except Exception as e:
         write_log_line(log_file, f"[ERROR] Неожиданная ошибка верхнего уровня: {e}")
         for line in traceback.format_exc().splitlines():
