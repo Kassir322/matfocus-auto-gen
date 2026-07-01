@@ -57,15 +57,22 @@ SUPPORTED_REFERENCE_MODES = {
 }
 
 STYLE_REFERENCE_PROMPT = (
-    "Reference image 1 is the STYLE REFERENCE only. Use its visual language: "
-    "palette, line quality, level of detail, shading, texture, contrast, and "
-    "overall illustration finish. Do not copy its subject, objects, layout, or composition."
+    "Reference image 1 is the STYLE REFERENCE only. It is not a content, scene, "
+    "background, layout, or composition reference. Use only its abstract visual language: palette "
+    "relationships, line quality, level of detail, shading, texture, contrast, edge "
+    "treatment, and overall illustration finish. Ignore and do not reproduce its "
+    "subject, objects, environment, background, camera angle, object placement, horizon, "
+    "ground shape, or composition. The scene content must come only from the text prompt."
 )
 
 STYLE_AND_CONTENT_REFERENCE_PROMPT = (
-    "Reference image 1 is the STYLE REFERENCE only. Use its visual language: "
-    "palette, line quality, level of detail, shading, texture, contrast, and overall illustration finish. "
-    "Do not copy its subject, objects, layout, or composition.\n"
+    "Reference image 1 is the STYLE REFERENCE only. It is not a content, scene, "
+    "background, layout, or composition reference. Use only its abstract visual language: palette "
+    "relationships, line quality, level of detail, shading, texture, contrast, edge "
+    "treatment, and overall illustration finish. Ignore and do not reproduce its "
+    "subject, objects, environment, background, camera angle, object placement, horizon, "
+    "ground shape, or composition. The scene content must come only from the text prompt "
+    "and Reference image 2.\n"
     "Reference image 2 is the CONTENT REFERENCE only. Preserve the recognizable "
     "object, person, shape, structure, or landmark details from it, but render them "
     "in the style of Reference image 1."
