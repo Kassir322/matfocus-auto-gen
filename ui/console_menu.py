@@ -373,6 +373,7 @@ def configure_api_models(settings: dict) -> None:
 def configure_chatgpt_parallel(settings: dict) -> None:
     while True:
         _show_section_header("Параллельный ChatGPT API")
+        print(f"Profile: {settings.get('API_CHATGPT_RATE_LIMIT_PROFILE', 'custom')}")
         print(
             "1. Параллельный режим: "
             f"{_show_bool(bool(settings.get('API_CHATGPT_PARALLEL_ENABLED', True)))}"
@@ -383,6 +384,7 @@ def configure_chatgpt_parallel(settings: dict) -> None:
             "4. Окно лимитера (сек): "
             f"{settings.get('API_CHATGPT_RATE_LIMIT_WINDOW_SECONDS', 60)}"
         )
+        print("5. Apply OpenAI Tier 3 preset (50 IPM / 800k TPM)")
         print("0. Назад")
         choice = _read_choice()
 
@@ -399,6 +401,7 @@ def configure_chatgpt_parallel(settings: dict) -> None:
                 minimum=1,
             )
             if value is not None:
+                settings["API_CHATGPT_RATE_LIMIT_PROFILE"] = "custom"
                 settings["API_CHATGPT_MAX_WORKERS"] = value
                 _save(settings)
         elif choice == "3":
@@ -408,6 +411,7 @@ def configure_chatgpt_parallel(settings: dict) -> None:
                 minimum=1,
             )
             if value is not None:
+                settings["API_CHATGPT_RATE_LIMIT_PROFILE"] = "custom"
                 settings["API_CHATGPT_RATE_LIMIT_IPM"] = value
                 _save(settings)
         elif choice == "4":
@@ -417,8 +421,19 @@ def configure_chatgpt_parallel(settings: dict) -> None:
                 minimum=1,
             )
             if value is not None:
+                settings["API_CHATGPT_RATE_LIMIT_PROFILE"] = "custom"
                 settings["API_CHATGPT_RATE_LIMIT_WINDOW_SECONDS"] = value
                 _save(settings)
+        elif choice == "5":
+            settings["API_CHATGPT_PARALLEL_ENABLED"] = True
+            settings["API_CHATGPT_RATE_LIMIT_PROFILE"] = "tier3"
+            settings["API_CHATGPT_MAX_WORKERS"] = 50
+            settings["API_CHATGPT_RATE_LIMIT_IPM"] = 50
+            settings["API_CHATGPT_RATE_LIMIT_WINDOW_SECONDS"] = 60
+            settings["API_CHATGPT_RATE_LIMIT_TPM"] = 800000
+            settings["API_CHATGPT_MONTHLY_USAGE_LIMIT_USD"] = 1000
+            _save(settings)
+            print("OpenAI Tier 3 preset saved.")
         else:
             print("Ошибка: неверный номер.")
 

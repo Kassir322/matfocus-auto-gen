@@ -62,3 +62,23 @@ def test_extract_rate_limit_backoff_uses_retry_after_when_present():
         },
     )
     assert seconds == 17.0
+
+
+def test_parallel_config_exposes_tier3_metadata():
+    config = chatgpt_parallel.get_parallel_config(
+        {
+            "API_CHATGPT_RATE_LIMIT_PROFILE": "tier3",
+            "API_CHATGPT_MAX_WORKERS": 50,
+            "API_CHATGPT_RATE_LIMIT_IPM": 50,
+            "API_CHATGPT_RATE_LIMIT_WINDOW_SECONDS": 60,
+            "API_CHATGPT_RATE_LIMIT_TPM": 800000,
+            "API_CHATGPT_MONTHLY_USAGE_LIMIT_USD": 1000,
+        }
+    )
+
+    assert config["profile"] == "tier3"
+    assert config["max_workers"] == 50
+    assert config["rate_limit_ipm"] == 50
+    assert config["window_seconds"] == 60
+    assert config["rate_limit_tpm"] == 800000
+    assert config["monthly_usage_limit_usd"] == 1000

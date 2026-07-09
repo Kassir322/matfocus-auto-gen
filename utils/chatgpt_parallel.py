@@ -143,9 +143,12 @@ def is_parallel_enabled(settings: dict, provider: str) -> bool:
 
 def get_parallel_config(settings: dict) -> dict:
     return {
+        "profile": str(settings.get("API_CHATGPT_RATE_LIMIT_PROFILE", "custom") or "custom").strip().lower(),
         "max_workers": max(1, int(settings.get("API_CHATGPT_MAX_WORKERS", 2))),
         "rate_limit_ipm": max(1, int(settings.get("API_CHATGPT_RATE_LIMIT_IPM", 5))),
         "window_seconds": max(1, int(settings.get("API_CHATGPT_RATE_LIMIT_WINDOW_SECONDS", 60))),
+        "rate_limit_tpm": max(0, int(settings.get("API_CHATGPT_RATE_LIMIT_TPM", 0) or 0)),
+        "monthly_usage_limit_usd": max(0, int(settings.get("API_CHATGPT_MONTHLY_USAGE_LIMIT_USD", 0) or 0)),
     }
 
 

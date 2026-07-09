@@ -654,3 +654,9 @@
 - Added `OUTPUT_BASE_DIR` with default `generated_images`; API wave folders are now created under `<OUTPUT_BASE_DIR>/<timestamp>_<project>`.
 - Agent CLI now requires `--output-base-dir` for both `agent-plan` and `agent-run-api`, applies it in memory only, and reports `output_base_dir` plus `output_dir` in JSON.
 - Codex project workflows should pass the ready output base folder `...\Рабочие файлы\сгенерированные изображения`, so each generation wave is saved as a timestamped subfolder there.
+
+## Update 2026-07-09
+
+- ChatGPT API parallel defaults and current `data/settings.json` were raised to the OpenAI Tier 3 `gpt-image-2` profile: 50 workers, 50 image launches per 60 seconds, 800k TPM reference, and $1000 monthly usage-limit metadata.
+- CLI menu API -> Parallel ChatGPT API now shows the active profile and can re-apply the Tier 3 preset. Manual worker/IPM/window edits mark the profile as `custom`.
+- The runtime limiter still gates launches by IPM/window; TPM and monthly usage-limit settings are recorded for visibility and documentation, not enforced as hard stops.

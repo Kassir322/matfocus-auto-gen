@@ -90,6 +90,19 @@ python main.py agent-run-api --mode multiformat_with_refs --prompts data\style_p
 - `--no-log-prompts` disables full prompt text logging for the current command and logs prompt lengths only.
 - Prompt text is written only to the log file, not to the JSON result.
 
+## ChatGPT API Rate Profile
+
+Current local settings are tuned for OpenAI Tier 3 on `gpt-image-2`:
+
+- `API_CHATGPT_RATE_LIMIT_PROFILE=tier3`
+- `API_CHATGPT_MAX_WORKERS=50`
+- `API_CHATGPT_RATE_LIMIT_IPM=50`
+- `API_CHATGPT_RATE_LIMIT_WINDOW_SECONDS=60`
+- `API_CHATGPT_RATE_LIMIT_TPM=800000`
+- `API_CHATGPT_MONTHLY_USAGE_LIMIT_USD=1000`
+
+The runtime limiter uses the IPM/window values to gate launches. TPM and monthly usage limit are stored for visibility; they are not a hard runtime stop.
+
 Supported modes:
 
 ```text

@@ -25,6 +25,10 @@ def test_apply_defaults_fills_missing_fields_and_recomputes_cards_to_process():
     assert settings["API_MODEL_CHATGPT"] == "gpt-image-2"
     assert settings["API_STYLE_REFERENCE_IMAGE"] == ""
     assert settings["API_LOG_PROMPTS"] is True
+    assert settings["API_CHATGPT_RATE_LIMIT_PROFILE"] == "tier3"
+    assert settings["API_CHATGPT_MAX_WORKERS"] == 50
+    assert settings["API_CHATGPT_RATE_LIMIT_IPM"] == 50
+    assert settings["API_CHATGPT_RATE_LIMIT_TPM"] == 800000
     assert settings["OUTPUT_BASE_DIR"] == "generated_images"
     assert settings["BACK_ASPECT_RATIO"] == "16:9"
     assert settings["CARDS_TO_PROCESS"] == 6

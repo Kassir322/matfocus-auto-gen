@@ -131,6 +131,11 @@
 | `API_TIMEOUT`       | float | Таймаут API запросов в секундах (по умолчанию 60.0)                                                                                                                                                                                                      | Автоматически                                                                      |
 | `API_STYLE_REFERENCE_IMAGE` | str | Optional global style reference image path for API `multiformat_with_refs`; works with `API_PROVIDER_WITH_REFS=chatgpt`. | `data/settings.json` or agent CLI `--style-ref` / `--no-style-ref` |
 | `API_LOG_PROMPTS` | bool | Whether API runs write raw prompts and exact provider prompts to the run log. Default: `true`. | `data/settings.json`; agent CLI can disable with `--no-log-prompts` |
+| `API_CHATGPT_RATE_LIMIT_PROFILE` | str | Active ChatGPT API rate preset. Current local default: `"tier3"`. | CLI menu API -> Parallel ChatGPT API |
+| `API_CHATGPT_MAX_WORKERS` | int | Max parallel ChatGPT image workers. Tier 3 preset uses `50`. | CLI menu API -> Parallel ChatGPT API |
+| `API_CHATGPT_RATE_LIMIT_IPM` | int | Sliding-window image launch limit for ChatGPT image API. Tier 3 preset uses `50` per 60 seconds for `gpt-image-2`. | CLI menu API -> Parallel ChatGPT API |
+| `API_CHATGPT_RATE_LIMIT_TPM` | int | Documented OpenAI Tier 3 TPM reference for `gpt-image-2`; stored for visibility. Current runtime throttles by IPM. | `data/settings.json` |
+| `API_CHATGPT_MONTHLY_USAGE_LIMIT_USD` | int | Documented organization monthly usage cap for Tier 3; stored for visibility. Runtime does not hard-stop on this value. | `data/settings.json` |
 
 **Примечания:**
 
@@ -139,6 +144,7 @@
 - Для API режима используются те же настройки `FACE_ASPECT_RATIO` и `BACK_ASPECT_RATIO` (для мультиформата).
 - API ключ проверяется на валидность (должен начинаться с `"AIza"` и иметь ~39 символов).
 - **Рекомендуется модель** `imagen-4.0-generate-001` с разрешением `2K` для оптимального баланса качества и скорости.
+- Для OpenAI `gpt-image-2` Tier 3 локальный пресет ставит `API_CHATGPT_RATE_LIMIT_IPM=50`, `API_CHATGPT_MAX_WORKERS=50`, окно `60` секунд. Если вручную менять воркеры или лимит, профиль становится `custom`.
 
 ---
 
