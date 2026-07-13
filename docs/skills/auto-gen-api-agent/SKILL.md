@@ -1,18 +1,20 @@
 ---
 name: auto-gen-api-agent
-description: Use when Codex needs to run, plan, or inspect small API-based image generation batches through the O:\Yandex.Disk\auto-gen project, especially style-probe workflows where Codex creates or selects a prompts .txt file, calls `python main.py agent-plan` or `python main.py agent-run-api`, reads the JSON result, and reports generated image paths/logs without manually using hotkeys or the console menu.
+description: Use when Codex needs to run, plan, or inspect small API-based image generation batches through the O:\git\matfocus-auto-gen project, especially style-probe workflows where Codex creates or selects a prompts .txt file, calls `python main.py agent-plan` or `python main.py agent-run-api`, reads the JSON result, and reports generated image paths/logs without manually using hotkeys or the console menu.
 ---
 
 # Auto Gen API Agent
 
 Use this skill to operate the `auto-gen` application's machine-readable API CLI. The goal is to let Codex run small style-probe generations, collect results, and help the user choose/fix visual direction before large production runs.
 
-The repo documentation for this workflow is `O:\Yandex.Disk\auto-gen\version2\reference\AGENT_CLI.md`. Read it when command behavior, prompt format, JSON fields, or defaults matter.
+The active auto-gen repo is `O:\git\matfocus-auto-gen`. The old `O:\Yandex.Disk\auto-gen` checkout is obsolete and must not be used for running commands, reading current app docs, or editing the application.
+
+The repo documentation for this workflow is `O:\git\matfocus-auto-gen\version2\reference\AGENT_CLI.md`. Read it when command behavior, prompt format, JSON fields, or defaults matter.
 
 ## Core Rules
 
-- Work in the active repo, normally `O:\Yandex.Disk\auto-gen`.
-- Keep a duplicate of this skill's `SKILL.md` inside the program workspace when working on the skill or its workflow, normally under `O:\Yandex.Disk\auto-gen\docs\skills\auto-gen-api-agent\SKILL.md` unless the repo already uses another explicit skill-mirror path.
+- Work in the active repo: `O:\git\matfocus-auto-gen`.
+- Keep a duplicate of this skill's `SKILL.md` inside the program workspace when working on the skill or its workflow, normally under `O:\git\matfocus-auto-gen\docs\skills\auto-gen-api-agent\SKILL.md` unless the repo already uses another explicit skill-mirror path.
 - Before changing or relying on duplicated skill instructions, compare the skill-folder copy and the program-workspace copy by modification time and content. Treat the more intentionally updated copy as authoritative; if unclear, ask the user instead of overwriting either direction.
 - After updating the authoritative copy, synchronize the other copy so both contain the same current instructions. Sometimes the program-workspace copy is the newest source and must be copied back into `C:\Users\kas\.codex\skills\auto-gen-api-agent\SKILL.md`; sometimes the skill-folder copy is newest and must be copied into the program workspace.
 - Use only the agent CLI for this workflow; do not drive hotkeys, console menu input, or browser automation.
@@ -20,7 +22,7 @@ The repo documentation for this workflow is `O:\Yandex.Disk\auto-gen\version2\re
 - Never use pyautogui, hotkeys, or the console menu as a workaround for agent generation.
 - For long or full `agent-run-api` generation runs, start the process in a separate visible PowerShell window instead of the Codex tool terminal, so the user can close that window to stop generation if needed. Keep using normal synchronous tool calls for `agent-plan` and for very small quick probes when the user clearly expects immediate completion inside the chat.
 - Always use `multiformat_with_refs` for generation runs through this skill. Do not switch to `standard` or `multiformat`, even for quick tests, independent samples, or when the user does not provide reference images. Missing references are valid and the runtime will continue without them.
-- For consistent style across a batch, use one global style reference with `--style-ref <path>` or `API_STYLE_REFERENCE_IMAGE`. Prefer `O:\Yandex.Disk\auto-gen\data\style_refs\default.png` when creating a durable local style sample.
+- For consistent style across a batch, use one global style reference with `--style-ref <path>` or `API_STYLE_REFERENCE_IMAGE`. Prefer `O:\git\matfocus-auto-gen\data\style_refs\default.png` when creating a durable local style sample.
 - Treat the global style reference as style-only: it should transfer palette, line quality, rendering finish, texture, and detail level, not subject, object layout, or composition.
 - Style references are supported only in API `multiformat_with_refs` and require `API_PROVIDER_WITH_REFS=chatgpt`; `agent-plan`/`agent-run-api` should fail before generation if this is not true.
 - API prompt logging is on by default. Use `--no-log-prompts` only when the user does not want full raw/sent prompt text in the run log; the log will still keep prompt lengths.
@@ -28,8 +30,8 @@ The repo documentation for this workflow is `O:\Yandex.Disk\auto-gen\version2\re
 - Save new project-specific prompt `.txt` files inside the current product/project workspace, normally under `...\Рабочие файлы\...`, not inside the auto-gen application checkout such as `data\`. Pass that project prompt file to the CLI with `--prompts` as an absolute path when running from the auto-gen repo.
 - Prefer small probes: 1-10 images unless the user explicitly asks for more.
 - For reference-based face/back card generation, place reference images in the repo data folders before planning or running:
-  - face/front references go in `O:\Yandex.Disk\auto-gen\data\images\лицо`;
-  - back/reverse references go in `O:\Yandex.Disk\auto-gen\data\images\оборот`.
+  - face/front references go in `O:\git\matfocus-auto-gen\data\images\лицо`;
+  - back/reverse references go in `O:\git\matfocus-auto-gen\data\images\оборот`.
   Use the runtime lookup filename format `{card_number}_{side}.{ext}`, for example `20_лицо.jpg` or `20_оборот.png`. The optional long format is `{side}_{card_number}_{safe_card_name}.{ext}`. Do not rely on source names like `карточка_20_лицо.jpg`: keep them only as human-readable duplicates if useful, but create the runtime lookup filename too. Update any machine-readable generation queue or manifest so `reference_paths` point to these copied files, not to a project scratch folder.
 - Content/object references remain separate from the global style reference. When both are used, ChatGPT receives image 1 as the style reference and image 2 as the content reference.
 - Treat `data/settings.json` as the API/provider/model/key source. Do not print API keys.
@@ -99,7 +101,7 @@ python main.py agent-run-api --mode multiformat_with_refs --prompts "C:\path\to\
 Run a long generation in a user-closeable PowerShell window:
 
 ```powershell
-Start-Process powershell -ArgumentList '-NoExit', '-Command', 'Set-Location "O:\Yandex.Disk\auto-gen"; python main.py agent-run-api --mode multiformat_with_refs --prompts "C:\path\to\Рабочие файлы\style_probe.txt" --start 1 --end 77 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --project-name "project_name" --json'
+Start-Process powershell -ArgumentList '-NoExit', '-Command', 'Set-Location "O:\git\matfocus-auto-gen"; python main.py agent-run-api --mode multiformat_with_refs --prompts "C:\path\to\Рабочие файлы\style_probe.txt" --start 1 --end 77 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --project-name "project_name" --json'
 ```
 
 Run with explicit API request sizes:
