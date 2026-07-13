@@ -660,3 +660,18 @@
 - ChatGPT API parallel defaults and current `data/settings.json` were raised to the OpenAI Tier 3 `gpt-image-2` profile: 50 workers, 50 image launches per 60 seconds, 800k TPM reference, and $1000 monthly usage-limit metadata.
 - CLI menu API -> Parallel ChatGPT API now shows the active profile and can re-apply the Tier 3 preset. Manual worker/IPM/window edits mark the profile as `custom`.
 - The runtime limiter still gates launches by IPM/window; TPM and monthly usage-limit settings are recorded for visibility and documentation, not enforced as hard stops.
+
+## Update 2026-07-13: аудит переносимости конфигурации
+
+- Выполнен отдельный аудит хранения настроек после переноса активного
+  репозитория в `O:\git\matfocus-auto-gen`.
+- Зафиксировано разделение на отслеживаемый `data/settings.json`, локальный
+  `data/settings.local.json`, состояние `data/state.json` и секреты в `.env`.
+- Найдены все активные места чтения и записи, зависимые от текущей папки пути,
+  прямое чтение ключа служебным скриптом и неработающие исключения для файлов
+  внутри полностью игнорируемого `data/`.
+- Определены миграция, маршрутизация записей, контракт вспомогательного скрипта
+  навыка и полный набор проверок для внедрения.
+- Подробная карта: [CONFIG_PORTABILITY_AUDIT.md](CONFIG_PORTABILITY_AUDIT.md).
+- Исходный полный прогон: `117 passed, 14 warnings`; живой
+  `data/settings.json` тестами не изменен.
