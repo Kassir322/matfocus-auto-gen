@@ -25,11 +25,11 @@ The repo documentation for this workflow is `<repo-root>\version2\reference\AGEN
 - Keep a duplicate of this skill's `SKILL.md` inside the program workspace when working on the skill or its workflow, normally under `<repo-root>\docs\skills\auto-gen-api-agent\SKILL.md` unless the repo already uses another explicit skill-mirror path.
 - Before changing or relying on duplicated skill instructions, compare the skill-folder copy and the program-workspace copy by modification time and content. Treat the more intentionally updated copy as authoritative; if unclear, ask the user instead of overwriting either direction.
 - After updating the authoritative copy, synchronize the other copy so both contain the same current instructions. Sometimes the program-workspace copy is the newest source and must be copied back into the shared skill folder; sometimes the skill-folder copy is newest and must be copied into the program workspace.
-- Use only the agent CLI for this workflow; do not drive hotkeys, console menu input, or browser automation.
-- Run only API generation modes. Browser generation is forbidden for this skill, even if `data/settings.json` uses `GENERATION_METHOD=browser` or the user mentions browser automation.
-- Never use pyautogui, hotkeys, or the console menu as a workaround for agent generation.
+- Use only the agent CLI for this workflow; do not use the interactive menu or UI-driving tools.
+- Run only API generation modes for this skill.
+- Never use UI automation as a workaround for agent generation.
 - For long or full `agent-run-api` generation runs, start the process in a separate visible PowerShell window instead of the Codex tool terminal, so the user can close that window to stop generation if needed. Keep using normal synchronous tool calls for `agent-plan` and for very small quick probes when the user clearly expects immediate completion inside the chat.
-- Always use `multiformat_with_refs` for generation runs through this skill. Do not switch to `standard` or `multiformat`, even for quick tests, independent samples, or when the user does not provide reference images. Missing references are valid and the runtime will continue without them.
+- Always use `multiformat_with_refs` for generation runs through this skill. Missing references are valid and the runtime will continue without them.
 - For consistent style across a batch, pass one global style reference explicitly with `--style-ref <path>`. Prefer `<repo-root>\data\style_refs\default.png` when creating a durable local style sample. Use `--no-style-ref` when the current run must not use a style reference.
 - Treat the global style reference as style-only: it should transfer palette, line quality, rendering finish, texture, and detail level, not subject, object layout, or composition.
 - Style references are supported only in API `multiformat_with_refs` and require `API_PROVIDER_WITH_REFS=chatgpt`; `agent-plan`/`agent-run-api` should fail before generation if this is not true.
@@ -56,7 +56,7 @@ The repo documentation for this workflow is `<repo-root>\version2\reference\AGEN
 
 ## Workflow
 
-1. Use `multiformat_with_refs` as the mode for every generation run through this skill, even when no reference images are provided. If a user asks for `standard` or `multiformat`, explain that this workflow is locked to `multiformat_with_refs` and continue in `multiformat_with_refs` unless they ask to stop.
+1. Use `multiformat_with_refs` as the mode for every generation run through this skill, even when no reference images are provided.
 2. Create or choose a prompts `.txt` file that matches the existing project format and keep it in the product/project workspace, normally under `...\Рабочие файлы\...`. Do not create project prompt batches inside the auto-gen repo's `data\` folder.
 3. If the task needs reference images, look for downloadable non-Wikipedia/non-Wikimedia sources first; do not spend attempts on Wikimedia direct image URLs.
 4. For reference-based face/back card generation, copy every selected reference into `data\images\лицо` or `data\images\оборот` according to the side being generated, then update the queue/manifest `reference_paths` to those destination files.
@@ -126,14 +126,6 @@ Run with an explicit output project folder suffix:
 python main.py agent-run-api --prompts "C:\path\to\Рабочие файлы\style_probe.txt" --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --project-name countries --json
 ```
 
-CLI-supported modes. This skill must still run only `multiformat_with_refs`:
-
-```text
-standard
-multiformat
-multiformat_with_refs
-```
-
 Expected JSON fields:
 
 ```json
@@ -167,14 +159,7 @@ Expected JSON fields:
 
 Use existing parser formats exactly.
 
-Standard format exists in the parser but must not be used by this skill:
-
-```text
-Карточка 1 - Промпт 1: concise visual prompt variant A
-Карточка 1 - Промпт 2: concise visual prompt variant B
-```
-
-Preferred `multiformat_with_refs`/multiformat format:
+Required `multiformat_with_refs` format:
 
 ```text
 Карточка 1 лицо Австрия - Промпт 1: Modern semi-flat polished vector illustration for an educational geography card game. Clean friendly shapes, soft volume, gentle shadows, subtle gradients, neat contours, simplified details, readable silhouettes, warm accents, pleasant stylish colors, no harsh neon colors. A calm airy composition inspired by Austria: upper and left areas stay light, quiet, and open with a soft atmospheric background. All main objects form one compact lower-right cluster: a small alpine music box, edelweiss flowers, and a slice of layered cake. The objects are large, readable, and balanced like a polished cutout illustration. No text, no readable words, no labels, no signs, no letters, no flags, no UI elements, no logos, no arrows, no photorealism, no 3D render, no painterly texture, no clutter.
