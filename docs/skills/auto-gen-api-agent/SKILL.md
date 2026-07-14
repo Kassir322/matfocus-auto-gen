@@ -7,18 +7,13 @@ description: Use when Codex needs to run, plan, or inspect small API-based image
 
 Use this skill to operate the `auto-gen` application's machine-readable API CLI. The goal is to let Codex run small style-probe generations, collect results, and help the user choose/fix visual direction before large production runs.
 
-The active auto-gen repo path is:
-
-```text
-O:\git\matfocus-auto-gen
-```
-
-Resolve it before running commands:
+The active auto-gen repo path is machine-local. Resolve it before running commands:
 
 1. Use `MATFOCUS_AUTO_GEN_REPO` if the environment variable is set.
-2. Otherwise use `O:\git\matfocus-auto-gen`.
-3. The resolved value must be an absolute path and must contain `main.py` and `.git`.
-4. If the path is missing or invalid, stop and ask the user to configure the local repo path.
+2. Otherwise read `%USERPROFILE%\.codex\local\matfocus-auto-gen-repo.txt`.
+3. The local repo path file should contain only one absolute path, for example `O:\git\matfocus-auto-gen` on this computer.
+4. The resolved value must be an absolute path and must contain `main.py` and `.git`.
+5. If the path is missing or invalid, stop and ask the user to configure the local repo path file.
 
 The old `O:\Yandex.Disk\auto-gen` checkout is obsolete and must not be used for running commands, reading current app docs, or editing the application.
 
