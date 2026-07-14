@@ -1,5 +1,5 @@
 """
-Единый runtime-слой статистики генерации для browser и API режимов.
+Статистика единственного API-режима генерации.
 
 Источники baseline-оценок:
 - OpenAI API Pricing / GPT-image-2 pricing page, проверено 2026-04-23:
@@ -126,23 +126,8 @@ def estimate_baseline_seconds(
     model: str | None = None,
     with_reference: bool = False,
 ) -> float:
-    generation_method = str(generation_method or "browser").strip().lower()
-    mode_name = str(mode_name or "").strip().lower()
     provider = str(provider or "").strip().lower()
     model = str(model or "").strip().lower()
-
-    if generation_method == "browser":
-        generation_wait = float(settings.get("GENERATION_WAIT", 20.0))
-        save_overhead = 6.0
-        if mode_name == "standard":
-            base = generation_wait + save_overhead + 5.0
-        elif mode_name == "multiformat":
-            base = generation_wait + save_overhead + 7.0
-        else:
-            base = generation_wait + save_overhead + 10.0
-        if with_reference:
-            base += 3.0
-        return base
 
     if provider == "chatgpt":
         return CHATGPT_API_BASELINE_SECONDS
@@ -263,7 +248,7 @@ class GenerationRunStats:
         estimated_cost_per_image: float | None = None,
     ) -> None:
         self.planned_total = max(0, int(planned_total))
-        self.generation_method = str(generation_method or "browser")
+        self.generation_method = str(generation_method or "api")
         self.mode_name = str(mode_name or "")
         self.started_wall = datetime.now()
         self.started_monotonic = time.monotonic()

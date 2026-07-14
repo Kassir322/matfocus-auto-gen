@@ -29,20 +29,14 @@ ENV_KEY_BY_FIELD = {
 }
 
 DEFAULT_SETTINGS = {
-    "CURRENT_SITE": "aistudio",
-    "CURRENT_MODE": "standard",
     "PROMPTS_FILE": "data/all_card_prompts.txt",
     "START_FROM_CARD": 1,
     "END_CARD": 50,
     "CARDS_TO_PROCESS": 50,
-    "GENERATION_WAIT": 20.0,
-    "IMAGE_WAIT_INTERVAL": 2.0,
-    "CHECK_IMAGE_GENERATED": True,
     "FACE_ASPECT_RATIO": "4:3",
     "BACK_ASPECT_RATIO": "16:9",
     "OUTPUT_BASE_DIR": "generated_images",
     "OUTPUT_PROJECT_NAME": "project",
-    "GENERATION_METHOD": "browser",
     "API_PROVIDER": "nanobanana",
     "API_PROVIDER_WITH_REFS": "nanobanana",
     "API_MODEL": "imagen-4.0-generate-001",
@@ -154,7 +148,11 @@ def load_settings() -> dict:
         else:
             with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
-            settings = loaded if isinstance(loaded, dict) else {}
+            settings = {
+                key: value
+                for key, value in (loaded if isinstance(loaded, dict) else {}).items()
+                if key in SAVED_SETTINGS_KEYS
+            }
     except (OSError, json.JSONDecodeError):
         settings = {}
 

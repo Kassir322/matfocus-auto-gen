@@ -1,6 +1,6 @@
 ---
 name: auto-gen-api-agent
-description: Use when Codex needs to run, plan, or inspect small API-based image generation batches through the machine-local matfocus-auto-gen checkout, especially style-probe workflows where Codex creates or selects a prompts .txt file, calls `python main.py agent-plan` or `python main.py agent-run-api`, reads the JSON result, and reports generated image paths/logs without manually using hotkeys or the console menu.
+description: Use when Codex needs to run, plan, or inspect API image generation batches through the machine-local matfocus-auto-gen checkout. The project supports only multiformat_with_refs through API.
 ---
 
 # Auto Gen API Agent
@@ -80,50 +80,50 @@ The repo documentation for this workflow is `<repo-root>\version2\reference\AGEN
 Plan without API calls:
 
 ```powershell
-python main.py agent-plan --mode multiformat_with_refs --prompts "C:\path\to\Рабочие файлы\style_probe.txt" --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --json
+python main.py agent-plan --prompts "C:\path\to\Рабочие файлы\style_probe.txt" --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --json
 ```
 
 Plan with a global style reference:
 
 ```powershell
-python main.py agent-plan --mode multiformat_with_refs --prompts "C:\path\to\Рабочие файлы\style_probe.txt" --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --style-ref data\style_refs\default.png --json
+python main.py agent-plan --prompts "C:\path\to\Рабочие файлы\style_probe.txt" --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --style-ref data\style_refs\default.png --json
 ```
 
 Run synchronously through API:
 
 ```powershell
-python main.py agent-run-api --mode multiformat_with_refs --prompts "C:\path\to\Рабочие файлы\style_probe.txt" --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --json
+python main.py agent-run-api --prompts "C:\path\to\Рабочие файлы\style_probe.txt" --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --json
 ```
 
 Run with a global style reference:
 
 ```powershell
-python main.py agent-run-api --mode multiformat_with_refs --prompts "C:\path\to\Рабочие файлы\style_probe.txt" --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --style-ref data\style_refs\default.png --json
+python main.py agent-run-api --prompts "C:\path\to\Рабочие файлы\style_probe.txt" --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --style-ref data\style_refs\default.png --json
 ```
 
 Run with full prompt bodies suppressed in the log:
 
 ```powershell
-python main.py agent-run-api --mode multiformat_with_refs --prompts "C:\path\to\Рабочие файлы\style_probe.txt" --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --style-ref data\style_refs\default.png --no-log-prompts --json
+python main.py agent-run-api --prompts "C:\path\to\Рабочие файлы\style_probe.txt" --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --style-ref data\style_refs\default.png --no-log-prompts --json
 ```
 
 Run a long generation in a user-closeable PowerShell window:
 
 ```powershell
 $repo = if ($env:MATFOCUS_AUTO_GEN_REPO) { $env:MATFOCUS_AUTO_GEN_REPO } else { (Get-Content "$env:USERPROFILE\.codex\local\matfocus-auto-gen-repo.txt" -Raw).Trim() }
-Start-Process powershell -ArgumentList '-NoExit', '-Command', "Set-Location `"$repo`"; python main.py agent-run-api --mode multiformat_with_refs --prompts `"C:\path\to\Рабочие файлы\style_probe.txt`" --start 1 --end 77 --output-base-dir `"C:\path\to\Рабочие файлы\сгенерированные изображения`" --project-name `"project_name`" --json"
+Start-Process powershell -ArgumentList '-NoExit', '-Command', "Set-Location `"$repo`"; python main.py agent-run-api --prompts `"C:\path\to\Рабочие файлы\style_probe.txt`" --start 1 --end 77 --output-base-dir `"C:\path\to\Рабочие файлы\сгенерированные изображения`" --project-name `"project_name`" --json"
 ```
 
 Run with explicit API request sizes:
 
 ```powershell
-python main.py agent-run-api --mode multiformat_with_refs --prompts "C:\path\to\Рабочие файлы\style_probe.txt" --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --face-image-size 1024x1024 --back-image-size 1536x1024 --json
+python main.py agent-run-api --prompts "C:\path\to\Рабочие файлы\style_probe.txt" --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --face-image-size 1024x1024 --back-image-size 1536x1024 --json
 ```
 
 Run with an explicit output project folder suffix:
 
 ```powershell
-python main.py agent-run-api --mode multiformat_with_refs --prompts "C:\path\to\Рабочие файлы\style_probe.txt" --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --project-name countries --json
+python main.py agent-run-api --prompts "C:\path\to\Рабочие файлы\style_probe.txt" --start 1 --end 1 --output-base-dir "C:\path\to\Рабочие файлы\сгенерированные изображения" --project-name countries --json
 ```
 
 CLI-supported modes. This skill must still run only `multiformat_with_refs`:

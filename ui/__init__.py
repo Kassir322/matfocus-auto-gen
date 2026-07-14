@@ -1,7 +1,3 @@
-"""
-Пользовательский интерфейс
-"""
-from .hotkeys import HotkeyManager
-from .console import ConsoleInterface
+"""Консольное API-меню."""
 
-__all__ = ['HotkeyManager', 'ConsoleInterface']
+__all__ = []
