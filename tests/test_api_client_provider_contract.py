@@ -3,6 +3,7 @@
 import base64
 
 from utils import api_client
+from utils.paths import REPO_ROOT
 
 
 def test_chatgpt_prompt_prepends_aspect_ratio():
@@ -288,7 +289,7 @@ def test_session_output_folder_includes_project_name(tmp_path, monkeypatch):
     api_client.reset_session_folder()
     output_dir = api_client.get_session_output_folder({"OUTPUT_PROJECT_NAME": "countries"})
 
-    assert output_dir == "generated_images\\2026-06-14_18-30-00_countries"
+    assert output_dir == str(REPO_ROOT / "generated_images" / "2026-06-14_18-30-00_countries")
 
 
 def test_session_output_folder_sanitizes_project_name(tmp_path, monkeypatch):
@@ -298,7 +299,7 @@ def test_session_output_folder_sanitizes_project_name(tmp_path, monkeypatch):
     api_client.reset_session_folder()
     output_dir = api_client.get_session_output_folder({"OUTPUT_PROJECT_NAME": "  Моя  игра: cards/refs?  "})
 
-    assert output_dir == "generated_images\\2026-06-14_18-30-00_Моя_игра_cards_refs"
+    assert output_dir == str(REPO_ROOT / "generated_images" / "2026-06-14_18-30-00_Моя_игра_cards_refs")
 
 
 def test_session_output_folder_uses_project_fallback(tmp_path, monkeypatch):
@@ -308,7 +309,7 @@ def test_session_output_folder_uses_project_fallback(tmp_path, monkeypatch):
     api_client.reset_session_folder()
     output_dir = api_client.get_session_output_folder({"OUTPUT_PROJECT_NAME": " : / ? "})
 
-    assert output_dir == "generated_images\\2026-06-14_18-30-00_project"
+    assert output_dir == str(REPO_ROOT / "generated_images" / "2026-06-14_18-30-00_project")
 
 
 def test_session_output_folder_uses_relative_output_base_dir(tmp_path, monkeypatch):
@@ -323,7 +324,7 @@ def test_session_output_folder_uses_relative_output_base_dir(tmp_path, monkeypat
         }
     )
 
-    assert output_dir == "custom_images\\2026-06-14_18-30-00_countries"
+    assert output_dir == str(REPO_ROOT / "custom_images" / "2026-06-14_18-30-00_countries")
 
 
 def test_session_output_folder_uses_absolute_output_base_dir(tmp_path, monkeypatch):

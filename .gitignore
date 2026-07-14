@@ -177,17 +177,19 @@ Thumbs.db
 *.lnk
 
 # Project specific files
-# User data files (should not be in version control)
-# data/settings.json
-# data/coordinates.json
-data/
+data/*
+!data/
+!data/settings.json
+data/coordinates.json
+data/images/
+data/style_refs/
+data/*.txt
+data/*.jsonl
+data/*.xlsx
 
 # Generated images output
 generated_images/
-
-# Keep example/template files
-!data/settings_example.json
-!data/coordinates_example.json
+logs/
 
 # Generated executable files
 *.exe

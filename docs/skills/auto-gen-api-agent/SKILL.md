@@ -7,10 +7,16 @@ description: Use when Codex needs to run, plan, or inspect small API-based image
 
 Use this skill to operate the `auto-gen` application's machine-readable API CLI. The goal is to let Codex run small style-probe generations, collect results, and help the user choose/fix visual direction before large production runs.
 
-The active auto-gen repo path is machine-local. Resolve it before running commands:
+The active auto-gen repo path is:
+
+```text
+O:\git\matfocus-auto-gen
+```
+
+Resolve it before running commands:
 
 1. Use `MATFOCUS_AUTO_GEN_REPO` if the environment variable is set.
-2. Otherwise read `%USERPROFILE%\.codex\local\matfocus-auto-gen-repo.txt`.
+2. Otherwise use `O:\git\matfocus-auto-gen`.
 3. The resolved value must be an absolute path and must contain `main.py` and `.git`.
 4. If the path is missing or invalid, stop and ask the user to configure the local repo path.
 
@@ -29,7 +35,7 @@ The repo documentation for this workflow is `<repo-root>\version2\reference\AGEN
 - Never use pyautogui, hotkeys, or the console menu as a workaround for agent generation.
 - For long or full `agent-run-api` generation runs, start the process in a separate visible PowerShell window instead of the Codex tool terminal, so the user can close that window to stop generation if needed. Keep using normal synchronous tool calls for `agent-plan` and for very small quick probes when the user clearly expects immediate completion inside the chat.
 - Always use `multiformat_with_refs` for generation runs through this skill. Do not switch to `standard` or `multiformat`, even for quick tests, independent samples, or when the user does not provide reference images. Missing references are valid and the runtime will continue without them.
-- For consistent style across a batch, use one global style reference with `--style-ref <path>` or `API_STYLE_REFERENCE_IMAGE`. Prefer `<repo-root>\data\style_refs\default.png` when creating a durable local style sample.
+- For consistent style across a batch, pass one global style reference explicitly with `--style-ref <path>`. Prefer `<repo-root>\data\style_refs\default.png` when creating a durable local style sample. Use `--no-style-ref` when the current run must not use a style reference.
 - Treat the global style reference as style-only: it should transfer palette, line quality, rendering finish, texture, and detail level, not subject, object layout, or composition.
 - Style references are supported only in API `multiformat_with_refs` and require `API_PROVIDER_WITH_REFS=chatgpt`; `agent-plan`/`agent-run-api` should fail before generation if this is not true.
 - API prompt logging is on by default. Use `--no-log-prompts` only when the user does not want full raw/sent prompt text in the run log; the log will still keep prompt lengths.
@@ -41,11 +47,11 @@ The repo documentation for this workflow is `<repo-root>\version2\reference\AGEN
   - back/reverse references go in `<repo-root>\data\images\оборот`.
   Use the runtime lookup filename format `{card_number}_{side}.{ext}`, for example `20_лицо.jpg` or `20_оборот.png`. The optional long format is `{side}_{card_number}_{safe_card_name}.{ext}`. Do not rely on source names like `карточка_20_лицо.jpg`: keep them only as human-readable duplicates if useful, but create the runtime lookup filename too. Update any machine-readable generation queue or manifest so `reference_paths` point to these copied files, not to a project scratch folder.
 - Content/object references remain separate from the global style reference. When both are used, ChatGPT receives image 1 as the style reference and image 2 as the content reference.
-- Treat `data/settings.json` as the API/provider/model/key source. Do not print API keys.
+- Treat `data/settings.json` as the safe provider/model/default source only. API keys must come from `OPENAI_API_KEY` and `GOOGLE_API_KEY` in the environment or from the repo-root `.env`. Do not pass keys in CLI arguments and do not print API keys.
 - Do not print full prompts from logs into the chat unless the user explicitly asks for prompt debugging. Never expose API keys, Authorization headers, base64, image bytes, or file handles.
 - Agent runs are isolated by design: `agent-run-api` applies overrides in memory and should not change `data/settings.json` or advance `START_FROM_CARD`.
 - Agent runs may override API request size with `--image-size`, `--face-image-size`, and `--back-image-size`. Pass the requested size through to the provider API; do not enforce a local whitelist for ChatGPT sizes. These flags control only provider API request size; do not perform local resize, crop, padding, blur-fill, canvas expansion, or other post-processing on returned image files.
-- Agent runs must always pass `--output-base-dir`. Use the ready project output folder `...\Рабочие файлы\сгенерированные изображения`; the runtime creates timestamped wave folders inside it. This override is in-memory only and does not edit `data/settings.json`.
+- Agent runs must always pass local run parameters explicitly: `--prompts`, `--output-base-dir`, `--style-ref` or `--no-style-ref`, `--start`, `--end`, `--project-name`, `--face-image-size`, and `--back-image-size` when side-specific sizes matter. Use the ready project output folder `...\Рабочие файлы\сгенерированные изображения`; the runtime creates timestamped wave folders inside it. These overrides are in-memory only and do not edit `data/settings.json`.
 - Agent runs should set the output project folder suffix with `--project-name` whenever the user's project context is known; this applies in memory only and does not edit `data/settings.json`. Determine the project name from the chat context or source project directory, not from the prompts `.txt` filename. If a source path ends with a generic folder like `Рабочие файлы`, use the parent folder name; for example `O:\Yandex.Disk\0РГАНИЗОВАННЫЕ\история древнего мира\Рабочие файлы` means project name `история древнего мира`. Without the flag, the runtime uses `OUTPUT_PROJECT_NAME` from settings and writes to `generated_images/YYYY-MM-DD_HH-MM-SS_<project>`.
 - Save any prompts file as UTF-8 in the project workspace.
 - After a run, parse the final JSON and report `output_dir`, `log_file`, `images`, `succeeded`, `failed`, and `errors`.
@@ -59,16 +65,17 @@ The repo documentation for this workflow is `<repo-root>\version2\reference\AGEN
 2. Create or choose a prompts `.txt` file that matches the existing project format and keep it in the product/project workspace, normally under `...\Рабочие файлы\...`. Do not create project prompt batches inside the auto-gen repo's `data\` folder.
 3. If the task needs reference images, look for downloadable non-Wikipedia/non-Wikimedia sources first; do not spend attempts on Wikimedia direct image URLs.
 4. For reference-based face/back card generation, copy every selected reference into `data\images\лицо` or `data\images\оборот` according to the side being generated, then update the queue/manifest `reference_paths` to those destination files.
-5. Run `agent-plan --json` first unless the user explicitly wants an immediate run.
-6. If the plan is valid and the batch is small, run `agent-run-api --json` with `--output-base-dir`. Do not run browser generation.
-7. Parse the JSON result. If `ok=false`, summarize `errors` and point to `console_output` or `log_file` if present.
-8. Do not inspect generated images by default. Without an explicit user request for analysis, only report run metadata and list/show generated image paths. If the user explicitly asks to analyze, compare, rank, or choose a style, then inspect only the necessary generated images. If the task involves finding/adding reference images and generating from those references, inspect the reference and generated output, compare them, and report an independent success/failure assessment focused on the reference-dependent features.
-9. If the user approves a style direction, write the style notes/prompt pattern where the current task expects them. Do not invent a permanent location unless the user asks.
+5. Before planning, verify that the required provider key is available through `OPENAI_API_KEY`, `GOOGLE_API_KEY`, or repo-root `.env` without printing the value.
+6. Run `agent-plan --json` first unless the user explicitly wants an immediate run.
+7. If the plan is valid and the batch is small, run `agent-run-api --json` with explicit local CLI flags. Do not run browser generation.
+8. Parse the JSON result. If `ok=false`, summarize `errors` and point to `console_output` or `log_file` if present.
+9. Do not inspect generated images by default. Without an explicit user request for analysis, only report run metadata and list/show generated image paths. If the user explicitly asks to analyze, compare, rank, or choose a style, then inspect only the necessary generated images. If the task involves finding/adding reference images and generating from those references, inspect the reference and generated output, compare them, and report an independent success/failure assessment focused on the reference-dependent features.
+10. If the user approves a style direction, write the style notes/prompt pattern where the current task expects them. Do not invent a permanent location unless the user asks.
 
 ## Style References
 
 - Use `--style-ref <path>` for one batch-wide style reference in API `multiformat_with_refs`.
-- Use `--no-style-ref` when `API_STYLE_REFERENCE_IMAGE` is set in `data/settings.json` but the current run should ignore it.
+- Use `--style-ref <path>` explicitly for Codex runs that need style consistency. Use `--no-style-ref` when the current run should ignore any configured default.
 - Use `--no-log-prompts` when full prompt bodies should not be written to the run log. The log still records raw and sent prompt lengths.
 - In `agent-plan --json`, check `references_summary` and the top-level style/content counters before running generation.
 - In `agent-run-api --json`, prompt bodies are not returned in JSON; they are written only to the run log when prompt logging is enabled.

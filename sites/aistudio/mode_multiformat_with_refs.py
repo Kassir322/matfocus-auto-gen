@@ -10,6 +10,7 @@ from sites.aistudio import helpers
 from utils import generation_stats
 from sites.aistudio.mode_multiformat import load_tasks_from_file, get_plan_info
 from utils.log_writer import write_log_line
+from utils.paths import LOGS_DIR, repo_path
 
 # Задержки (ALGO_multiformat_with_refs п.9)
 BETWEEN_CLICKS = 0.5
@@ -62,7 +63,7 @@ def get_reference_path(side: str, card_number: int, card_name: str):
     
     Возвращает путь (str) или None.
     """
-    base_folder = os.path.join("data", "images", side)
+    base_folder = str(repo_path("data", "images", side))
     
     # Сначала ищем простой формат: {номер}_{сторона}.{ext}
     for ext in ["png", "jpg"]:
@@ -126,9 +127,9 @@ def _check_required_coordinates(coordinates: dict, relative_movements: dict) -> 
 
 def _get_log_filepath() -> str:
     """Путь к файлу лога: logs/auto-gen_YYYY-MM-DD_HH-MM-SS.log (LOGGING.md)."""
-    os.makedirs("logs", exist_ok=True)
+    os.makedirs(LOGS_DIR, exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    return os.path.join("logs", f"auto-gen_{timestamp}.log")
+    return os.path.join(str(LOGS_DIR), f"auto-gen_{timestamp}.log")
 
 
 def _make_chat_name(card_number: int, card_name: str, side: str, pair_number: int) -> str:

@@ -11,6 +11,7 @@ from datetime import datetime
 from sites.aistudio import helpers
 from utils import generation_stats
 from utils.log_writer import write_log_line
+from utils.paths import LOGS_DIR
 
 # Regex по PROMPTS_multiformat_format: Карточка N лицо|оборот название - Промпт M: текст (название может содержать дефисы, напр. Русско-японская война)
 LINE_PATTERN = re.compile(r"^Карточка (\d+) (лицо|оборот) (.+?) - Промпт (\d+): (.+)$")
@@ -173,9 +174,9 @@ def _check_required_coordinates(coordinates: dict, relative_movements: dict) -> 
 
 def _get_log_filepath() -> str:
     """Путь к файлу лога: logs/auto-gen_YYYY-MM-DD_HH-MM-SS.log (LOGGING.md)."""
-    os.makedirs("logs", exist_ok=True)
+    os.makedirs(LOGS_DIR, exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    return os.path.join("logs", f"auto-gen_{timestamp}.log")
+    return os.path.join(str(LOGS_DIR), f"auto-gen_{timestamp}.log")
 
 
 def _make_chat_name(card_number: int, card_name: str, side: str, pair_number: int) -> str:

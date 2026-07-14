@@ -19,6 +19,8 @@ from datetime import datetime
 from io import BytesIO
 from typing import Optional
 
+from utils.paths import resolve_app_path
+
 try:
     from google import genai
     from google.genai import types
@@ -96,7 +98,7 @@ def resolve_output_base_dir(settings: dict | None = None) -> str:
     raw_path = ""
     if settings:
         raw_path = str(settings.get("OUTPUT_BASE_DIR", "") or "")
-    return raw_path.strip() or "generated_images"
+    return resolve_app_path(raw_path, "generated_images")
 
 
 def build_session_output_folder(settings: dict | None = None, timestamp: str | None = None) -> str:
@@ -147,6 +149,13 @@ def get_api_key_field(provider: str) -> str:
     if provider == PROVIDER_CHATGPT:
         return "API_KEY_CHATGPT"
     return "API_KEY_NANOBANANA"
+
+
+def get_api_key_env_name(provider: str) -> str:
+    provider = normalize_provider(provider)
+    if provider == PROVIDER_CHATGPT:
+        return "OPENAI_API_KEY"
+    return "GOOGLE_API_KEY"
 
 
 def get_api_key(settings: dict, provider: str) -> str:

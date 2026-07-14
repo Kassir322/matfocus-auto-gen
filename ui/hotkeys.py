@@ -9,6 +9,7 @@ import signal
 import keyboard
 import pyautogui
 
+from utils import api_client
 from utils import process_control
 from utils import settings_store
 from utils.coordinates_store import (
@@ -453,10 +454,12 @@ class HotkeyManager:
                 print(f"Ошибка: {key_error}")
                 return False
             
-            settings[field_name] = new_key
+            settings_store.save_secret(provider, new_key)
+            refreshed = settings_store.load_settings()
+            settings[field_name] = refreshed.get(field_name, "")
             if provider == api_client.PROVIDER_NANOBANANA:
-                settings["API_KEY"] = new_key
-            print("✓ API ключ сохранён.")
+                settings["API_KEY"] = refreshed.get("API_KEY", "")
+            print("✓ API ключ сохранён в локальный .env.")
             return True
             
         except KeyboardInterrupt:
@@ -545,7 +548,8 @@ class HotkeyManager:
         generation_method = settings.get('GENERATION_METHOD', 'browser')
         print(f"  Метод генерации: {generation_method}")
         if generation_method == 'api':
-            api_key = settings.get('API_KEY', '').strip()
+            provider = api_client.get_api_provider(settings, with_reference=False)
+            api_key = api_client.get_api_key(settings, provider)
             if api_key:
                 print(f"  API ключ: {api_key[:10]}... (задан)")
             else:

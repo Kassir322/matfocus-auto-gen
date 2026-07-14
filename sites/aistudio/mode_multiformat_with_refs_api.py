@@ -16,6 +16,7 @@ from utils.agent_run_result import make_error_result, make_success_result
 from utils import chatgpt_parallel
 from utils import generation_stats
 from utils.log_writer import write_log_line
+from utils.paths import LOGS_DIR, repo_path
 from utils.prompt_parsers import (
     filter_tasks_by_range,
     get_plan_info_multiformat,
@@ -92,7 +93,7 @@ def _prepare_task_provider_metadata(tasks: list[dict], settings: dict) -> tuple[
 
 
 def get_reference_path(side: str, card_number: int, card_name: str):
-    base_folder = os.path.join("data", "images", side)
+    base_folder = str(repo_path("data", "images", side))
     for ext in ["png", "jpg"]:
         simple_name = os.path.join(base_folder, f"{card_number}_{side}.{ext}")
         if os.path.exists(simple_name):
@@ -216,9 +217,9 @@ def get_plan_info(tasks: list[dict]) -> dict:
 
 
 def _get_log_filepath() -> str:
-    os.makedirs("logs", exist_ok=True)
+    os.makedirs(LOGS_DIR, exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    return os.path.join("logs", f"auto-gen_{timestamp}.log")
+    return os.path.join(str(LOGS_DIR), f"auto-gen_{timestamp}.log")
 
 
 def _make_filename(card_number: int, card_name: str, side: str, pair_num: int, provider: str, model_name: str) -> str:

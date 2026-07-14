@@ -10,9 +10,10 @@
 - API mode supports `standard`, `multiformat`, and `multiformat_with_refs`.
 - Agent/Codex workflows must use API commands only; browser automation is not part of the agent contract.
 - `multiformat_with_refs` supports content references from `data/images/<side>/`.
-- `multiformat_with_refs` also supports one global style reference through `API_STYLE_REFERENCE_IMAGE` or agent CLI `--style-ref`.
+- `multiformat_with_refs` also supports one global style reference. Codex/agent runs should pass it explicitly through `--style-ref` or disable it with `--no-style-ref`.
 - Global style references require `API_PROVIDER_WITH_REFS=chatgpt`; when style and content references are both present, ChatGPT receives the style image first and content image second.
 - `API_LOG_PROMPTS=true` logs raw prompts and exact provider prompts to `logs/auto-gen_*.log`; `--no-log-prompts` disables full prompt text logging for one agent command.
+- API keys are loaded from `GOOGLE_API_KEY` and `OPENAI_API_KEY` or from the local root `.env`; they must not be stored in `data/settings.json`.
 
 ---
 
@@ -21,7 +22,7 @@
 Начиная с версии v2, программа поддерживает **два метода генерации**:
 
 1. **Browser** (браузерная автоматизация) — существующий метод через pyautogui, координаты и браузер
-2. **API** (Gemini API) — новый метод через Google Gemini API (модель `gemini-2.5-flash-image`)
+2. **API** — метод через Google/nanobanana или OpenAI/ChatGPT API
 
 Пользователь может выбрать метод в настройках через горячую клавишу `Ctrl+7`.
 
@@ -39,9 +40,9 @@
 
 ## Ограничения API-режима
 
-❌ **Требуется API ключ** (возможны лимиты бесплатного доступа)  
+❌ **Требуется API ключ** в окружении или локальном `.env`
 ❌ **Нет истории чатов в AI Studio** (изображения генерируются напрямую, без UI)  
-❌ **Режим с референсами не поддерживается** (в первой версии интеграции)
+❌ **Референсы требуют корректного provider**: style references поддерживаются только через ChatGPT
 
 ---
 
@@ -65,7 +66,7 @@ python main.py
 Нажмите `Ctrl+7`:
 
 1. Выберите метод генерации — **2. api**
-2. Введите ваш API ключ (или обновите существующий)
+2. Введите ваш API ключ; программа сохранит его в локальный `.env`, а не в JSON
 3. Выберите режим генерации (**standard** или **multiformat**)
 
 Выберите файл промптов (или положите файл в `data/`) и запустите генерацию через `Ctrl+Shift+S`
@@ -74,7 +75,7 @@ python main.py
 
 При запуске генерации программа:
 
-- Проверит валидность API ключа
+- Проверит валидность API ключа из окружения или `.env`
 - Инициализирует клиент Gemini API
 - Для каждого промпта:
   - Отправит запрос в API
@@ -278,13 +279,13 @@ pip install google-genai
 pip install google-genai
 ```
 
-### Ошибка: "API_KEY не задан"
+### Ошибка: "API ключ не задан"
 
 **Решение:**
 
 1. Запустите программу: `python main.py`
 2. Нажмите `Ctrl+7`
-3. Выберите метод `api` и введите ключ с https://aistudio.google.com/apikey
+3. Выберите метод `api` и введите ключ. Альтернатива: задайте `GOOGLE_API_KEY` или `OPENAI_API_KEY` в окружении или локальном `.env`.
 
 ### Ошибка: "API ключ должен начинаться с 'AIza'"
 
@@ -309,8 +310,9 @@ pip install google-genai
 
 **Решение:**
 
-- Используйте браузерный режим (`GENERATION_METHOD = "browser"`)
-- Или выберите режим `standard` или `multiformat` для API
+- Для style reference используйте `API_PROVIDER_WITH_REFS=chatgpt`.
+- Для content references положите файлы в `data/images/<side>/`.
+- Для Codex/agent workflow передавайте style reference через `--style-ref`.
 
 ---
 
@@ -319,10 +321,10 @@ pip install google-genai
 | Параметр          | Browser (pyautogui)        | API (Gemini)             |
 | ----------------- | -------------------------- | ------------------------ |
 | **Скорость**      | Медленно (клики, задержки) | Быстро (сетевые запросы) |
-| **Настройка**     | Координаты, окно браузера  | Только API ключ          |
+| **Настройка**     | Координаты, окно браузера  | API ключ в env/`.env`    |
 | **Стабильность**  | Зависит от UI              | Стабильно                |
 | **История чатов** | ✅ Сохраняется в AI Studio | ❌ Нет истории           |
-| **Референсы**     | ✅ Поддерживается          | ❌ Пока не реализовано   |
+| **Референсы**     | ✅ Поддерживается          | ✅ Поддерживается в `multiformat_with_refs` |
 | **Ресурсы**       | Браузер + Python           | Только Python            |
 | **Aspect ratio**  | ✅ Поддерживается          | ✅ Поддерживается        |
 | **Multiformat**   | ✅ Поддерживается          | ✅ Поддерживается        |

@@ -125,11 +125,11 @@
 | Ключ                | Тип   | Описание                                                                                                                                                                                                                                                 | Как задаётся                                                                       |
 | ------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `GENERATION_METHOD` | str   | Метод генерации: `"browser"` (через браузер) или `"api"` (через Gemini API)                                                                                                                                                                              | Пункт меню «Выбрать метод генерации» (выбор из 2 вариантов)                        |
-| `API_KEY`           | str   | API ключ Google AI Studio (получить на https://aistudio.google.com/apikey)                                                                                                                                                                               | Пункт меню «Настроить API ключ» (ввод строки)                                      |
+| `GOOGLE_API_KEY` / `OPENAI_API_KEY` | env | API ключи для Google/nanobanana и OpenAI/ChatGPT. В JSON не сохраняются. Локально можно хранить в корневом `.env`. | Пункт меню «Настроить API ключ» записывает `.env`; переменные окружения имеют приоритет |
 | `API_MODEL`         | str   | Название модели для генерации изображений. Доступные: `"imagen-4.0-fast-generate-001"` (быстрая), `"imagen-4.0-generate-001"` (стандартная, рекомендуется), `"imagen-4.0-ultra-generate-001"` (ультра качество), `"gemini-2.5-flash-image"` (устаревшая) | Горячая клавиша Ctrl+7 → выбор API метода → выбор модели (список из 4 вариантов)   |
 | `API_IMAGE_SIZE`    | str   | Разрешение изображения: `"1K"` (1024x1024) или `"2K"` (2048x2048) для Imagen 4. Для старых моделей доступны также `"4K"`. По умолчанию `"2K"` для Imagen 4                                                                                               | Горячая клавиша Ctrl+7 → выбор API метода → выбор разрешения (только для Imagen 4) |
 | `API_TIMEOUT`       | float | Таймаут API запросов в секундах (по умолчанию 60.0)                                                                                                                                                                                                      | Автоматически                                                                      |
-| `API_STYLE_REFERENCE_IMAGE` | str | Optional global style reference image path for API `multiformat_with_refs`; works with `API_PROVIDER_WITH_REFS=chatgpt`. | `data/settings.json` or agent CLI `--style-ref` / `--no-style-ref` |
+| `API_STYLE_REFERENCE_IMAGE` | str | Optional global style reference image path for API `multiformat_with_refs`; works with `API_PROVIDER_WITH_REFS=chatgpt`. | `data/settings.json` для интерактивного дефолта; Codex-запуски передают `--style-ref` / `--no-style-ref` |
 | `API_LOG_PROMPTS` | bool | Whether API runs write raw prompts and exact provider prompts to the run log. Default: `true`. | `data/settings.json`; agent CLI can disable with `--no-log-prompts` |
 | `API_CHATGPT_RATE_LIMIT_PROFILE` | str | Active ChatGPT API rate preset. Current local default: `"tier3"`. | CLI menu API -> Parallel ChatGPT API |
 | `API_CHATGPT_MAX_WORKERS` | int | Max parallel ChatGPT image workers. Tier 3 preset uses `50`. | CLI menu API -> Parallel ChatGPT API |
@@ -142,7 +142,7 @@
 - При `GENERATION_METHOD = "api"` не требуется настройка координат (Ctrl+0, Ctrl+Shift+P) и окна браузера (Ctrl+Shift+V).
 - API режим поддерживает `standard`, `multiformat` и `multiformat_with_refs`. В `multiformat_with_refs` content references берутся из `data/images/<side>/`, а global style reference задаётся через `API_STYLE_REFERENCE_IMAGE` или agent CLI `--style-ref`.
 - Для API режима используются те же настройки `FACE_ASPECT_RATIO` и `BACK_ASPECT_RATIO` (для мультиформата).
-- API ключ проверяется на валидность (должен начинаться с `"AIza"` и иметь ~39 символов).
+- API ключи не записываются в `data/settings.json`. Google/nanobanana ключ проверяется как `AIza...`, OpenAI/ChatGPT ключ проверяется отдельным правилом.
 - **Рекомендуется модель** `imagen-4.0-generate-001` с разрешением `2K` для оптимального баланса качества и скорости.
 - Для OpenAI `gpt-image-2` Tier 3 локальный пресет ставит `API_CHATGPT_RATE_LIMIT_IPM=50`, `API_CHATGPT_MAX_WORKERS=50`, окно `60` секунд. Если вручную менять воркеры или лимит, профиль становится `custom`.
 
@@ -164,7 +164,7 @@
 | `FACE_ASPECT_RATIO`     | Соотношение сторон для лицевой стороны (обязательно)                       |
 | `BACK_ASPECT_RATIO`     | Соотношение сторон для оборота (опционально для режимов без двух сторон)   |
 | `GENERATION_METHOD`     | Метод генерации: `"browser"` или `"api"`                                   |
-| `API_KEY`               | API ключ Google AI Studio (для метода `"api"`)                             |
+| `GOOGLE_API_KEY` / `OPENAI_API_KEY` | API ключи из окружения или локального `.env`; в `data/settings.json` не хранятся |
 | `API_MODEL`             | Название модели API (для метода `"api"`)                                   |
 | `API_IMAGE_SIZE`        | Разрешение изображения (для метода `"api"` с Pro моделью)                  |
 | `API_TIMEOUT`           | Таймаут API запросов (сек, для метода `"api"`)                             |

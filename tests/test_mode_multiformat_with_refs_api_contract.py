@@ -1,7 +1,5 @@
 """Focused checks for multiformat_with_refs API reference metadata."""
 
-import os
-
 from sites.aistudio import mode_multiformat_with_refs_api
 from utils import api_client
 
@@ -46,7 +44,11 @@ def test_prepare_task_provider_metadata_routes_global_style_reference_to_refs_pr
 
 
 def test_prepare_task_provider_metadata_marks_style_and_content_when_both_refs_exist(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        mode_multiformat_with_refs_api,
+        "repo_path",
+        lambda *parts: tmp_path.joinpath(*parts),
+    )
     style_path = tmp_path / "style.png"
     content_dir = tmp_path / "data" / "images" / "лицо"
     content_dir.mkdir(parents=True)
@@ -65,7 +67,7 @@ def test_prepare_task_provider_metadata_marks_style_and_content_when_both_refs_e
 
     assert task["_reference_mode"] == api_client.REFERENCE_MODE_STYLE_AND_CONTENT
     assert task["_style_reference_path"] == str(style_path)
-    assert task["_content_reference_path"] == os.path.join("data", "images", "лицо", "1_лицо.png")
+    assert task["_content_reference_path"] == str(content_path)
 
 
 def test_generate_single_image_api_uses_style_reference_and_logs_sent_prompt(tmp_path, monkeypatch):

@@ -9,6 +9,7 @@ import sys
 
 from utils import api_client
 from utils.generation_runner import can_start_generation_api
+from utils.paths import resolve_app_path
 from utils.prompt_parsers import filter_tasks_by_range
 from utils.settings_store import load_settings
 
@@ -62,7 +63,7 @@ def _settings_from_args(args: argparse.Namespace) -> dict:
             "CURRENT_SITE": "aistudio",
             "CURRENT_MODE": args.mode,
             "GENERATION_METHOD": "api",
-            "PROMPTS_FILE": args.prompts,
+            "PROMPTS_FILE": resolve_app_path(args.prompts),
             "START_FROM_CARD": args.start,
             "END_CARD": args.end,
             "SAVE_PROGRESS_TO_SETTINGS": False,
@@ -75,11 +76,11 @@ def _settings_from_args(args: argparse.Namespace) -> dict:
     if getattr(args, "back_image_size", None):
         settings["API_BACK_IMAGE_SIZE"] = args.back_image_size
     if getattr(args, "output_base_dir", None):
-        settings["OUTPUT_BASE_DIR"] = args.output_base_dir
+        settings["OUTPUT_BASE_DIR"] = resolve_app_path(args.output_base_dir)
     if getattr(args, "project_name", None):
         settings["OUTPUT_PROJECT_NAME"] = args.project_name
     if getattr(args, "style_ref", None):
-        settings["API_STYLE_REFERENCE_IMAGE"] = args.style_ref
+        settings["API_STYLE_REFERENCE_IMAGE"] = resolve_app_path(args.style_ref)
     if getattr(args, "no_style_ref", False):
         settings["API_STYLE_REFERENCE_IMAGE"] = ""
     if getattr(args, "no_log_prompts", False):

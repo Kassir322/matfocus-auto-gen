@@ -7,9 +7,9 @@ import os
 
 from utils import api_client
 from utils.console_control import disable_quick_edit_mode
+from utils.paths import DATA_DIR
 
 
-DATA_DIR = "data"
 SITES = ["aistudio"]
 MODES_BY_SITE = {"aistudio": ["standard", "multiformat", "multiformat_with_refs"]}
 
@@ -157,13 +157,14 @@ def select_mode_for_site(settings: dict) -> None:
 
 
 def select_prompts_file(settings: dict) -> None:
-    if not os.path.isdir(DATA_DIR):
+    data_dir = str(DATA_DIR)
+    if not os.path.isdir(data_dir):
         print("Папка data/ не найдена.")
         return
 
     names = []
-    for name in os.listdir(DATA_DIR):
-        path = os.path.join(DATA_DIR, name)
+    for name in os.listdir(data_dir):
+        path = os.path.join(data_dir, name)
         if not name.lower().endswith(".txt"):
             continue
         if not os.path.isfile(path):
@@ -171,7 +172,7 @@ def select_prompts_file(settings: dict) -> None:
         names.append(name)
 
     names.sort(
-        key=lambda name: os.path.getctime(os.path.join(DATA_DIR, name)),
+        key=lambda name: os.path.getctime(os.path.join(data_dir, name)),
         reverse=True,
     )
     if not names:
@@ -181,7 +182,7 @@ def select_prompts_file(settings: dict) -> None:
     _show_section_header("Выбор файла промптов")
     current = settings.get("PROMPTS_FILE", "")
     for index, name in enumerate(names, start=1):
-        path = os.path.join(DATA_DIR, name)
+        path = os.path.join(data_dir, name)
         mark = " (текущий)" if path == current else ""
         print(f"{index}. {name}{mark}")
     print("0. Назад")
@@ -198,7 +199,7 @@ def select_prompts_file(settings: dict) -> None:
         print("Ошибка: неверный номер.")
         return
 
-    settings["PROMPTS_FILE"] = os.path.join(DATA_DIR, names[index - 1])
+    settings["PROMPTS_FILE"] = os.path.join(data_dir, names[index - 1])
     _save(settings)
     print(f"Файл промптов сохранён: {settings['PROMPTS_FILE']}")
 
@@ -285,11 +286,14 @@ def configure_api_key(settings: dict, provider: str) -> None:
         print(f"Ошибка: {key_error}")
         return
 
-    settings[field_name] = new_key
+    from utils import settings_store
+
+    settings_store.save_secret(provider, new_key)
+    refreshed = settings_store.load_settings()
+    settings[field_name] = refreshed.get(field_name, "")
     if provider == api_client.PROVIDER_NANOBANANA:
-        settings["API_KEY"] = new_key
-    _save(settings)
-    print(f"Ключ {provider_name} сохранён.")
+        settings["API_KEY"] = refreshed.get("API_KEY", "")
+    print(f"Ключ {provider_name} сохранён в локальный .env.")
 
 
 def configure_api_models(settings: dict) -> None:

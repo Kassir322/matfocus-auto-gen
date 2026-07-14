@@ -1,10 +1,12 @@
 """Focused checks for the active v2 settings/coordinates storage contract."""
 
 import json
+import os
 
 from utils import coordinates_store
 from utils import generation_runner
 from utils import settings_store
+from utils.paths import REPO_ROOT
 
 
 def test_apply_defaults_fills_missing_fields_and_recomputes_cards_to_process():
@@ -29,7 +31,8 @@ def test_apply_defaults_fills_missing_fields_and_recomputes_cards_to_process():
     assert settings["API_CHATGPT_MAX_WORKERS"] == 50
     assert settings["API_CHATGPT_RATE_LIMIT_IPM"] == 50
     assert settings["API_CHATGPT_RATE_LIMIT_TPM"] == 800000
-    assert settings["OUTPUT_BASE_DIR"] == "generated_images"
+    assert settings["PROMPTS_FILE"] == str(REPO_ROOT / "data" / "all_card_prompts.txt")
+    assert settings["OUTPUT_BASE_DIR"] == str(REPO_ROOT / "generated_images")
     assert settings["BACK_ASPECT_RATIO"] == "16:9"
     assert settings["CARDS_TO_PROCESS"] == 6
 
@@ -51,16 +54,19 @@ def test_save_and_load_settings_use_json_store_with_defaults(tmp_path, monkeypat
     loaded = settings_store.load_settings()
 
     assert loaded["CURRENT_MODE"] == "multiformat_with_refs"
-    assert loaded["PROMPTS_FILE"] == "data/custom.txt"
+    assert loaded["PROMPTS_FILE"] == str(REPO_ROOT / "data" / "custom.txt")
     assert loaded["CARDS_TO_PROCESS"] == 3
     assert loaded["API_MODEL_WITH_REFS"] == "gemini-2.5-flash-image"
     assert loaded["API_PROVIDER"] == "nanobanana"
-    assert loaded["OUTPUT_BASE_DIR"] == "generated_images"
+    assert loaded["OUTPUT_BASE_DIR"] == str(REPO_ROOT / "generated_images")
     assert loaded["GENERATION_METHOD"] == "browser"
 
 
-def test_apply_defaults_migrates_legacy_api_key_to_nanobanana_field():
-    """Legacy API_KEY should populate the dedicated nanobanana field."""
+def test_apply_defaults_uses_legacy_api_key_only_in_memory(monkeypatch):
+    """Legacy API_KEY may populate runtime compatibility fields, but not storage."""
+    monkeypatch.setattr(settings_store, "ENV_PATH", "missing-test.env")
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     settings = {
         "API_KEY": "AIzaSyLEGACY_KEY_12345678901234567890",
     }
@@ -69,6 +75,68 @@ def test_apply_defaults_migrates_legacy_api_key_to_nanobanana_field():
 
     assert settings["API_KEY_NANOBANANA"] == "AIzaSyLEGACY_KEY_12345678901234567890"
     assert settings["API_KEY"] == settings["API_KEY_NANOBANANA"]
+
+
+def test_env_keys_populate_legacy_fields_in_memory(monkeypatch):
+    monkeypatch.setenv("GOOGLE_API_KEY", "AIzaSyENV_GOOGLE_KEY_123456789012345")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-env-openai-key-1234567890")
+    settings = {}
+
+    settings_store.apply_defaults(settings)
+
+    assert settings["API_KEY_NANOBANANA"] == "AIzaSyENV_GOOGLE_KEY_123456789012345"
+    assert settings["API_KEY"] == "AIzaSyENV_GOOGLE_KEY_123456789012345"
+    assert settings["API_KEY_CHATGPT"] == "sk-env-openai-key-1234567890"
+
+
+def test_env_file_does_not_override_process_env(tmp_path, monkeypatch):
+    env_path = tmp_path / ".env"
+    env_path.write_text(
+        "GOOGLE_API_KEY=AIzaSyFILE_GOOGLE_KEY_123456789012345\n"
+        "OPENAI_API_KEY=sk-file-openai-key-1234567890\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(settings_store, "ENV_PATH", str(env_path))
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-process-openai-key-1234567890")
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+
+    loaded = settings_store.load_settings()
+
+    assert loaded["API_KEY_NANOBANANA"] == "AIzaSyFILE_GOOGLE_KEY_123456789012345"
+    assert loaded["API_KEY_CHATGPT"] == "sk-process-openai-key-1234567890"
+
+
+def test_save_settings_does_not_write_secret_fields(tmp_path, monkeypatch):
+    settings_path = tmp_path / "settings.json"
+    monkeypatch.setattr(settings_store, "SETTINGS_PATH", str(settings_path))
+
+    settings_store.save_settings(
+        {
+            "API_KEY": "AIzaSyLEGACY_KEY_12345678901234567890",
+            "API_KEY_NANOBANANA": "AIzaSyNEW_KEY_1234567890123456789012",
+            "API_KEY_CHATGPT": "sk-test-chatgpt-key-1234567890",
+            "SAVE_PROGRESS_TO_SETTINGS": False,
+        }
+    )
+
+    saved = json.loads(settings_path.read_text(encoding="utf-8"))
+    assert "API_KEY" not in saved
+    assert "API_KEY_NANOBANANA" not in saved
+    assert "API_KEY_CHATGPT" not in saved
+    assert "SAVE_PROGRESS_TO_SETTINGS" not in saved
+
+
+def test_save_secret_updates_env_file_atomically(tmp_path, monkeypatch):
+    env_path = tmp_path / ".env"
+    env_path.write_text("OTHER=value\nOPENAI_API_KEY=old\n", encoding="utf-8")
+    monkeypatch.setattr(settings_store, "ENV_PATH", str(env_path))
+
+    settings_store.save_secret("chatgpt", "sk-new-openai-key-1234567890")
+
+    text = env_path.read_text(encoding="utf-8")
+    assert "OTHER=value" in text
+    assert "OPENAI_API_KEY=sk-new-openai-key-1234567890" in text
+    assert os.environ["OPENAI_API_KEY"] == "sk-new-openai-key-1234567890"
 
 
 def test_update_start_card_keeps_end_card_range_valid(tmp_path, monkeypatch):
@@ -167,6 +235,18 @@ def test_set_coordinate_updates_selected_dictionary_and_saves(tmp_path, monkeypa
 
     assert loaded_coordinates["PROMPT_INPUT_AFTER_IMAGE"] == (101, 202)
     assert loaded_relative_movements["TO_SAVE_OPTION"] == (7, 8)
+
+
+def test_repo_rooted_runtime_paths_do_not_follow_current_directory(tmp_path, monkeypatch):
+    from sites.aistudio import mode_standard_api
+    from utils import api_client
+
+    monkeypatch.chdir(tmp_path)
+
+    assert settings_store.SETTINGS_PATH == str(REPO_ROOT / "data" / "settings.json")
+    assert coordinates_store.COORDINATES_PATH == str(REPO_ROOT / "data" / "coordinates.json")
+    assert api_client.resolve_output_base_dir({"OUTPUT_BASE_DIR": "generated_images"}) == str(REPO_ROOT / "generated_images")
+    assert mode_standard_api._get_log_filepath().startswith(str(REPO_ROOT / "logs"))
 
 
 def test_browser_worker_passes_coordinates_and_relative_movements_separately(monkeypatch):

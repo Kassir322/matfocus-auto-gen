@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import base64
 import argparse
-import json
 import re
+import sys
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -16,10 +16,13 @@ from pathlib import Path
 from openai import OpenAI
 from PIL import Image
 
-
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from utils.settings_store import load_settings
+
 PROMPTS_PATH = ROOT / "data" / "countries_clear_nanobanana_prompts.txt"
-SETTINGS_PATH = ROOT / "data" / "settings.json"
 OUTPUT_DIR = ROOT / "generated_images" / f"custom_size_probe_{datetime.now():%Y-%m-%d_%H-%M-%S}"
 
 MODEL = "gpt-image-2"
@@ -33,11 +36,10 @@ LINE_RE = re.compile(
 
 
 def load_api_key() -> str:
-    with SETTINGS_PATH.open("r", encoding="utf-8") as f:
-        settings = json.load(f)
+    settings = load_settings()
     api_key = str(settings.get("API_KEY_CHATGPT", "") or "").strip()
     if not api_key:
-        raise RuntimeError("API_KEY_CHATGPT не задан в data/settings.json")
+        raise RuntimeError("OPENAI_API_KEY не задан в окружении или локальном .env")
     return api_key
 
 

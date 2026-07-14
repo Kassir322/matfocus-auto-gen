@@ -14,10 +14,12 @@ Keep it updated together with any change to `utils/agent_cli.py`, API-mode retur
 - `utils/agent_cli.py` must force `GENERATION_METHOD=api` and route only to `sites/aistudio/*_api.py` modules.
 - Run `agent-plan --json` before generation unless the user explicitly asks to skip planning.
 - Agent runs must stay isolated from `data/settings.json`: command-line overrides are applied in memory and must not advance `START_FROM_CARD`.
+- API keys are not stored in `data/settings.json`. Use `OPENAI_API_KEY` for ChatGPT/OpenAI and `GOOGLE_API_KEY` for nanobanana/Google; a local root `.env` may define the same variables and is not committed.
 - Non-agent output defaults to `generated_images/<timestamp>_<project>`.
 - Agent commands must pass `--output-base-dir VALUE`. The output folder is then named `<VALUE>/<timestamp>_<project>`. For project work, Codex agents should pass the ready base folder `...\Рабочие файлы\сгенерированные изображения`.
 - The project name comes from `OUTPUT_PROJECT_NAME` in `data/settings.json`, or from the agent's `--project-name` override.
 - `multiformat_with_refs` can use one global style reference in addition to per-card content references.
+- Codex agents should pass the style reference explicitly with `--style-ref PATH` or disable it with `--no-style-ref`; do not rely on machine-local defaults for project work.
 - API prompt logging is enabled by default and writes the exact provider prompt to the run log, not to the JSON result.
 
 ## Commands
@@ -102,6 +104,13 @@ Current local settings are tuned for OpenAI Tier 3 on `gpt-image-2`:
 - `API_CHATGPT_MONTHLY_USAGE_LIMIT_USD=1000`
 
 The runtime limiter uses the IPM/window values to gate launches. TPM and monthly usage limit are stored for visibility; they are not a hard runtime stop.
+
+## Configuration Portability
+
+- `data/settings.json` is a tracked safe defaults file and must not contain `API_KEY`, `API_KEY_NANOBANANA`, or `API_KEY_CHATGPT`.
+- Agent-specific paths and ranges must be passed explicitly: `--prompts`, `--output-base-dir`, `--style-ref` or `--no-style-ref`, `--start`, `--end`, `--project-name`, `--face-image-size`, and `--back-image-size`.
+- Relative app paths are resolved from the repository root, not from the current PowerShell directory.
+- `data/images/<side>/` remains the content-reference lookup location.
 
 Supported modes:
 

@@ -4,9 +4,15 @@ standard, multiformat и multiformat_with_refs.
 """
 import os
 
+from utils.paths import resolve_app_path
+
+
+def _prompt_path(settings: dict) -> str:
+    return resolve_app_path(settings.get("PROMPTS_FILE") or "")
+
 
 def can_start_generation(settings: dict) -> tuple[bool, str | None]:
-    path = settings.get("PROMPTS_FILE") or ""
+    path = _prompt_path(settings)
     if not path or not path.strip():
         return False, "Файл промптов не выбран."
     if not os.path.isfile(path):
@@ -44,7 +50,7 @@ def can_start_generation(settings: dict) -> tuple[bool, str | None]:
 def run_standard_worker(settings: dict, coordinates: dict, relative_movements: dict) -> None:
     from sites.aistudio import mode_standard
 
-    path = settings.get("PROMPTS_FILE") or ""
+    path = _prompt_path(settings)
     if not path or not path.strip():
         print("Файл промптов не выбран. Укажите в настройках.")
         return
@@ -70,7 +76,7 @@ def run_standard_worker(settings: dict, coordinates: dict, relative_movements: d
 def run_multiformat_worker(settings: dict, coordinates: dict, relative_movements: dict) -> None:
     from sites.aistudio import mode_multiformat
 
-    path = settings.get("PROMPTS_FILE") or ""
+    path = _prompt_path(settings)
     if not path or not path.strip():
         print("Файл промптов не выбран. Укажите в настройках.")
         return
@@ -96,7 +102,7 @@ def run_multiformat_worker(settings: dict, coordinates: dict, relative_movements
 def run_multiformat_with_refs_worker(settings: dict, coordinates: dict, relative_movements: dict) -> None:
     from sites.aistudio import mode_multiformat_with_refs
 
-    path = settings.get("PROMPTS_FILE") or ""
+    path = _prompt_path(settings)
     if not path or not path.strip():
         print("Файл промптов не выбран. Укажите в настройках.")
         return
@@ -122,7 +128,7 @@ def run_multiformat_with_refs_worker(settings: dict, coordinates: dict, relative
 def can_start_generation_api(settings: dict) -> tuple[bool, str | None]:
     from utils import api_client
 
-    path = settings.get("PROMPTS_FILE") or ""
+    path = _prompt_path(settings)
     if not path or not path.strip():
         return False, "Файл промптов не выбран."
     if not os.path.isfile(path):
@@ -138,7 +144,8 @@ def can_start_generation_api(settings: dict) -> tuple[bool, str | None]:
         api_key = api_client.get_api_key(settings, provider)
         if not api_key:
             provider_name = api_client.get_provider_display_name(provider)
-            return False, f"Не задан API ключ для провайдера {provider_name}. Настройте его в меню."
+            env_name = api_client.get_api_key_env_name(provider)
+            return False, f"Не задан API ключ для провайдера {provider_name}. Задайте {env_name} или сохраните ключ в локальный .env."
         key_valid, key_error = api_client.check_api_key_format(api_key, provider=provider)
         if not key_valid:
             provider_name = api_client.get_provider_display_name(provider)
@@ -179,7 +186,7 @@ def run_standard_worker_api(settings: dict, coordinates: dict = None, relative_m
 
     api_client.reset_session_folder()
 
-    path = settings.get("PROMPTS_FILE") or ""
+    path = _prompt_path(settings)
     if not path or not path.strip():
         print("Файл промптов не выбран. Укажите в настройках.")
         return
@@ -198,7 +205,7 @@ def run_multiformat_worker_api(settings: dict, coordinates: dict = None, relativ
 
     api_client.reset_session_folder()
 
-    path = settings.get("PROMPTS_FILE") or ""
+    path = _prompt_path(settings)
     if not path or not path.strip():
         print("Файл промптов не выбран. Укажите в настройках.")
         return
@@ -221,7 +228,7 @@ def run_multiformat_with_refs_worker_api(
 
     api_client.reset_session_folder()
 
-    path = settings.get("PROMPTS_FILE") or ""
+    path = _prompt_path(settings)
     if not path or not path.strip():
         print("Файл промптов не выбран. Укажите в настройках.")
         return

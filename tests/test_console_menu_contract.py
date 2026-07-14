@@ -107,8 +107,8 @@ def test_select_prompts_file_persists_choice_from_data_directory(monkeypatch):
     monkeypatch.setattr(
         "os.path.getctime",
         lambda path: {
-            "data\\older.txt": 100.0,
-            "data\\newer.txt": 200.0,
+            str(console_menu.DATA_DIR / "older.txt"): 100.0,
+            str(console_menu.DATA_DIR / "newer.txt"): 200.0,
         }[path],
     )
     monkeypatch.setattr(builtins, "input", lambda prompt="": "1")

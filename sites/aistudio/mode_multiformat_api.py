@@ -10,6 +10,7 @@ from utils.agent_run_result import make_error_result, make_success_result
 from utils import chatgpt_parallel
 from utils import generation_stats
 from utils.log_writer import write_log_line
+from utils.paths import LOGS_DIR
 from utils.prompt_parsers import (
     filter_tasks_by_range,
     get_plan_info_multiformat,
@@ -50,9 +51,9 @@ def get_plan_info(tasks: list[dict]) -> dict:
 
 
 def _get_log_filepath() -> str:
-    os.makedirs("logs", exist_ok=True)
+    os.makedirs(LOGS_DIR, exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    return os.path.join("logs", f"auto-gen_{timestamp}.log")
+    return os.path.join(str(LOGS_DIR), f"auto-gen_{timestamp}.log")
 
 
 def _make_filename(card_number: int, side: str, pair_num: int) -> str:

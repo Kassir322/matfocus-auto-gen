@@ -6,8 +6,10 @@
 import json
 import os
 
-# Путь к файлу координат (относительно рабочей директории)
-COORDINATES_PATH = "data/coordinates.json"
+from utils.paths import repo_path
+
+# Путь к файлу координат относительно корня репозитория.
+COORDINATES_PATH = str(repo_path("data", "coordinates.json"))
 
 # Дефолты по COORDINATES_KEYS, раздел 5. (0, 0) = не задана.
 DEFAULT_COORDINATES = {
