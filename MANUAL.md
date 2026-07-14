@@ -281,21 +281,16 @@ python main.py
 ```
 auto-gen/
 ├── main.py                          # Главный файл программы
-├── config/
-│   ├── coordinates.py              # Управление координатами
-│   └── settings.py                 # Управление настройками
-├── core/
-│   ├── file_handler.py            # Парсер файлов с промптами
-│   ├── image_generator.py         # Стандартный генератор
-│   ├── multi_format_generator.py  # Мультиформатный генератор ⭐
-│   └── chat_manager.py            # Управление чатами
 ├── ui/
 │   ├── console.py                 # Консольный интерфейс
+│   ├── console_menu.py            # Консольное меню
 │   └── hotkeys.py                 # Горячие клавиши
+├── sites/aistudio/                 # Режимы Google AI Studio и API
 ├── utils/
-│   ├── clipboard.py               # Работа с буфером обмена
-│   ├── logger.py                  # Логирование
-│   ├── process_manager.py         # Управление процессами
+│   ├── process_control.py         # Управление воркер-процессом
+│   ├── generation_runner.py       # Запуск режимов
+│   ├── settings_store.py          # Настройки
+│   ├── coordinates_store.py       # Координаты
 │   └── window_manager.py          # Управление рабочими окнами 🪟
 ├── data/
 │   ├── coordinates.json           # Сохранённые координаты

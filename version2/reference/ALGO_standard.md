@@ -189,7 +189,7 @@ automation_worker(start_card, ..., cards_to_process)
 
 ## 10. Паузы (задержки)
 
-Задержки берутся из `config/coordinates.py → DELAYS`:
+Задержки берутся из настроек v2 (`data/settings.json` через `utils/settings_store.py`):
 
 | Ключ                  | Значение | Назначение                         |
 | --------------------- | -------- | ---------------------------------- |

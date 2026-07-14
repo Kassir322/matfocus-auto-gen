@@ -10,10 +10,7 @@ import main
 from ui import console_menu
 from ui.console import ConsoleInterface
 from ui.hotkeys import HotkeyManager
-import utils
-from utils import logger as legacy_logger
 from utils import process_control
-from utils import process_manager
 
 
 def test_main_uses_v2_runtime_contract():
@@ -22,10 +19,7 @@ def test_main_uses_v2_runtime_contract():
 
     assert "from utils import process_control" in source
     assert "from utils.generation_runner import" in source
-    assert "from utils.process_manager import" not in source
-    assert "from utils import process_manager" not in source
-    assert "from config.settings import SettingsManager" not in source
-    assert "SettingsManager(" not in source
+    assert "process_control.start_worker" in source
 
 
 def test_console_interface_is_instruction_only():
@@ -69,28 +63,6 @@ def test_hotkey_manager_constructor_stays_callback_based():
     assert hotkeys.on_setup_window is noop
     assert hotkeys.on_show_plan is noop
     assert hasattr(hotkeys, "register_hotkeys")
-
-
-def test_legacy_process_manager_is_marked_as_legacy():
-    """The old process manager should stay available only as a documented shim."""
-    module_doc = process_manager.__doc__ or ""
-    class_doc = process_manager.ProcessManager.__doc__ or ""
-
-    assert "legacy" in module_doc.lower()
-    assert "legacy" in class_doc.lower()
-
-
-def test_legacy_console_logger_is_marked_as_legacy():
-    """The old console logger should not look like the active v2 logging layer."""
-    module_doc = legacy_logger.__doc__ or ""
-
-    assert "legacy" in module_doc.lower()
-    assert "not part of the active v2 logging contract" in module_doc.lower()
-
-
-def test_utils_package_exports_only_active_helpers():
-    """The legacy process manager should not be advertised by the package root."""
-    assert "ProcessManager" not in getattr(utils, "__all__", [])
 
 
 def test_console_menu_starts_browser_worker_with_explicit_type(monkeypatch):

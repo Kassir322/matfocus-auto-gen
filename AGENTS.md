@@ -3,9 +3,9 @@
 ## Purpose
 
 This repository contains a Windows automation app for generating images in Google AI Studio.
-The active product is the v2 runtime in the repository root. `old_code/` is a legacy v1 reference copy.
+The active product is the v2 runtime in the repository root.
 
-This file is meant to help coding agents avoid breaking the current architecture and avoid confusing v2 with legacy layers.
+This file is meant to help coding agents preserve the active v2 architecture.
 
 ## Current Runtime Contract
 
@@ -30,14 +30,8 @@ This file is meant to help coding agents avoid breaking the current architecture
 - Active site implementation:
   - `sites/aistudio/`
 
-Do not treat `utils/process_manager.py` as the main process model. It is a legacy compatibility shim.
-
-## Legacy Boundaries
-
-- `old_code/` is v1 reference code. Do not “sync back” changes from there unless explicitly requested.
-- Root-level `config/` and `core/` still exist for legacy compatibility and some older tests.
-- If changing active v2 runtime code, prefer root `main.py`, `ui/`, `utils/`, `sites/aistudio/`.
-- If touching legacy shims, mark them clearly as legacy and avoid expanding their responsibility.
+`utils/process_control.py` is the only process-control layer. Active code lives in
+root `main.py`, `ui/`, `utils/`, and `sites/aistudio/`.
 
 ## Source Of Truth
 
@@ -76,17 +70,15 @@ Some docs in `README.md` and `version2/` are historically useful but partially o
 ## Editing Guidance
 
 - Prefer small, local changes over broad refactors unless explicitly requested.
-- Do not rewrite active v2 code back toward the older `config/` + `core/` architecture.
-- When cleaning structure, separate active runtime code from legacy compatibility code.
+- Keep the active function-based v2 architecture; do not introduce a parallel
+  settings, coordinates, or process-management layer.
 - Update `version2/planning/V2_AUDIT_TRACKER.md` when a change closes or changes an audited finding.
 - Update `version2/reference/AGENT_CLI.md` whenever the Codex/agent CLI behavior, JSON contract, preferred mode, or prompt format changes.
 - Preserve user data files in `data/`, generated outputs in `generated_images/`, and logs unless the user explicitly asks otherwise.
 
 ## Verification Guidance
 
-- Prefer targeted verification over broad legacy test runs.
-- The old `tests/test_suite.py` is mostly a legacy compatibility suite.
-- Prefer adding or running focused checks for the active v2 contract when changing v2 runtime structure.
+- Prefer targeted checks for the active v2 contract when changing runtime structure.
 
 ## Good First Read For Agents
 

@@ -71,7 +71,7 @@ def paste_prompt_text(prompt_text: str, delay: float = 0.05) -> None
 - **Аргументы**:
   - `prompt_text` — строка для вставки.
   - `delay` — пауза после вставки (секунды).
-- **Поведение**: записать текст в буфер обмена (через `utils.clipboard` или аналог), затем `press_keys("ctrl", "v", delay=delay)`.
+- **Поведение**: записать текст через `pyperclip`, затем `press_keys("ctrl", "v", delay=delay)`.
 - **Ограничения**: предполагается, что фокус уже в поле ввода промпта (после `click_prompt_input`).
 
 ---
@@ -204,7 +204,7 @@ def wait_until_image_ready(
 
 - `pyautogui` — клики, перемещение, скриншоты, горячие клавиши.
 - `time` — паузы.
-- Модуль/функция работы с буфером обмена (например, `utils.clipboard.set_clipboard_text` или аналог в v2).
+- `pyperclip` для текста в буфере обмена.
 - Для `compute_difference_score` и, при необходимости, конвертации скриншотов — `PIL` (Pillow): `ImageChops`, `ImageStat` и т.п.
 
 ---
