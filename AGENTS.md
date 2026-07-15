@@ -9,10 +9,11 @@
 
 - Точка входа: `main.py`.
 - Машинный интерфейс: `utils/agent_cli.py`; контракт —
-  `version2/reference/AGENT_CLI.md`.
+  `docs/reference/AGENT_CLI.md`.
 - Меню: `ui/console_menu.py`.
 - Запуск: `utils/generation_runner.py`.
-- Настройки: `utils/settings_store.py` и `data/settings.json`.
+- Настройки: `utils/settings_store.py`, локальный `data/settings.json` и
+  образец `data/settings.example.json`.
 - API-реализация: `sites/aistudio/mode_multiformat_with_refs_api.py`.
 
 Программа работает только через API.
@@ -22,18 +23,18 @@
 При конфликте сведений используйте следующий порядок:
 
 1. Работающий код в корне репозитория.
-2. `version2/reference/AGENT_CLI.md` для машинных команд.
-3. Остальные актуальные справочники в `version2/reference/`.
+2. `docs/reference/AGENT_CLI.md` для машинных команд.
+3. Остальные актуальные справочники в `docs/reference/`.
 4. `docs/PROJECT_STATUS.md` для истории и ближайших планов.
 5. `README.md` и `MANUAL.md` для краткого запуска.
 
 ## Важные файлы
 
-- Настройки: `data/settings.json`.
+- Локальные настройки: `data/settings.json`; образец: `data/settings.example.json`.
 - Журналы запусков: `logs/`.
 - Результаты: `generated_images/`.
 - Журнал развития: `docs/PROJECT_STATUS.md`.
-- Контракт машинного интерфейса: `version2/reference/AGENT_CLI.md`.
+- Контракт машинного интерфейса: `docs/reference/AGENT_CLI.md`.
 
 ## Правила работы
 
@@ -48,7 +49,7 @@
 - После каждого содержательного изменения кода, документации или планов
   обновляйте `docs/PROJECT_STATUS.md`: состояние, планы и историю.
 - При изменении команд, JSON-контракта или формата промптов обновляйте
-  `version2/reference/AGENT_CLI.md`.
+  `docs/reference/AGENT_CLI.md`.
 
 ## Проверка
 

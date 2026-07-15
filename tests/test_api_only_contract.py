@@ -43,6 +43,19 @@ def test_settings_drop_removed_browser_fields(tmp_path, monkeypatch):
     assert settings["PROMPTS_FILE"].endswith("x.txt")
 
 
+def test_settings_use_template_when_local_file_is_missing(tmp_path, monkeypatch):
+    template = tmp_path / "settings.example.json"
+    template.write_text(json.dumps({"PROMPTS_FILE": "template.txt", "END_CARD": 3}), encoding="utf-8")
+    monkeypatch.setattr(settings_store, "SETTINGS_PATH", str(tmp_path / "settings.json"))
+    monkeypatch.setattr(settings_store, "SETTINGS_TEMPLATE_PATH", str(template))
+    monkeypatch.setattr(settings_store, "ENV_PATH", str(tmp_path / ".env"))
+
+    settings = settings_store.load_settings()
+
+    assert settings["PROMPTS_FILE"].endswith("template.txt")
+    assert settings["END_CARD"] == 3
+
+
 def test_menu_runs_api_directly(monkeypatch):
     monkeypatch.setattr(console_menu, "can_start_generation_api", lambda _settings: (True, None))
     monkeypatch.setattr(console_menu, "run_api", lambda _settings: {"succeeded": 2, "failed": 0})

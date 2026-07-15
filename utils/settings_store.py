@@ -1,9 +1,9 @@
 """
 Хранилище настроек v2.
 
-`data/settings.json` хранит только безопасные общие настройки. API-ключи
-загружаются из окружения или локального `.env` и присутствуют только в памяти
-для совместимости со старым runtime-контрактом.
+`data/settings.json` хранит локальные безопасные настройки. При его отсутствии
+используется отслеживаемый образец `data/settings.example.json`. API-ключи
+загружаются из окружения или локального `.env` и присутствуют только в памяти.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from utils.paths import repo_path, resolve_app_path, storage_path_value
 
 
 SETTINGS_PATH = str(repo_path("data", "settings.json"))
+SETTINGS_TEMPLATE_PATH = str(repo_path("data", "settings.example.json"))
 ENV_PATH = str(repo_path(".env"))
 
 SECRET_KEYS = {"API_KEY", "API_KEY_NANOBANANA", "API_KEY_CHATGPT"}
@@ -29,10 +30,10 @@ ENV_KEY_BY_FIELD = {
 }
 
 DEFAULT_SETTINGS = {
-    "PROMPTS_FILE": "data/all_card_prompts.txt",
+    "PROMPTS_FILE": "",
     "START_FROM_CARD": 1,
-    "END_CARD": 50,
-    "CARDS_TO_PROCESS": 50,
+    "END_CARD": None,
+    "CARDS_TO_PROCESS": 0,
     "FACE_ASPECT_RATIO": "4:3",
     "BACK_ASPECT_RATIO": "16:9",
     "OUTPUT_BASE_DIR": "generated_images",
@@ -136,25 +137,27 @@ def apply_defaults(settings: dict) -> dict:
     return settings
 
 
+def _load_stored_settings(path: str | os.PathLike) -> dict:
+    try:
+        with open(path, "r", encoding="utf-8") as source:
+            loaded = json.load(source)
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return {
+        key: value
+        for key, value in (loaded if isinstance(loaded, dict) else {}).items()
+        if key in SAVED_SETTINGS_KEYS
+    }
+
+
 def load_settings() -> dict:
     """
-    Читает безопасные настройки из data/settings.json и дополняет ключами из
-    окружения или `.env` только в памяти.
+    Читает локальные настройки или образец и дополняет ключами из окружения
+    либо `.env` только в памяти.
     """
     env_values = load_env_file()
-    try:
-        if not os.path.isfile(SETTINGS_PATH):
-            settings = {}
-        else:
-            with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
-                loaded = json.load(f)
-            settings = {
-                key: value
-                for key, value in (loaded if isinstance(loaded, dict) else {}).items()
-                if key in SAVED_SETTINGS_KEYS
-            }
-    except (OSError, json.JSONDecodeError):
-        settings = {}
+    source_path = SETTINGS_PATH if os.path.isfile(SETTINGS_PATH) else SETTINGS_TEMPLATE_PATH
+    settings = _load_stored_settings(source_path)
 
     for key, value in DEFAULT_SETTINGS.items():
         if key not in settings:
@@ -206,7 +209,7 @@ def _atomic_write_text(path: str | os.PathLike, content: str) -> None:
 
 
 def save_settings(settings: dict) -> None:
-    """Записывает в data/settings.json только безопасные общие настройки."""
+    """Записывает локальные настройки в data/settings.json."""
     storage = sanitize_for_storage(settings)
     content = json.dumps(storage, indent=2, ensure_ascii=False) + "\n"
     _atomic_write_text(SETTINGS_PATH, content)

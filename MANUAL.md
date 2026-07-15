@@ -12,4 +12,4 @@ API, папки вывода и стилевого референса. Пунк�
 
 Для машинных запусков сначала используйте `agent-plan`, затем `agent-run-api`.
 В обеих командах обязательны `--prompts` и `--output-base-dir`; параметр
-`--mode` отсутствует. Подробный контракт — `version2/reference/AGENT_CLI.md`.
+`--mode` отсутствует. Подробный контракт — `docs/reference/AGENT_CLI.md`.

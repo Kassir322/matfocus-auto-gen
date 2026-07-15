@@ -27,6 +27,6 @@ python main.py agent-run-api --prompts data\prompts.txt --output-base-dir "C:\п
 ## Документация
 
 - `MANUAL.md` — краткая работа с меню.
-- `version2/reference/AGENT_CLI.md` — контракт машинных команд.
-- `version2/reference/REFERENCES_format.md` — референсы.
+- `docs/reference/AGENT_CLI.md` — контракт машинных команд.
+- `docs/reference/REFERENCES_format.md` — референсы.
 - `docs/PROJECT_STATUS.md` — состояние, планы и история развития.

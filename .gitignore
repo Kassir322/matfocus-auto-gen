@@ -179,8 +179,7 @@ Thumbs.db
 # Project specific files
 data/*
 !data/
-!data/settings.json
-data/coordinates.json
+!data/settings.example.json
 data/images/
 data/style_refs/
 data/*.txt

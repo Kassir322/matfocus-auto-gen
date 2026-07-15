@@ -17,7 +17,7 @@ The active auto-gen repo path is machine-local. Resolve it before running comman
 
 The old `O:\Yandex.Disk\auto-gen` checkout is obsolete and must not be used for running commands, reading current app docs, or editing the application.
 
-The repo documentation for this workflow is `<repo-root>\version2\reference\AGENT_CLI.md`. Read it when command behavior, prompt format, JSON fields, or defaults matter.
+The repo documentation for this workflow is `<repo-root>\docs\reference\AGENT_CLI.md`. Read it when command behavior, prompt format, JSON fields, or defaults matter.
 
 ## Core Rules
 

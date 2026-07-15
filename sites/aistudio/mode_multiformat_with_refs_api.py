@@ -15,6 +15,7 @@ from utils import api_client
 from utils.agent_run_result import make_error_result, make_success_result
 from utils import chatgpt_parallel
 from utils import generation_stats
+from utils.log_retention import cleanup_old_logs
 from utils.log_writer import write_log_line
 from utils.paths import LOGS_DIR, repo_path
 from utils.prompt_parsers import (
@@ -218,6 +219,7 @@ def get_plan_info(tasks: list[dict]) -> dict:
 
 def _get_log_filepath() -> str:
     os.makedirs(LOGS_DIR, exist_ok=True)
+    cleanup_old_logs()
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     return os.path.join(str(LOGS_DIR), f"auto-gen_{timestamp}.log")
 
@@ -352,9 +354,7 @@ def _generate_single_image_api(task: dict, clients: dict, settings: dict, log_fi
 def run_mode(
     tasks: list[dict],
     settings: dict,
-    coordinates: dict = None,
-    relative_movements: dict = None,
-) -> None:
+) -> dict:
     mode_name = "multiformat_with_refs"
     start_card = int(settings.get("START_FROM_CARD", 1))
     end_card = settings.get("END_CARD")
@@ -532,7 +532,7 @@ def run_mode(
             _safe_print(line)
 
         _safe_print(f"Изображения будут сохранены в: {session_folder}")
-        _safe_print("Генерация через API запущена. Esc — остановка.")
+        _safe_print("Генерация через API запущена. Для остановки используйте Ctrl+C.")
 
         total_images = len(tasks)
         cards_seen = {task["card_number"] for task in tasks}
