@@ -30,6 +30,8 @@ def _build_parser() -> argparse.ArgumentParser:
         sub.add_argument("--image-size", default=None)
         sub.add_argument("--face-image-size", default=None)
         sub.add_argument("--back-image-size", default=None)
+        sub.add_argument("--background", choices=("transparent", "opaque", "auto"), default=None,
+                         help="Фон Images API; только ChatGPT, без изменения сохранённых настроек")
         sub.add_argument("--output-base-dir", required=True)
         sub.add_argument("--project-name", default=None)
         style_group = sub.add_mutually_exclusive_group()
@@ -54,6 +56,7 @@ def _settings_from_args(args: argparse.Namespace) -> dict:
         ("image_size", "API_IMAGE_SIZE"),
         ("face_image_size", "API_FACE_IMAGE_SIZE"),
         ("back_image_size", "API_BACK_IMAGE_SIZE"),
+        ("background", "API_IMAGE_BACKGROUND"),
     ):
         value = getattr(args, argument, None)
         if value:
@@ -75,6 +78,9 @@ def _error(command: str, message: str) -> dict:
 
 
 def _plan_result(args: argparse.Namespace, settings: dict) -> dict:
+    background_error = api_client.validate_image_background_settings(settings)
+    if background_error:
+        return _error(args.command, background_error)
     style_error = mode_module.validate_style_reference_settings(settings)
     if style_error:
         return _error(args.command, style_error)
@@ -103,6 +109,7 @@ def _plan_result(args: argparse.Namespace, settings: dict) -> dict:
         "model_with_refs": api_client.get_api_model(settings, provider_with_refs, with_reference=True),
         "quality": api_client.get_api_quality(settings, provider) or None,
         "image_size": api_client.resolve_image_size(settings),
+        "image_background": settings.get("API_IMAGE_BACKGROUND"),
         "face_image_size": api_client.resolve_image_size(settings, "лицо"),
         "back_image_size": api_client.resolve_image_size(settings, "оборот"),
         "output_base_dir": api_client.resolve_output_base_dir(settings),
@@ -123,6 +130,7 @@ def _run_result(args: argparse.Namespace, settings: dict) -> dict:
     result.setdefault("mode", MODE_NAME)
     result.setdefault("output_base_dir", api_client.resolve_output_base_dir(settings))
     result.setdefault("project_name", api_client.resolve_output_project_name(settings))
+    result.setdefault("image_background", settings.get("API_IMAGE_BACKGROUND"))
     return result
 
 

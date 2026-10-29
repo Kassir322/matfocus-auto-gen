@@ -32,6 +32,10 @@ def can_start_generation_api(settings: dict) -> tuple[bool, str | None]:
     if not os.path.isfile(path):
         return False, f"Файл не найден: {path}"
 
+    background_error = api_client.validate_image_background_settings(settings)
+    if background_error:
+        return False, background_error
+
     style_error = mode_multiformat_with_refs_api.validate_style_reference_settings(settings)
     if style_error:
         return False, style_error

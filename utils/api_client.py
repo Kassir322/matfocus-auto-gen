@@ -353,6 +353,28 @@ def _generate_image_nanobanana(
     return None, f"Нет inline_data в response.parts. Parts: {', '.join(parts_info)}"
 
 
+def validate_image_background_settings(settings: dict) -> str | None:
+    background = settings.get("API_IMAGE_BACKGROUND")
+    if background is None:
+        return None
+    if background not in {"transparent", "opaque", "auto"}:
+        return "Фон API должен быть transparent, opaque или auto."
+    if any(get_api_provider(settings, with_reference=refs) != PROVIDER_CHATGPT for refs in (False, True)):
+        return "Явный фон API поддерживается только для ChatGPT; оба API-провайдера должны быть chatgpt."
+    return None
+
+
+def _image_background_options(background: str | None) -> dict:
+    if background is None:
+        return {}
+    if background not in {"transparent", "opaque", "auto"}:
+        raise ValueError("Фон API должен быть transparent, opaque или auto.")
+    options = {"background": background}
+    if background == "transparent":
+        options["output_format"] = "png"
+    return options
+
+
 def _generate_image_chatgpt(
     client,
     prompt: str,
@@ -362,6 +384,7 @@ def _generate_image_chatgpt(
     quality: str,
     timeout: float,
     sent_prompt: str | None = None,
+    background: str | None = None,
 ) -> tuple[Optional[bytes], Optional[str]]:
     request_size, size_error = normalize_image_size_for_provider(PROVIDER_CHATGPT, image_size)
     if size_error:
@@ -374,6 +397,7 @@ def _generate_image_chatgpt(
         n=1,
         size=request_size,
         quality=quality or "low",
+        **_image_background_options(background),
     )
 
     if not response:
@@ -405,6 +429,7 @@ def _generate_image_chatgpt_with_reference(
     quality: str,
     timeout: float,
     sent_prompt: str | None = None,
+    background: str | None = None,
 ) -> tuple[Optional[bytes], Optional[str]]:
     request_size, size_error = normalize_image_size_for_provider(PROVIDER_CHATGPT, image_size)
     if size_error:
@@ -420,6 +445,7 @@ def _generate_image_chatgpt_with_reference(
             n=1,
             size=request_size,
             quality=quality or "low",
+            **_image_background_options(background),
         )
 
     if not response:
@@ -452,6 +478,7 @@ def _generate_image_chatgpt_with_references(
     quality: str,
     timeout: float,
     sent_prompt: str | None = None,
+    background: str | None = None,
 ) -> tuple[Optional[bytes], Optional[str]]:
     request_size, size_error = normalize_image_size_for_provider(PROVIDER_CHATGPT, image_size)
     if size_error:
@@ -474,6 +501,7 @@ def _generate_image_chatgpt_with_references(
             n=1,
             size=request_size,
             quality=quality or "low",
+            **_image_background_options(background),
         )
     finally:
         for image_file in image_files:
@@ -511,11 +539,14 @@ def generate_image(
     provider: str = DEFAULT_PROVIDER,
     quality: str = "low",
     sent_prompt: str | None = None,
+    background: str | None = None,
 ) -> tuple[Optional[bytes], Optional[str]]:
     if not prompt or not prompt.strip():
         return None, "Пустой промпт"
 
     provider = normalize_provider(provider)
+    if background is not None and provider != PROVIDER_CHATGPT:
+        return None, "Явный фон API поддерживается только для ChatGPT."
     try:
         if provider == PROVIDER_CHATGPT:
             return _generate_image_chatgpt(
@@ -527,6 +558,7 @@ def generate_image(
                 quality=quality,
                 timeout=timeout,
                 sent_prompt=sent_prompt,
+                background=background,
             )
 
         if not GENAI_AVAILABLE:
@@ -616,11 +648,14 @@ def generate_image_with_references(
     provider: str = DEFAULT_PROVIDER,
     quality: str = "low",
     sent_prompt: str | None = None,
+    background: str | None = None,
 ) -> tuple[Optional[bytes], Optional[str]]:
     if not prompt or not prompt.strip():
         return None, "Пустой промпт"
 
     provider = normalize_provider(provider)
+    if background is not None and provider != PROVIDER_CHATGPT:
+        return None, "Явный фон API поддерживается только для ChatGPT."
     style_reference_image_path = str(style_reference_image_path or "").strip()
     content_reference_image_path = str(content_reference_image_path or "").strip()
 
@@ -646,6 +681,7 @@ def generate_image_with_references(
             provider=provider,
             quality=quality,
             sent_prompt=sent_prompt,
+            background=background,
         )
 
     reference_paths = []
@@ -673,6 +709,7 @@ def generate_image_with_references(
             quality=quality,
             timeout=timeout,
             sent_prompt=sent_prompt,
+            background=background,
         )
     except Exception as e:
         return None, f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
@@ -689,11 +726,14 @@ def generate_image_with_reference(
     provider: str = DEFAULT_PROVIDER,
     quality: str = "low",
     sent_prompt: str | None = None,
+    background: str | None = None,
 ) -> tuple[Optional[bytes], Optional[str]]:
     if not prompt or not prompt.strip():
         return None, "Пустой промпт"
 
     provider = normalize_provider(provider)
+    if background is not None and provider != PROVIDER_CHATGPT:
+        return None, "Явный фон API поддерживается только для ChatGPT."
 
     if not reference_image_path or not os.path.exists(reference_image_path):
         return None, f"Референсное изображение не найдено: {reference_image_path}"
@@ -710,6 +750,7 @@ def generate_image_with_reference(
                 quality=quality,
                 timeout=timeout,
                 sent_prompt=sent_prompt,
+                background=background,
             )
         except Exception as e:
             return None, f"{type(e).__name__}: {e}\n{traceback.format_exc()}"

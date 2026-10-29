@@ -288,7 +288,7 @@ def _generate_single_image_api(task: dict, clients: dict, settings: dict, log_fi
     write_log_line(log_file, f"[GEN] Генерация: {file_name}")
     write_log_line(
         log_file,
-        f"[API_REQUEST] provider={provider_name}, model={model}, size={image_size}, aspect={aspect_ratio}, reference_mode={reference_mode}, prompt_length={len(prompt_text)}, sent_prompt_length={len(sent_prompt)}, with_ref={with_reference}",
+        f"[API_REQUEST] provider={provider_name}, model={model}, background={settings.get('API_IMAGE_BACKGROUND')}, size={image_size}, aspect={aspect_ratio}, reference_mode={reference_mode}, prompt_length={len(prompt_text)}, sent_prompt_length={len(sent_prompt)}, with_ref={with_reference}",
     )
     _log_prompt_details(
         log_file=log_file,
@@ -314,6 +314,7 @@ def _generate_single_image_api(task: dict, clients: dict, settings: dict, log_fi
             provider=provider,
             quality=quality,
             sent_prompt=sent_prompt,
+            background=settings.get("API_IMAGE_BACKGROUND"),
         )
     else:
         image_bytes, error_msg = api_client.generate_image(
@@ -326,6 +327,7 @@ def _generate_single_image_api(task: dict, clients: dict, settings: dict, log_fi
             provider=provider,
             quality=quality,
             sent_prompt=sent_prompt,
+            background=settings.get("API_IMAGE_BACKGROUND"),
         )
 
     if not image_bytes:
@@ -367,6 +369,11 @@ def run_mode(
         message = "Нет задач в выбранном диапазоне карточек."
         _safe_print(message)
         return make_error_result(mode_name, message)
+
+    background_error = api_client.validate_image_background_settings(settings)
+    if background_error:
+        _safe_print(background_error)
+        return make_error_result(mode_name, background_error)
 
     style_reference_error = validate_style_reference_settings(settings)
     if style_reference_error:
